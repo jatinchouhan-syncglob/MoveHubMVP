@@ -2,6 +2,8 @@ export const ROUTES = {
   SPLASH: 'Splash',
   DISCLAIMER: 'Disclaimer',
   PROFILE_SETUP: 'ProfileSetup',
+  WELLNESS_PACING_PROFILE: 'WellnessPacingProfile',
+  WELLNESS_PRESCRIPTION: 'WellnessPrescription',
   DRAWER: 'DrawerNavigator',
   DASHBOARD: 'Dashboard',
   ACTIVITY_TRACKING: 'ActivityTracking',

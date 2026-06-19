@@ -12,6 +12,8 @@ export type RootStackParamList = {
   Splash: undefined;
   Disclaimer: undefined;
   ProfileSetup: undefined;
+  WellnessPacingProfile: undefined;
+  WellnessPrescription: undefined;
   DrawerNavigator: NavigatorScreenParams<DrawerParamList>;
 };
 

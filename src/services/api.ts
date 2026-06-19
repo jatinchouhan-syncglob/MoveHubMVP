@@ -52,6 +52,70 @@ const simulateNetworkCall = <T>(mockData: T, delayMs = 800): Promise<T> => {
   });
 };
 
+const calculateDynamicCalorieTrends = (activities: Activity[]): TrendData => {
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const data = [0, 0, 0, 0, 0, 0, 0];
+  
+  const today = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() - (6 - i));
+    
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+    labels[i] = dayLabel;
+    
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+    
+    const dayCalories = activities
+      .filter((act) => {
+        const timestamp = new Date(act.timestamp).getTime();
+        return timestamp >= dayStart && timestamp <= dayEnd;
+      })
+      .reduce((sum, act) => sum + act.caloriesBurned, 0);
+      
+    data[i] = dayCalories;
+  }
+  
+  return {
+    labels,
+    data,
+    legendLabel: 'Calories Burned (kcal)',
+  };
+};
+
+const calculateDynamicStepTrends = (activities: Activity[]): TrendData => {
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const data = [0, 0, 0, 0, 0, 0, 0];
+  
+  const today = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() - (6 - i));
+    
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+    labels[i] = dayLabel;
+    
+    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+    
+    const daySteps = activities
+      .filter((act) => {
+        const timestamp = new Date(act.timestamp).getTime();
+        return act.type === 'Walking' && timestamp >= dayStart && timestamp <= dayEnd;
+      })
+      .reduce((sum, act) => sum + act.value, 0);
+      
+    data[i] = daySteps;
+  }
+  
+  return {
+    labels,
+    data,
+    legendLabel: 'Steps Traveled',
+  };
+};
+
 /**
  * Clean API Services Wrapper.
  * Currently returns local dummy data wrapped in Promises to simulate server responses.
@@ -76,7 +140,25 @@ export const apiService = {
   // --- Activities ---
   async getActivities(): Promise<Activity[]> {
     // Future API: return axiosInstance.get('/activities');
-    const cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    
+    // Safety Net: explicitly remove the old version of the activities key if present
+    try {
+      const oldCached = await storageHelper.getItem<Activity[]>('@movehub_activities' as any);
+      if (oldCached) {
+        await storageHelper.removeItem('@movehub_activities' as any);
+      }
+    } catch (e) {
+      console.warn('Failed to clear old cached key:', e);
+    }
+
+    let cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    
+    // Safety Net: clear out any stale entries containing mock ids (act-1, act-2, act-3)
+    if (cachedActivities && cachedActivities.some(a => a.id === 'act-1' || a.id === 'act-2' || a.id === 'act-3')) {
+      cachedActivities = [];
+      await storageHelper.setItem(STORAGE_KEYS.ACTIVITIES, []);
+    }
+
     if (!cachedActivities) {
       await storageHelper.setItem(STORAGE_KEYS.ACTIVITIES, MOCK_ACTIVITIES);
       return simulateNetworkCall(MOCK_ACTIVITIES);
@@ -86,7 +168,14 @@ export const apiService = {
 
   async logActivity(activity: Omit<Activity, 'id' | 'timestamp'>): Promise<Activity> {
     // Future API: return axiosInstance.post('/activities', activity);
-    const cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    let cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    
+    // Safety Net: clear out any stale entries containing mock ids (act-1, act-2, act-3)
+    if (cachedActivities && cachedActivities.some(a => a.id === 'act-1' || a.id === 'act-2' || a.id === 'act-3')) {
+      cachedActivities = [];
+      await storageHelper.setItem(STORAGE_KEYS.ACTIVITIES, []);
+    }
+
     const currentActivities = cachedActivities || MOCK_ACTIVITIES;
     const newActivity: Activity = {
       ...activity,
@@ -119,12 +208,14 @@ export const apiService = {
   },
 
   async getCalorieTrends(): Promise<TrendData> {
-    // Future API: return axiosInstance.get('/trends/calories');
-    return simulateNetworkCall(MOCK_CALORIE_TRENDS);
+    const cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    const currentActivities = cachedActivities || [];
+    return simulateNetworkCall(calculateDynamicCalorieTrends(currentActivities));
   },
 
   async getStepTrends(): Promise<TrendData> {
-    // Future API: return axiosInstance.get('/trends/steps');
-    return simulateNetworkCall(MOCK_STEP_TRENDS);
+    const cachedActivities = await storageHelper.getItem<Activity[]>(STORAGE_KEYS.ACTIVITIES);
+    const currentActivities = cachedActivities || [];
+    return simulateNetworkCall(calculateDynamicStepTrends(currentActivities));
   },
 };

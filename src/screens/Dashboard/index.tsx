@@ -1,17 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, RefreshControl } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  ScrollView,
+  RefreshControl,
+  Modal,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { Loader } from '../../components/common/Loader';
+import { CustomButton } from '../../components/common/CustomButton';
 import { StatCard } from '../../components/cards/StatCard';
 import { ActivityCard } from '../../components/cards/ActivityCard';
 import { TrendChart } from '../../components/charts/TrendChart';
 import { apiService } from '../../services/api';
 import { UserProfile, Activity, TrendData } from '../../types';
 import { getInitials } from '../../utils/helpers';
-import { sumCaloriesBurned, sumActiveMinutes, calculateGoalPercentage } from '../../utils/calculations';
+import {
+  sumCaloriesBurned,
+  sumActiveMinutes,
+  calculateGoalPercentage,
+} from '../../utils/calculations';
 
 export const DashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
@@ -19,6 +33,7 @@ export const DashboardScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [calorieTrends, setCalorieTrends] = useState<TrendData | null>(null);
+  const [celebrationVisible, setCelebrationVisible] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -27,10 +42,29 @@ export const DashboardScreen: React.FC = () => {
         apiService.getActivities(),
         apiService.getCalorieTrends(),
       ]);
-      
+
       setProfile(profileData);
       setActivities(activitiesData);
       setCalorieTrends(trendsData);
+
+      // Check if target is achieved today (since midnight)
+      const today = new Date();
+      const startOfToday = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      ).getTime();
+      const todayCal = activitiesData
+        .filter(activity => {
+          const timestamp = new Date(activity.timestamp).getTime();
+          return timestamp >= startOfToday;
+        })
+        .reduce((sum, act) => sum + (act.caloriesBurned || 0), 0);
+
+      const target = profileData.calorieGoal || 2400;
+      if (todayCal >= target && todayCal > 0) {
+        setCelebrationVisible(true);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -39,9 +73,25 @@ export const DashboardScreen: React.FC = () => {
     }
   };
 
+  // Re-fetch data and check target every time the dashboard screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, []),
+  );
+
+  // Auto-close target achieved celebration modal after 3 seconds
   useEffect(() => {
-    fetchData();
-  }, []);
+    let timer: any;
+    if (celebrationVisible) {
+      timer = setTimeout(() => {
+        setCelebrationVisible(false);
+      }, 3000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [celebrationVisible]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -52,18 +102,32 @@ export const DashboardScreen: React.FC = () => {
     return <Loader fullScreen message="Loading dashboard statistics..." />;
   }
 
-  const todayCalories = sumCaloriesBurned(activities);
-  const todayMinutes = sumActiveMinutes(activities);
-  const totalSteps = activities
+  // Filter activities to only calculate stats for today (since midnight)
+  const todayActivities = activities.filter(activity => {
+    const today = new Date();
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).getTime();
+    const timestamp = new Date(activity.timestamp).getTime();
+    return timestamp >= startOfToday;
+  });
+
+  const todayCalories = sumCaloriesBurned(todayActivities);
+  const todayMinutes = sumActiveMinutes(todayActivities);
+  const totalSteps = todayActivities
     .filter(a => a.type === 'Walking')
     .reduce((sum, act) => sum + act.value, 0);
 
-  const goalPercentage = profile ? calculateGoalPercentage(todayCalories, profile.calorieGoal) : 0;
+  const goalPercentage = profile
+    ? calculateGoalPercentage(todayCalories, profile.calorieGoal)
+    : 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader title={STRINGS.DASHBOARD.TITLE} showDrawerButton />
-      
+
       {/* Background Soft Glow Spots */}
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
@@ -71,7 +135,11 @@ export const DashboardScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -92,10 +160,12 @@ export const DashboardScreen: React.FC = () => {
               <Text style={styles.greeting} numberOfLines={1}>
                 Hello, {profile?.name || 'User'}! 👋
               </Text>
-              <Text style={styles.subGreeting}>Let's smash your health targets today.</Text>
+              <Text style={styles.subGreeting}>
+                Let's smash your health targets today.
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.divider} />
 
           {/* Daily Calorie Goal Progress Track */}
@@ -103,13 +173,21 @@ export const DashboardScreen: React.FC = () => {
             <View style={styles.progressLabels}>
               <Text style={styles.progressTitle}>🔥 Daily Calorie Target</Text>
               <Text style={styles.progressValue}>
-                {todayCalories.toLocaleString()} / {(profile?.calorieGoal || 2400).toLocaleString()} kcal
+                {todayCalories.toLocaleString()} /{' '}
+                {(profile?.calorieGoal || 2400).toLocaleString()} kcal
               </Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${goalPercentage}%` }]} />
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${goalPercentage}%` },
+                ]}
+              />
             </View>
-            <Text style={styles.progressPercentageText}>{goalPercentage}% completed</Text>
+            <Text style={styles.progressPercentageText}>
+              {goalPercentage}% completed
+            </Text>
           </View>
         </LinearGradient>
 
@@ -122,16 +200,12 @@ export const DashboardScreen: React.FC = () => {
               value={todayCalories}
               unit="kcal"
               icon="🔥"
-              progress={goalPercentage / 100}
-              progressColor={theme.colors.primary}
             />
             <StatCard
               title="Steps Taken"
-              value={totalSteps || 8400}
+              value={totalSteps}
               unit="steps"
               icon="👣"
-              progress={totalSteps ? totalSteps / 10000 : 0.84}
-              progressColor={theme.colors.secondary}
             />
           </View>
           <View style={styles.row}>
@@ -152,21 +226,82 @@ export const DashboardScreen: React.FC = () => {
 
         {/* Weekly Trend Chart */}
         {calorieTrends && (
-          <TrendChart
-            title={STRINGS.DASHBOARD.WEEKLY_TRENDS}
-            trendData={calorieTrends}
-          />
+            <TrendChart
+              title={STRINGS.DASHBOARD.WEEKLY_TRENDS}
+              trendData={calorieTrends}
+            />
         )}
 
         {/* Recent Activities Section */}
         <View style={styles.activitiesHeader}>
-          <Text style={styles.sectionTitle}>{STRINGS.DASHBOARD.RECENT_ACTIVITIES}</Text>
+          <Text style={styles.sectionTitle}>
+            {STRINGS.DASHBOARD.RECENT_ACTIVITIES}
+          </Text>
         </View>
-        
-        {activities.slice(0, 3).map((activity) => (
-          <ActivityCard key={activity.id} activity={activity} />
-        ))}
+
+        {activities.length === 0 ? (
+          <Text style={styles.noActivitiesText}>
+            No recent activities logged.
+          </Text>
+        ) : (
+          activities
+            .slice(0, 3)
+            .map(activity => (
+              <ActivityCard key={activity.id} activity={activity} />
+            ))
+        )}
       </ScrollView>
+
+      {/* Celebration Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={celebrationVisible}
+        onRequestClose={() => setCelebrationVisible(false)}
+      >
+        <View style={styles.celebrationModalContainer}>
+          <View style={styles.celebrationContent}>
+            <Text style={styles.celebrationEmoji}>🏆 🎉 🥳</Text>
+            <Text style={styles.celebrationTitle}>Target Achieved!</Text>
+
+            <Text style={styles.celebrationSubtitle}>
+              Congratulations! You've successfully completed your daily active
+              burn goal of{' '}
+              <Text style={styles.celebrationHighlight}>
+                {profile?.calorieGoal || 2400} kcal
+              </Text>{' '}
+              today!
+            </Text>
+
+            <View style={styles.celebrationStatsRow}>
+              <View style={styles.celebrationStatBox}>
+                <Text style={styles.celebrationStatValue}>
+                  🔥 {todayCalories} kcal
+                </Text>
+                <Text style={styles.celebrationStatLabel}>Burned</Text>
+              </View>
+              <View style={styles.celebrationStatBox}>
+                <Text style={styles.celebrationStatValue}>
+                  ⚡ {todayMinutes} mins
+                </Text>
+                <Text style={styles.celebrationStatLabel}>Duration</Text>
+              </View>
+            </View>
+
+            <Text style={styles.celebrationFooterText}>
+              Keep up the amazing momentum! 💪
+            </Text>
+
+            <CustomButton
+              title="Awesome!"
+              onPress={() => setCelebrationVisible(false)}
+              variant="primary"
+              style={styles.celebrationCloseBtn}
+              textStyle={styles.celebrationCloseBtnText}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -311,6 +446,106 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
+  },
+  noActivitiesText: {
+    fontSize: 14.5,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: theme.spacing.lg,
+  },
+  celebrationModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)', // dark immersive background backdrop overlay
+  },
+  celebrationContent: {
+    width: '85%',
+    backgroundColor: '#1e1b4b', // deep indigo premium card background
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#facc15', // yellow-400 / gold accent border
+    shadowColor: '#facc15',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  celebrationEmoji: {
+    fontSize: 42,
+    marginBottom: 16,
+  },
+  celebrationTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fef08a', // light yellow / soft gold glow
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
+  celebrationSubtitle: {
+    fontSize: 15,
+    color: '#e2e8f0', // slate-200
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  celebrationHighlight: {
+    color: '#facc15', // vibrant gold
+    fontWeight: 'bold',
+  },
+  celebrationStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 24,
+  },
+  celebrationStatBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginHorizontal: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(250, 204, 21, 0.25)',
+  },
+  celebrationStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  celebrationStatLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  celebrationFooterText: {
+    fontSize: 14.5,
+    color: '#a5f3fc', // premium cyan accent
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  celebrationCloseBtn: {
+    width: '100%',
+    backgroundColor: '#facc15', // gold background
+    borderRadius: 12,
+    borderWidth: 0,
+    shadowColor: '#facc15',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  celebrationCloseBtnText: {
+    color: '#1e1b4b', // deep contrast text for maximum readability
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

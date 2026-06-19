@@ -23,7 +23,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     datasets: [
       {
         data: trendData.data,
-        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo primary
+        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
         strokeWidth: 3,
       },
     ],
@@ -36,7 +36,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     backgroundGradientTo: theme.colors.surface,
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`, // Slate-500
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
     style: {
       borderRadius: theme.spacing.borderRadiusLg,
     },
@@ -50,19 +50,23 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
-      
+
       {trendData.data.length > 0 ? (
-        <LineChart
-          data={data}
-          width={chartWidth}
-          height={height}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
+        <View style ={{marginLeft: -12}}>
+          <LineChart
+            data={data}
+            width={chartWidth}
+            height={height}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+          />
+        </View>
       ) : (
         <View style={[styles.emptyContainer, { height }]}>
-          <Text style={styles.emptyText}>No data available for trend chart.</Text>
+          <Text style={styles.emptyText}>
+            No data available for trend chart.
+          </Text>
         </View>
       )}
     </View>

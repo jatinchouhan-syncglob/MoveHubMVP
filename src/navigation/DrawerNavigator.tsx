@@ -85,10 +85,8 @@ const DrawerNavigatorContent: React.FC = () => {
     switch (activeScreen) {
       case 'ActivityTracking':
         return <ActivityTrackingScreen />;
-        // return <UnderProgress />;
       case 'Leaderboard':
         return <LeaderboardScreen />;
-        // return <UnderProgress />;
       case 'Insights':
         return <InsightsScreen />;
         // return <UnderProgress />;

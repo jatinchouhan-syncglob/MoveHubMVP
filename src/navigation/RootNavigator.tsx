@@ -6,6 +6,8 @@ import { RootStackParamList } from './navigationTypes';
 import SplashScreen from '../screens/Splash';
 import DisclaimerScreen from '../screens/Disclaimer';
 import ProfileSetupScreen from '../screens/ProfileSetup';
+import { WellnessPacingProfileScreen } from '../screens/WellnessPacingProfile';
+import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import DrawerNavigator from './DrawerNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +32,14 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen 
         name={ROUTES.PROFILE_SETUP as 'ProfileSetup'} 
         component={ProfileSetupScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.WELLNESS_PACING_PROFILE as 'WellnessPacingProfile'} 
+        component={WellnessPacingProfileScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.WELLNESS_PRESCRIPTION as 'WellnessPrescription'} 
+        component={WellnessPrescriptionScreen} 
       />
       <Stack.Screen 
         name={ROUTES.DRAWER as 'DrawerNavigator'} 
