@@ -7,9 +7,10 @@ import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 
 interface ActivityCardProps {
   activity: Activity;
+  isDark?: boolean;
 }
 
-export const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
+export const ActivityCard: React.FC<ActivityCardProps> = ({ activity, isDark = false }) => {
   const getActivityEmoji = (type: string): string => {
     const found = WELLNESS_ACTIVITIES_REGISTRY.find(
       (act) => act.name.toLowerCase() === type.toLowerCase()
@@ -27,7 +28,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
   const activeColor = getActivityColor(activity.type);
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isDark && { backgroundColor: '#151E33', borderColor: '#1E293B', shadowColor: '#000' }]}>
       {/* Decorative vertical accent bar matching workout intensity color */}
       <View style={[styles.accentLine, { backgroundColor: activeColor }]} />
 
@@ -37,23 +38,23 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity }) => {
       
       <View style={styles.contentContainer}>
         <View style={styles.row}>
-          <Text style={styles.type}>{activity.type}</Text>
+          <Text style={[styles.type, isDark && { color: '#FFFFFF' }]}>{activity.type}</Text>
           <Text style={[styles.value, { color: activeColor }]}>
             {activity.value.toLocaleString()} {activity.metric}
           </Text>
         </View>
         
         <View style={styles.row}>
-          <Text style={styles.time}>{formatFriendlyDate(activity.timestamp)}</Text>
+          <Text style={[styles.time, isDark && { color: '#94A3B8' }]}>{formatFriendlyDate(activity.timestamp)}</Text>
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{formatDuration(activity.durationMinutes)}</Text>
-            <Text style={styles.dot}>•</Text>
-            <Text style={styles.metaText}>{activity.caloriesBurned} kcal</Text>
+            <Text style={[styles.metaText, isDark && { color: '#94A3B8' }]}>{formatDuration(activity.durationMinutes)}</Text>
+            <Text style={[styles.dot, isDark && { color: '#64748B' }]}>•</Text>
+            <Text style={[styles.metaText, isDark && { color: '#94A3B8' }]}>{activity.caloriesBurned} kcal</Text>
           </View>
         </View>
 
         {activity.notes && (
-          <Text numberOfLines={2} style={styles.notes}>
+          <Text numberOfLines={2} style={[styles.notes, isDark && { color: '#94A3B8', borderTopColor: '#1E293B' }]}>
             "{activity.notes}"
           </Text>
         )}

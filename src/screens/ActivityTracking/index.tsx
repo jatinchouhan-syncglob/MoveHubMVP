@@ -25,11 +25,13 @@ import { ActivityCard } from '../../components/cards/ActivityCard';
 import { apiService } from '../../services/api';
 import { Activity } from '../../types';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
+import { StepsLogsTab } from './components/StepsLogsTab';
 
 export const ActivityTrackingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [activeTab, setActiveTab] = useState<'Steps' | 'Workout'>('Workout');
 
   // Modal & Form States
   const [modalVisible, setModalVisible] = useState(false);
@@ -411,11 +413,13 @@ export const ActivityTrackingScreen: React.FC = () => {
   }
   liveCalculatedMET = Math.max(liveCalculatedMET + liveModifiers, 1.0);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const liveCalories = Math.round(
     liveCalculatedMET * userWeight * parsedDuration * 0.0175,
   );
   const liveGainPoints = Math.round(liveCalculatedMET * parsedDuration);
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const liveCategory = activeRegistryItem?.category || 'duration';
   let liveMusculoSplit = 0;
   let liveCardioSplit = 0;
@@ -429,45 +433,79 @@ export const ActivityTrackingScreen: React.FC = () => {
     liveCardioSplit = Math.round(liveGainPoints * 0.5);
     liveMusculoSplit = Math.round(liveGainPoints * 0.5);
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   return (
     <SafeAreaView style={styles.container}>
-      <CustomHeader title={STRINGS.ACTIVITY_TRACKING.TITLE} showDrawerButton />
+      <CustomHeader
+        title={STRINGS.ACTIVITY_TRACKING.TITLE}
+        showDrawerButton
+        containerStyle={{ backgroundColor: '#0B0F19', borderBottomColor: '#1E293B' }}
+        titleStyle={{ color: '#FFFFFF' }}
+        buttonStyle={{ backgroundColor: '#0F172A', borderColor: '#1E293B' }}
+        iconStyle={{ color: '#FFFFFF' }}
+      />
 
-      {loading && activities.length === 0 ? (
-        <Loader fullScreen message="Loading activities list..." />
-      ) : (
-        <FlatList
-          data={activities}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => <ActivityCard activity={item} />}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[theme.colors.primary]}
-            />
-          }
-          ListHeaderComponent={
-            <View style={styles.headerComponent}>
-              <CustomButton
-                title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
-                onPress={() => setModalVisible(true)}
-                variant="primary"
-                style={styles.addButton}
+      {/* Tabs Selector */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'Workout' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('Workout')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'Workout' && styles.tabButtonTextActive]}>
+            🏋️ Workout Logs
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'Steps' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('Steps')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabButtonText, activeTab === 'Steps' && styles.tabButtonTextActive]}>
+            👣 Steps Logs
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'Workout' ? (
+        loading && activities.length === 0 ? (
+          <Loader fullScreen message="Loading activities list..." />
+        ) : (
+          <FlatList
+            data={activities}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => <ActivityCard activity={item} isDark={true} />}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[theme.colors.primary]}
               />
-            </View>
-          }
-          ListEmptyComponent={
-            <EmptyState
-              title="No Activities Yet"
-              description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
-              actionTitle="Log Your First Activity"
-              onActionPress={() => setModalVisible(true)}
-            />
-          }
-        />
+            }
+            ListHeaderComponent={
+              <View style={styles.headerComponent}>
+                <CustomButton
+                  title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
+                  onPress={() => setModalVisible(true)}
+                  variant="primary"
+                  style={styles.addButton}
+                />
+              </View>
+            }
+            ListEmptyComponent={
+              <EmptyState
+                title="No Activities Yet"
+                description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
+                actionTitle="Log Your First Activity"
+                onActionPress={() => setModalVisible(true)}
+              />
+            }
+          />
+        )
+      ) : (
+        <StepsLogsTab />
       )}
 
       {/* Interactive Activity Logging Form Modal */}
@@ -1129,7 +1167,7 @@ export const ActivityTrackingScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0B0F19',
   },
   listContent: {
     padding: theme.spacing.containerPadding,
@@ -1707,6 +1745,94 @@ const styles = StyleSheet.create({
   categoryTabTextActive: {
     color: theme.colors.primary,
     fontWeight: theme.fonts.weights.bold as any,
+  },
+
+  // Upper screen tab styles
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#0E1626',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#151E33',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  tabButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  tabButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+
+  // Steps placeholder styles
+  stepsPlaceholderContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: theme.colors.background,
+  },
+  stepsPlaceholderCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
+    width: '100%',
+    maxWidth: 340,
+  },
+  stepsPlaceholderEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  stepsPlaceholderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  stepsPlaceholderDesc: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  comingSoonBadge: {
+    backgroundColor: theme.colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  comingSoonText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: theme.colors.primary,
+    letterSpacing: 0.5,
   },
 });
 

@@ -2,5 +2,5 @@
 // Example: export const Logo = require('./logo.png');
 
 export const IMAGES = {
-  // Add image asset keys here
+  trialRunner: require('./trial-runner.png'),
 } as const;

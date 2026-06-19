@@ -9,6 +9,10 @@ interface CustomHeaderProps {
   showBackButton?: boolean;
   showDrawerButton?: boolean;
   rightComponent?: React.ReactNode;
+  containerStyle?: any;
+  titleStyle?: any;
+  buttonStyle?: any;
+  iconStyle?: any;
 }
 
 export const CustomHeader: React.FC<CustomHeaderProps> = ({
@@ -16,6 +20,10 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   showBackButton = false,
   showDrawerButton = false,
   rightComponent,
+  containerStyle,
+  titleStyle,
+  buttonStyle,
+  iconStyle,
 }) => {
   const navigation = useNavigation<any>();
   let drawer: any = null;
@@ -40,22 +48,22 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       <View style={styles.leftContainer}>
         {showBackButton && (
-          <TouchableOpacity onPress={handleBack} style={styles.button} activeOpacity={0.7}>
-            <Text style={styles.iconText}>←</Text>
+          <TouchableOpacity onPress={handleBack} style={[styles.button, buttonStyle]} activeOpacity={0.7}>
+            <Text style={[styles.iconText, iconStyle]}>←</Text>
           </TouchableOpacity>
         )}
         {showDrawerButton && (
-          <TouchableOpacity onPress={handleDrawerToggle} style={styles.button} activeOpacity={0.7}>
-            <Text style={styles.iconText}>☰</Text>
+          <TouchableOpacity onPress={handleDrawerToggle} style={[styles.button, buttonStyle]} activeOpacity={0.7}>
+            <Text style={[styles.iconText, iconStyle]}>☰</Text>
           </TouchableOpacity>
         )}
       </View>
       
       <View style={styles.titleContainer}>
-        <Text numberOfLines={1} style={styles.title}>
+        <Text numberOfLines={1} style={[styles.title, titleStyle]}>
           {title}
         </Text>
       </View>
