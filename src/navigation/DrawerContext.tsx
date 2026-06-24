@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type DrawerScreenType = 'Dashboard' | 'ActivityTracking' | 'Leaderboard' | 'Insights' | 'Profile';
+export type DrawerScreenType = 'FitnessPrescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile';
 
 interface DrawerContextProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ const DrawerContext = createContext<DrawerContextProps | undefined>(undefined);
 
 export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState<DrawerScreenType>('Dashboard');
+  const [activeScreen, setActiveScreen] = useState<DrawerScreenType>('FitnessPrescription');
 
   const openDrawer = () => setIsOpen(true);
   const closeDrawer = () => setIsOpen(false);

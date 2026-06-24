@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { theme } from '../../theme';
-import { useDrawer } from '../../navigation/DrawerContext';
+import DrawerContext from '../../navigation/DrawerContext';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 interface CustomHeaderProps {
   title: string;
@@ -26,16 +27,17 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   iconStyle,
 }) => {
   const navigation = useNavigation<any>();
-  let drawer: any = null;
-  try {
-    drawer = useDrawer();
-  } catch (e) {
-    // Ignore if rendered outside DrawerProvider context
-  }
+  const drawer = useContext(DrawerContext);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
+    }
+  };
+
+  const handleProfilePress = () => {
+    if (drawer) {
+      drawer.setActiveScreen('Profile');
     }
   };
 
@@ -69,7 +71,32 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
       </View>
 
       <View style={styles.rightContainer}>
-        {rightComponent ? rightComponent : <View style={styles.buttonPlaceholder} />}
+        {rightComponent ? (
+          rightComponent
+        ) : showDrawerButton ? (
+          <TouchableOpacity onPress={handleProfilePress} style={styles.profileHeaderBtn} activeOpacity={0.7}>
+            <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+                stroke="#FFFFFF"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <Circle
+                cx="12"
+                cy="7"
+                r="4"
+                stroke="#FFFFFF"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.buttonPlaceholder} />
+        )}
       </View>
     </View>
   );
@@ -136,6 +163,26 @@ const styles = StyleSheet.create({
   buttonPlaceholder: {
     width: 38,
     height: 38,
+  },
+  profileHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileHeaderBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });
 

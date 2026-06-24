@@ -3,15 +3,15 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
   Dimensions,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import { scale, verticalScale } from 'react-native-size-matters';
 import Svg, {
   Line,
   Path,
@@ -68,12 +68,6 @@ const BASE_4_WEEKS = [
   { label: 'Wk 44', steps: 31000, calories: 1400, hr: 73 },
 ];
 
-// 3 Months Mock Data
-const BASE_3_MONTHS = [
-  { label: 'Aug', steps: 112000, calories: 5400, hr: 73 },
-  { label: 'Sep', steps: 145000, calories: 6800, hr: 75 },
-  { label: 'Oct', steps: 168000, calories: 8100, hr: 74 },
-];
 
 const generateMonthsList = () => {
   const list: string[] = [];
@@ -152,7 +146,6 @@ const VITALITY_INDEX_LABELS = ['Day 1', '5', '10', '15', '20', '25', '30'];
 export const InsightsScreen: React.FC = () => {
   const [activeScreenTab, setActiveScreenTab] = useState<'trends' | 'transformation'>('trends');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
 
@@ -174,7 +167,6 @@ export const InsightsScreen: React.FC = () => {
     } catch (error) {
       console.error('Failed to load insights trends activities:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -229,16 +221,6 @@ export const InsightsScreen: React.FC = () => {
 
       return compiled;
     } else if (activeTimeframe === '4weeks') {
-      const parts = selectedMonth.split(' ');
-      const monthName = parts[0];
-      const year = parseInt(parts[1] || '2026', 10);
-      const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-      const monthDaysMap: Record<string, number> = {
-        Jan: 31, Feb: isLeap ? 29 : 28, Mar: 31, Apr: 30, May: 31, Jun: 30,
-        Jul: 31, Aug: 31, Sep: 30, Oct: 31, Nov: 30, Dec: 31
-      };
-      const days = monthDaysMap[monthName] || 30;
-      
       const labels = ['Wk 01', 'Wk 02', 'Wk 03', 'Wk 04'];
       const compiled = BASE_4_WEEKS.map((p, idx) => ({
         label: labels[idx],
@@ -283,7 +265,7 @@ export const InsightsScreen: React.FC = () => {
     if (selectedTrendIdx >= trendPoints.length) {
       setSelectedTrendIdx(trendPoints.length - 1);
     }
-  }, [activeTimeframe, trendPoints.length]);
+  }, [activeTimeframe, trendPoints.length, selectedTrendIdx]);
 
   // Dynamic values based on selected index in chart
   const activePoint = trendPoints[selectedTrendIdx] || trendPoints[0];

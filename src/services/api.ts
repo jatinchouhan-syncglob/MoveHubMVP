@@ -2,7 +2,6 @@ import axios from 'axios';
 import { MOCK_PROFILE } from '../data/profile';
 import { MOCK_ACTIVITIES } from '../data/activities';
 import { MOCK_LEADERBOARD } from '../data/leaderboard';
-import { MOCK_CALORIE_TRENDS, MOCK_STEP_TRENDS } from '../data/trends';
 import { MOCK_INSIGHTS } from '../data/insights';
 import { UserProfile, Activity, LeaderboardEntry, TrendData, Insight } from '../types';
 

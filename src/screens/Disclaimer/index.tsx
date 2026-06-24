@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
@@ -7,11 +8,32 @@ import { ROUTES } from '../../constants/routes';
 import { CustomButton } from '../../components/common/CustomButton';
 import { CustomHeader } from '../../components/common/CustomHeader';
 
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
+
 export const DisclaimerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
-  const handleAccept = () => {
-    navigation.replace(ROUTES.PROFILE_SETUP);
+  const handleAccept = async () => {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const updatedProfile = {
+        ...(cachedProfile || {
+          name: 'Sarah Connor',
+          age: 30,
+          weight: 70,
+          height: 170,
+          calorieGoal: 2400,
+        }),
+        isSetupComplete: true,
+      };
+      await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, updatedProfile);
+      navigation.replace(ROUTES.DRAWER);
+    } catch (e) {
+      console.error('Failed to complete onboarding on disclaimer:', e);
+      navigation.replace(ROUTES.DRAWER);
+    }
   };
 
   return (
@@ -23,6 +45,8 @@ export const DisclaimerScreen: React.FC = () => {
       <View style={styles.blurRing2} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+
         <View style={styles.card}>
           {/* Header Shield Circle */}
           <View style={styles.iconCircle}>

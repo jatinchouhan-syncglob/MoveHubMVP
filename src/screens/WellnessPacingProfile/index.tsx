@@ -3,12 +3,11 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { ROUTES } from '../../constants/routes';
@@ -118,8 +117,8 @@ export const WellnessPacingProfileScreen: React.FC = () => {
         await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);
       }
       
-      // Navigate to the next step: Wellness Prescription
-      navigation.replace(ROUTES.WELLNESS_PRESCRIPTION);
+      // Navigate to the next step: Disclaimer
+      navigation.replace(ROUTES.DISCLAIMER);
     } catch (error) {
       console.error('Failed to save pacing configuration:', error);
     } finally {
@@ -141,9 +140,9 @@ export const WellnessPacingProfileScreen: React.FC = () => {
       >
         {/* Onboarding Stage Step Indicator */}
         <View style={styles.stepContainer}>
-          <Text style={styles.stepText}>STEP 2 OF 3: PACING PROFILE</Text>
+          <Text style={styles.stepText}>STEP 2 OF 2: PACING PROFILE</Text>
           <View style={styles.stepLineBg}>
-            <View style={styles.stepLineFill} />
+            <View style={[styles.stepLineFill, { width: '100%' }]} />
           </View>
         </View>
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, Animated, Platform } from 'react-native';
+import { StyleSheet, Text, View, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
@@ -45,11 +46,11 @@ export const SplashScreen: React.FC = () => {
         if (cachedProfile?.isSetupComplete) {
           navigation.replace(ROUTES.DRAWER);
         } else {
-          navigation.replace(ROUTES.DISCLAIMER);
+          navigation.replace(ROUTES.PROFILE_SETUP);
         }
       } catch (error) {
         console.error('Failed to read profile in splash:', error);
-        navigation.replace(ROUTES.DISCLAIMER);
+        navigation.replace(ROUTES.PROFILE_SETUP);
       }
     };
 
@@ -66,10 +67,10 @@ export const SplashScreen: React.FC = () => {
       if (cachedProfile?.isSetupComplete) {
         navigation.replace(ROUTES.DRAWER);
       } else {
-        navigation.replace(ROUTES.DISCLAIMER);
+        navigation.replace(ROUTES.PROFILE_SETUP);
       }
     } catch {
-      navigation.replace(ROUTES.DISCLAIMER);
+      navigation.replace(ROUTES.PROFILE_SETUP);
     }
   };
 

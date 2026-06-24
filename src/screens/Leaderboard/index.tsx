@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -12,9 +11,9 @@ import {
   Animated,
   Modal,
 } from 'react-native';
-import { useDrawer } from '../../navigation/DrawerContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import DrawerContext from '../../navigation/DrawerContext';
 import { useFocusEffect } from '@react-navigation/native';
-import { theme } from '../../theme';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { CustomHeader } from '../../components/common/CustomHeader';
@@ -232,12 +231,7 @@ const GoldParticle: React.FC<{ delay: number }> = ({ delay }) => {
 };
 
 export const LeaderboardScreen: React.FC = () => {
-  let drawer: any = null;
-  try {
-    drawer = useDrawer();
-  } catch (e) {
-    // Ignore
-  }
+  const drawer = useContext(DrawerContext);
   const isDrawerOpen = drawer?.isOpen || false;
   const [loading, setLoading] = useState(true);
 
@@ -395,17 +389,6 @@ export const LeaderboardScreen: React.FC = () => {
   // Top 10 players to show
   const top10Players = sortedPlayers.slice(0, 10);
 
-  // Maximum value for the progress bars
-  const maxMetricValue = top10Players[0]
-    ? (selectedMetric === 'Steps'
-        ? top10Players[0].steps
-        : selectedMetric === 'Heart Points'
-        ? top10Players[0].heartPoints
-        : selectedMetric === 'Bio sync Efficiency'
-        ? top10Players[0].bioSync
-        : top10Players[0].vitality)
-    : 1;
-
   // Calculate sum of top 10 metrics for the stats box
   const getMetricTotalValue = () => {
     if (selectedMetric === 'Steps') {
@@ -476,7 +459,7 @@ export const LeaderboardScreen: React.FC = () => {
     }
   };
 
-  const getPlayerMetricString = (player: LeaderboardPlayer) => {
+  const getPlayerMetricString = useCallback((player: LeaderboardPlayer) => {
     switch (selectedMetric) {
       case 'Steps':
         return player.steps.toLocaleString();
@@ -487,7 +470,7 @@ export const LeaderboardScreen: React.FC = () => {
       case 'Vitality':
         return player.vitality.toString();
     }
-  };
+  }, [selectedMetric]);
 
   // Hook up rank-up check listener
   useEffect(() => {
@@ -556,7 +539,7 @@ export const LeaderboardScreen: React.FC = () => {
       setPersistedRanks(updated);
       storageHelper.setItem(STORAGE_KEYS.LEADERBOARD_LAST_RANKS, updated);
     }
-  }, [sortedPlayers, selectedMetric, loading, persistedRanks]);
+  }, [sortedPlayers, selectedMetric, loading, persistedRanks, getPlayerMetricString]);
 
   const handleSimulateRankUp = () => {
     const userPlayer = sortedPlayers.find(p => p.isCurrentUser);
@@ -646,8 +629,6 @@ export const LeaderboardScreen: React.FC = () => {
         return `${name} maintains a premium Vitality score of ${value} for ${selectedPodiumIndex === 0 ? 'Rank #1' : selectedPodiumIndex === 1 ? 'Rank #2' : 'Rank #3'}.`;
     }
   };
-
-  const renderOvertakeBanner = () => null;
 
   const isLightMode = selectedMetric === 'Vitality';
 

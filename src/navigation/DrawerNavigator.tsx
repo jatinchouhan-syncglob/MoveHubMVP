@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
   TouchableWithoutFeedback,
   Platform,
 } from 'react-native';
@@ -17,13 +16,15 @@ import { apiService } from '../services/api';
 import { UserProfile } from '../types';
 import { getInitials } from '../utils/helpers';
 
-// Import Screens
 import DashboardScreen from '../screens/Dashboard';
+import AwardsScreen from '../screens/Awards';
+import FitnessChallengesScreen from '../screens/FitnessChallenges';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
 import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
-import UnderProgress from '../components/common/UnderProgress';
+import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
+import FitnessTrainingScreen from '../screens/FitnessTraining';
 
 const DRAWER_WIDTH = 290;
 
@@ -31,11 +32,9 @@ const DrawerNavigatorContent: React.FC = () => {
   const { isOpen, activeScreen, closeDrawer, setActiveScreen } = useDrawer();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Dynamic drawer profile states
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [todayCalories, setTodayCalories] = React.useState(0);
 
-  // Fetch profile and daily achievements when drawer opens/mounts
   useEffect(() => {
     const fetchDrawerData = async () => {
       try {
@@ -45,7 +44,6 @@ const DrawerNavigatorContent: React.FC = () => {
         ]);
         setProfile(profileData);
 
-        // Sum up today's calories for progress bar
         const total = activitiesData.reduce(
           (sum, act) => sum + (act.caloriesBurned || 0),
           0,
@@ -59,7 +57,6 @@ const DrawerNavigatorContent: React.FC = () => {
     fetchDrawerData();
   }, [isOpen]);
 
-  // Run translation animation when drawer open state toggles
   useEffect(() => {
     Animated.timing(slideAnim, {
       toValue: isOpen ? 1 : 0,
@@ -68,28 +65,32 @@ const DrawerNavigatorContent: React.FC = () => {
     }).start();
   }, [isOpen, slideAnim]);
 
-  // Interpolate slide transition values
   const translateX = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-DRAWER_WIDTH, 0],
   });
 
-  // Interpolate backdrop dim opacity
   const backdropOpacity = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 0.45],
   });
 
-  // Render the currently selected screen
   const renderActiveScreen = () => {
     switch (activeScreen) {
+      case 'FitnessPrescription':
+        return <WellnessPrescriptionScreen showDrawer={true} />;
+      case 'Awards':
+        return <AwardsScreen />;
+      case 'FitnessChallenges':
+        return <FitnessChallengesScreen />;
       case 'ActivityTracking':
         return <ActivityTrackingScreen />;
       case 'Leaderboard':
         return <LeaderboardScreen />;
+      case 'FitnessTraining':
+        return <FitnessTrainingScreen />;
       case 'Insights':
         return <InsightsScreen />;
-        // return <UnderProgress />;
       case 'Profile':
         return <ProfileScreen />;
       case 'Dashboard':
@@ -100,14 +101,20 @@ const DrawerNavigatorContent: React.FC = () => {
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
-      { screen: 'Dashboard', label: 'Dashboard', icon: '📊' },
+      {
+        screen: 'FitnessPrescription',
+        label: 'Fitness Prescription',
+        icon: '📋',
+      },
       { screen: 'ActivityTracking', label: 'Activity Tracking', icon: '🏃‍♂️' },
-      { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏆' },
-      { screen: 'Insights', label: 'Insights & Trends', icon: '💡' },
-      { screen: 'Profile', label: 'My Profile', icon: '👤' },
+      { screen: 'Dashboard', label: 'Dashboard', icon: '📊' },
+      { screen: 'FitnessChallenges', label: 'Fitness Challenges', icon: '🎯' },
+      { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
+      { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
+      { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
+      { screen: 'Awards', label: 'Rewards', icon: '🏆' },
     ];
 
-  // Calculate percentage of daily calorie goal
   const calorieGoal = profile?.calorieGoal || 2400;
   const progressPercent = Math.min((todayCalories / calorieGoal) * 100, 100);
 
@@ -238,7 +245,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#0F172A', // Deep slate backdrop dim
+    backgroundColor: '#0F172A',
     zIndex: 99,
   },
   backdropPressArea: {

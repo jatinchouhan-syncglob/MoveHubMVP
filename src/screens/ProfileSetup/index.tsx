@@ -3,12 +3,12 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
@@ -74,7 +74,7 @@ export const ProfileSetupScreen: React.FC = () => {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Progress Step Indicator */}
           <View style={styles.stepContainer}>
-            <Text style={styles.stepText}>STEP 1 OF 3: PROFILE SETUP</Text>
+            <Text style={styles.stepText}>STEP 1 OF 2: PROFILE SETUP</Text>
             <View style={styles.stepLineBg}>
               <View style={styles.stepLineFill} />
             </View>
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   stepLineFill: {
     height: '100%',
     backgroundColor: theme.colors.primary,
-    width: '33.3%', // First step of onboarding (1/3)
+    width: '50%', // First step of onboarding (1/2)
   },
   keyboardView: {
     flex: 1,
