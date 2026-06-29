@@ -45,10 +45,17 @@ export const ProfileSetupScreen: React.FC = () => {
         isSetupComplete: true,
       };
 
-      // Simulating API persistence
+      // Call real backend API for profile setup
+      await apiService.setupProfile({
+        name: profileData.name,
+        age: profileData.age,
+        weight: profileData.weight,
+        height: profileData.height,
+        calorieGoal: profileData.calorieGoal,
+      });
+
+      // Update profile locally and cache in Local Storage
       await apiService.updateProfile(profileData);
-      // Simulating Local Storage cache
-      await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, profileData);
 
       // Navigate to Wellness Pacing Profile Screen
       navigation.replace(ROUTES.WELLNESS_PACING_PROFILE);

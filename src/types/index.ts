@@ -7,6 +7,7 @@ export interface UserProfile {
   height: number; // in cm
   calorieGoal: number; // in kcal
   isSetupComplete: boolean;
+  uhid?: string;
 }
 
 export interface Activity {

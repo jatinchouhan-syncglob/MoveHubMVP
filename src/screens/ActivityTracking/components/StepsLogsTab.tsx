@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
+import { apiService } from '../../../services/api';
 
 
 
@@ -748,12 +749,25 @@ const FitnessActivityCard: React.FC<{
 export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
 
+  useEffect(() => {
+    const fetchHealthActivities = async () => {
+      try {
+        console.log('Fetching Health Connect activities for SAUSHA9775...');
+        const response = await apiService.getHealthConnectActivities('SAUSHA9775');
+        console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
+      } catch (error) {
+        console.error('Error fetching Health Connect activities in StepsLogsTab:', error);
+      }
+    };
+    fetchHealthActivities();
+  }, []);
+
   return (
     <View style={styles.mainWrapper}>
       {/* Static Info Bar (UHID & Date) */}
       <View style={styles.topHeader}>
         <View style={styles.leftSection}>
-          <Text style={styles.userId}>UHID: MH-90234</Text>
+          <Text style={styles.userId}>UHID: SAUSHA9775</Text>
         </View>
         <View style={styles.rightSection}>
           <Text style={styles.dateText}>19 Jun, Friday</Text>

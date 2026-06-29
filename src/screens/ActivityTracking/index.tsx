@@ -59,6 +59,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   // Contextual Modifiers
   const [highIntensity, setHighIntensity] = useState(false);
   const [strengthRest, setStrengthRest] = useState(false);
+  const [activeRecovery, setActiveRecovery] = useState(false);
 
   // Wearable Integration Toggles
   const [syncWearable, setSyncWearable] = useState(false);
@@ -217,7 +218,6 @@ export const ActivityTrackingScreen: React.FC = () => {
       // Calculate metabolic burn with contextual modifiers
       let calculatedMET = baseMET;
       if (isDistanceBased) {
-        // Convert distance in KM to miles for velocity-based MET pace calculation (MET formula calibrated for MPH)
         const distanceMiles = localDistance / 1.60934;
         const speedMPH = distanceMiles / (durationMin / 60);
         calculatedMET = Math.min(speedMPH * 1.2 + baseMET, 23.0);
@@ -225,6 +225,9 @@ export const ActivityTrackingScreen: React.FC = () => {
 
       if (highIntensity) {
         calculatedMET += 1.5;
+      }
+      if (activeRecovery) {
+        calculatedMET -= 0.5;
       }
       if (strengthRest) {
         calculatedMET -= 1.0;
@@ -238,23 +241,6 @@ export const ActivityTrackingScreen: React.FC = () => {
         calculatedMET * userWeight * durationMin * 0.0175,
       );
 
-      // Points calculations (Total points = calculatedMET * duration)
-      const gainPoints = Math.round(calculatedMET * durationMin);
-      let musculoPoints = 0;
-      let cardioPoints = 0;
-
-      if (registryItem.category === 'strength') {
-        musculoPoints = Math.round(gainPoints * 0.8);
-        cardioPoints = Math.round(gainPoints * 0.2);
-      } else if (registryItem.category === 'distance') {
-        cardioPoints = Math.round(gainPoints * 0.8);
-        musculoPoints = Math.round(gainPoints * 0.2);
-      } else {
-        cardioPoints = Math.round(gainPoints * 0.5);
-        musculoPoints = Math.round(gainPoints * 0.5);
-      }
-
-      // Format notes with strength parameters if applicable
       let formattedNotes = notes.trim();
       if (syncWearable) {
         const syncDetail = `Completed ${activityType.toLowerCase()} routine.`;
@@ -272,17 +258,56 @@ export const ActivityTrackingScreen: React.FC = () => {
         formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
       }
 
-      const payload = {
-        type: activityType as any,
-        value,
-        metric,
+      // Call the Health Connect save API
+      console.log('--------------------------------------------------');
+      console.log('[Health Connect] SAVE API Initiated with payload...');
+
+      const savePayload = {
+        uhid: 'SAUSHA9775',
+        deviceId: '99kjkhgg',
+        type: activityType,
+        value: value,
+        metric: metric,
         durationMinutes: durationMin,
         caloriesBurned: calories,
         notes: formattedNotes,
       };
 
-      const newActivity = await apiService.logActivity(payload);
-      setActivities(prev => [newActivity, ...prev]);
+      console.log(
+        '[Health Connect] Sending Save Payload:',
+        JSON.stringify(savePayload, null, 2),
+      );
+
+      const response = await apiService.saveHealthConnectActivity(savePayload);
+
+      console.log('[Health Connect] SAVE API SUCCESS!');
+      console.log(
+        '[Health Connect] SAVE API Response Data:',
+        JSON.stringify(response, null, 2),
+      );
+      console.log('--------------------------------------------------');
+
+      // Map the response fields or fallback to sent payload
+      const responseData = response || {};
+      const savedActivity: Activity = {
+        id: responseData.id || `hc-${Date.now()}`,
+        type: responseData.type || activityType,
+        value: responseData.value !== undefined ? responseData.value : value,
+        metric: responseData.metric || metric,
+        durationMinutes:
+          responseData.durationMinutes !== undefined
+            ? responseData.durationMinutes
+            : durationMin,
+        caloriesBurned:
+          responseData.caloriesBurned !== undefined
+            ? responseData.caloriesBurned
+            : calories,
+        timestamp: responseData.timestamp || new Date().toISOString(),
+        notes: responseData.notes || formattedNotes,
+      };
+
+      // Add the newly saved activity to the main list so it displays instantly on the screen
+      setActivities(prev => [savedActivity, ...prev]);
 
       // If sleep hours < 4, trigger recovery alert simulation
       const parsedSleep = parseFloat(trimmedSleep);
@@ -293,19 +318,50 @@ export const ActivityTrackingScreen: React.FC = () => {
         );
       }
 
-      // Store results for the Benefits Summary Modal
+      // Store results for the Benefits Summary Modal using response values
+      const resDuration =
+        responseData.durationMinutes !== undefined
+          ? responseData.durationMinutes
+          : durationMin;
+      const resCalories =
+        responseData.caloriesBurned !== undefined
+          ? responseData.caloriesBurned
+          : calories;
+      const resGainPoints =
+        responseData.gainPoints !== undefined
+          ? responseData.gainPoints
+          : Math.round(calculatedMET * resDuration);
+
+      let resMusculoPoints = 0;
+      let resCardioPoints = 0;
+      if (registryItem.category === 'strength') {
+        resMusculoPoints = Math.round(resGainPoints * 0.8);
+        resCardioPoints = Math.round(resGainPoints * 0.2);
+      } else if (registryItem.category === 'distance') {
+        resCardioPoints = Math.round(resGainPoints * 0.8);
+        resMusculoPoints = Math.round(resGainPoints * 0.2);
+      } else {
+        resCardioPoints = Math.round(resGainPoints * 0.5);
+        resMusculoPoints = Math.round(resGainPoints * 0.5);
+      }
+
       setLastLoggedSummary({
-        type: activityType,
+        type: responseData.type || activityType,
         emoji: registryItem.emoji || '💪',
         category: registryItem.category,
-        duration: durationMin,
-        calories,
-        gainPoints,
-        musculoPoints,
-        cardioPoints,
+        duration: resDuration,
+        calories: resCalories,
+        gainPoints: resGainPoints,
+        musculoPoints:
+          responseData.musculoPoints !== undefined
+            ? responseData.musculoPoints
+            : resMusculoPoints,
+        cardioPoints:
+          responseData.cardioPoints !== undefined
+            ? responseData.cardioPoints
+            : resCardioPoints,
       });
 
-      // Reset Form fields
       setModalVisible(false);
       setDuration('30');
       setDistance('2.0');
@@ -320,8 +376,6 @@ export const ActivityTrackingScreen: React.FC = () => {
       setStrengthRest(false);
       setSyncWearable(false);
       setErrors({});
-
-      // Show the Benefits Summary Modal
       setBenefitsVisible(true);
     } catch (error) {
       console.error('Failed to log workout details:', error);
@@ -334,6 +388,9 @@ export const ActivityTrackingScreen: React.FC = () => {
   const handleCloseModal = () => {
     setModalVisible(false);
     setSyncWearable(false);
+    setHighIntensity(false);
+    setStrengthRest(false);
+    setActiveRecovery(false);
     setErrors({});
   };
 
@@ -395,63 +452,28 @@ export const ActivityTrackingScreen: React.FC = () => {
     { value: 5, emoji: '🤩', label: 'Elite' },
   ];
 
-  // Helper to color-code RPE buttons dynamically based on exertion levels
+  // Helper to color-code RPE buttons dynamically based on exertion level
   const getRpeColorProps = (val: number, isSelected: boolean) => {
     if (val <= 3) {
       return {
-        bg: isSelected ? '#10B981' : '#E8F5E9',
-        border: isSelected ? '#10B981' : '#81C784',
-        text: isSelected ? '#FFFFFF' : '#2E7D32',
+        bg: isSelected ? '#10B981' : '#1E293B',
+        border: isSelected ? '#10B981' : '#334155',
+        text: isSelected ? '#FFFFFF' : '#34D399',
       };
     } else if (val <= 6) {
       return {
-        bg: isSelected ? '#F59E0B' : '#FFF8E1',
-        border: isSelected ? '#F59E0B' : '#FDD835',
-        text: isSelected ? '#FFFFFF' : '#F57F17',
+        bg: isSelected ? '#F59E0B' : '#1E293B',
+        border: isSelected ? '#F59E0B' : '#334155',
+        text: isSelected ? '#FFFFFF' : '#FBBF24',
       };
     } else {
       return {
-        bg: isSelected ? '#EF4444' : '#FFEBEE',
-        border: isSelected ? '#EF4444' : '#E57373',
-        text: isSelected ? '#FFFFFF' : '#C62828',
+        bg: isSelected ? '#EF4444' : '#1E293B',
+        border: isSelected ? '#EF4444' : '#334155',
+        text: isSelected ? '#FFFFFF' : '#F87171',
       };
     }
   };
-
-  // Live session estimates computed in real-time
-  const liveBaseMET = activeRegistryItem?.baseMET || 4.0;
-  const liveModifiers = (highIntensity ? 1.5 : 0) + (strengthRest ? -1.0 : 0);
-  let liveCalculatedMET = liveBaseMET;
-  if (isDistanceBased) {
-    // Convert distance in KM to miles for velocity-based MET pace calculation (MET formula calibrated for MPH)
-    const distanceMiles = parsedDistance / 1.60934;
-    const speedMPH =
-      distanceMiles / (parsedDuration > 0 ? parsedDuration / 60 : 1);
-    liveCalculatedMET = Math.min(speedMPH * 1.2 + liveBaseMET, 23.0);
-  }
-  liveCalculatedMET = Math.max(liveCalculatedMET + liveModifiers, 1.0);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const liveCalories = Math.round(
-    liveCalculatedMET * userWeight * parsedDuration * 0.0175,
-  );
-  const liveGainPoints = Math.round(liveCalculatedMET * parsedDuration);
-
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const liveCategory = activeRegistryItem?.category || 'duration';
-  let liveMusculoSplit = 0;
-  let liveCardioSplit = 0;
-  if (liveCategory === 'strength') {
-    liveMusculoSplit = Math.round(liveGainPoints * 0.8);
-    liveCardioSplit = Math.round(liveGainPoints * 0.2);
-  } else if (liveCategory === 'distance') {
-    liveCardioSplit = Math.round(liveGainPoints * 0.8);
-    liveMusculoSplit = Math.round(liveGainPoints * 0.2);
-  } else {
-    liveCardioSplit = Math.round(liveGainPoints * 0.5);
-    liveMusculoSplit = Math.round(liveGainPoints * 0.5);
-  }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   return (
     <SafeAreaView style={styles.container}>
@@ -575,167 +597,214 @@ export const ActivityTrackingScreen: React.FC = () => {
                 contentContainerStyle={styles.modalScroll}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Contextual Modifiers */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Contextual Modifiers</Text>
-                  <View style={styles.modifiersRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.modifierButton,
-                        highIntensity && styles.modifierButtonActive,
-                      ]}
-                      onPress={() => {
-                        setHighIntensity(!highIntensity);
-                        if (!highIntensity) {
-                          setStrengthRest(false);
-                        }
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.modifierText,
-                          highIntensity && styles.modifierTextActive,
-                        ]}
-                      >
-                        ⚡ High-Intensity (+1.5 METs)
+                {/* Card 1: Select Activity */}
+                <View style={styles.formCard}>
+                  <Text style={styles.formCardTitle}>🎯 Select Activity</Text>
+                  <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.labelNoMargin}>
+                        Select Activity Type
                       </Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setSeeAllVisible(true)}>
+                        <Text style={styles.showAllTextLink}>Show All 🔍</Text>
+                      </TouchableOpacity>
+                    </View>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.modifierButton,
-                        strengthRest && styles.modifierButtonActive,
-                      ]}
-                      onPress={() => {
-                        setStrengthRest(!strengthRest);
-                        if (!strengthRest) {
-                          setHighIntensity(false);
-                        }
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text
+                    {/* Category Selector Tabs */}
+                    <View style={styles.categoryTabsRow}>
+                      <TouchableOpacity
                         style={[
-                          styles.modifierText,
-                          strengthRest && styles.modifierTextActive,
+                          styles.categoryTab,
+                          selectedCategory === 'distance' &&
+                            styles.categoryTabActive,
                         ]}
+                        onPress={() => setSelectedCategory('distance')}
+                        activeOpacity={0.8}
                       >
-                        🧘 Strength Rest (-1.0 METs)
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.categoryTabText,
+                            selectedCategory === 'distance' &&
+                              styles.categoryTabTextActive,
+                          ]}
+                        >
+                          🏃 Cardio
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.categoryTab,
+                          selectedCategory === 'strength' &&
+                            styles.categoryTabActive,
+                        ]}
+                        onPress={() => setSelectedCategory('strength')}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryTabText,
+                            selectedCategory === 'strength' &&
+                              styles.categoryTabTextActive,
+                          ]}
+                        >
+                          🏋️ Strength
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.categoryTab,
+                          selectedCategory === 'duration' &&
+                            styles.categoryTabActive,
+                        ]}
+                        onPress={() => setSelectedCategory('duration')}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryTabText,
+                            selectedCategory === 'duration' &&
+                              styles.categoryTabTextActive,
+                          ]}
+                        >
+                          🧘 Mind & Sports
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.optionsScroll}
+                    >
+                      {visibleOptions.map(option => {
+                        const isSelected = activityType === option.name;
+                        return (
+                          <TouchableOpacity
+                            key={option.name}
+                            style={[
+                              styles.optionItem,
+                              isSelected && styles.optionItemActive,
+                            ]}
+                            onPress={() => setActivityType(option.name)}
+                          >
+                            <Text
+                              style={option.emoji ? styles.optionEmoji : null}
+                            >
+                              {option.emoji}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.optionText,
+                                isSelected && styles.optionTextActive,
+                              ]}
+                            >
+                              {option.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 </View>
 
-                {/* Activity Selector (With row-aligned Show All link) */}
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelRow}>
-                    <Text style={styles.labelNoMargin}>
-                      Select Activity Type
-                    </Text>
-                    <TouchableOpacity onPress={() => setSeeAllVisible(true)}>
-                      <Text style={styles.showAllTextLink}>Show All 🔍</Text>
-                    </TouchableOpacity>
-                  </View>
+                {/* Card 2: Settings & Intensity */}
+                <View style={styles.formCard}>
+                  <Text style={styles.formCardTitle}>
+                    ⚡ Settings & Intensity
+                  </Text>
 
-                  {/* Category Selector Tabs */}
-                  <View style={styles.categoryTabsRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryTab,
-                        selectedCategory === 'distance' &&
-                          styles.categoryTabActive,
-                      ]}
-                      onPress={() => setSelectedCategory('distance')}
-                      activeOpacity={0.8}
-                    >
-                      <Text
+                  {/* Contextual Modifiers */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Contextual Modifiers</Text>
+                    
+                    {/* Row 1: High-Intensity & Active Recovery */}
+                    <View style={styles.modifiersRow}>
+                      <TouchableOpacity
                         style={[
-                          styles.categoryTabText,
-                          selectedCategory === 'distance' &&
-                            styles.categoryTabTextActive,
+                          styles.modifierButton,
+                          highIntensity && styles.modifierButtonActive,
                         ]}
+                        onPress={() => {
+                          setHighIntensity(!highIntensity);
+                          if (!highIntensity) {
+                            setStrengthRest(false);
+                            setActiveRecovery(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
                       >
-                        🏃 Cardio
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryTab,
-                        selectedCategory === 'strength' &&
-                          styles.categoryTabActive,
-                      ]}
-                      onPress={() => setSelectedCategory('strength')}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryTabText,
-                          selectedCategory === 'strength' &&
-                            styles.categoryTabTextActive,
-                        ]}
-                      >
-                        🏋️ Strength
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.categoryTab,
-                        selectedCategory === 'duration' &&
-                          styles.categoryTabActive,
-                      ]}
-                      onPress={() => setSelectedCategory('duration')}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryTabText,
-                          selectedCategory === 'duration' &&
-                            styles.categoryTabTextActive,
-                        ]}
-                      >
-                        🧘 Mind & Sports
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.optionsScroll}
-                  >
-                    {visibleOptions.map(option => {
-                      const isSelected = activityType === option.name;
-                      return (
-                        <TouchableOpacity
-                          key={option.name}
+                        <Text
                           style={[
-                            styles.optionItem,
-                            isSelected && styles.optionItemActive,
+                            styles.modifierText,
+                            highIntensity && styles.modifierTextActive,
                           ]}
-                          onPress={() => setActivityType(option.name)}
                         >
-                          <Text
-                            style={option.emoji ? styles.optionEmoji : null}
-                          >
-                            {option.emoji}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.optionText,
-                              isSelected && styles.optionTextActive,
-                            ]}
-                          >
-                            {option.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                          ⚡ High-Intensity (+1.5 METs)
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.modifierButton,
+                          activeRecovery && styles.modifierButtonActive,
+                        ]}
+                        onPress={() => {
+                          setActiveRecovery(!activeRecovery);
+                          if (!activeRecovery) {
+                            setHighIntensity(false);
+                            setStrengthRest(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.modifierText,
+                            activeRecovery && styles.modifierTextActive,
+                          ]}
+                        >
+                          🚶 Active Recovery (-0.5 METs)
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Row 2: Strength Rest (Centered below) */}
+                    <View style={[styles.modifiersRow, { marginTop: 8, justifyContent: 'center' }]}>
+                      <TouchableOpacity
+                        style={[
+                          styles.modifierButton,
+                          { flex: 0, width: '48.5%' },
+                          strengthRest && styles.modifierButtonActive,
+                        ]}
+                        onPress={() => {
+                          setStrengthRest(!strengthRest);
+                          if (!strengthRest) {
+                            setHighIntensity(false);
+                            setActiveRecovery(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.modifierText,
+                            strengthRest && styles.modifierTextActive,
+                          ]}
+                        >
+                          🧘 Strength Rest (-1.0 METs)
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
 
                 {/* Sync Smart Wearable Toggle Switch */}
-                <View style={styles.syncWearableContainer}>
+                <View
+                  style={[
+                    styles.syncWearableContainer,
+                    { marginBottom: syncWearable ? theme.spacing.md : 0 },
+                  ]}
+                >
                   <Text style={styles.syncWearableLabel}>
                     SYNC FROM APPLE WATCH/FITNESS TRACKER
                   </Text>
@@ -748,219 +817,264 @@ export const ActivityTrackingScreen: React.FC = () => {
                   />
                 </View>
 
-                {syncWearable ? (
-                  <View style={styles.wearableSyncInfoCard}>
+                {syncWearable && (
+                  <View
+                    style={[styles.wearableSyncInfoCard, { marginBottom: 0 }]}
+                  >
                     <Text style={styles.wearableSyncInfoText}>
                       ⌚ Wearable Sync Enabled: Active Calories, Heart Rate, and
                       duration will be fetched automatically from your connected
                       wearable device.
                     </Text>
                   </View>
-                ) : (
-                  <>
-                    {/* Duration Input */}
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Duration (minutes)</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="e.g. 30"
-                        placeholderTextColor={theme.colors.textLight}
-                        keyboardType="numeric"
-                        value={duration}
-                        onChangeText={setDuration}
-                      />
-                    </View>
-
-                    {/* Distance Input (Conditional) */}
-                    {isDistanceBased && (
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Distance (KM)</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="e.g. 2.5"
-                          placeholderTextColor={theme.colors.textLight}
-                          keyboardType="numeric"
-                          value={distance}
-                          onChangeText={setDistance}
-                        />
-                        {parsedDuration > 0 && parsedDistance > 0 && (
-                          <View style={styles.velocityContainer}>
-                            <Text style={styles.velocityText}>
-                              ⚡ Live Velocity Speed: {liveVelocity.toFixed(1)}{' '}
-                              km/h
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </>
                 )}
+                <View style={{ marginBottom: 15 }} />
 
-                {/* Resistance Parameters (Strength workouts) */}
-                {activeRegistryItem?.category === 'strength' && (
-                  <LinearGradient
-                    colors={['#4f46e5', '#3730a3']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.strengthParamsContainer}
-                  >
-                    <Text style={styles.sectionHeader}>
-                      🏋️‍♂️ Resistance Parameters
-                    </Text>
-                    <View style={styles.paramsRow}>
-                      <View style={styles.paramInputGroup}>
-                        <Text style={styles.paramLabel}>Sets</Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                          value={sets}
-                          onChangeText={setSets}
-                        />
-                      </View>
-                      <View style={styles.paramInputGroup}>
-                        <Text style={styles.paramLabel}>Reps</Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                          value={reps}
-                          onChangeText={setReps}
-                        />
-                      </View>
-                      <View style={styles.paramInputGroup}>
-                        <Text style={styles.paramLabel}>Weight (kg)</Text>
-                        <TextInput
-                          style={styles.paramInput}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                          value={weightKg}
-                          onChangeText={setWeightKg}
-                        />
-                      </View>
-                    </View>
-                  </LinearGradient>
-                )}
+                {/* Card 3: Workout Metrics */}
+                {(!syncWearable ||
+                  activeRegistryItem?.category === 'strength') && (
+                  <View style={styles.formCard}>
+                    <Text style={styles.formCardTitle}>📊 Workout Metrics</Text>
 
-                {/* Sleep Hours Logged (Fatigue Guard) */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Sleep Hours (Last Night) *</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      errors.sleepHours ? styles.inputError : null,
-                    ]}
-                    placeholder="e.g. 7.5"
-                    placeholderTextColor={theme.colors.textLight}
-                    keyboardType="numeric"
-                    value={sleepHours}
-                    onChangeText={text => {
-                      setSleepHours(text);
-                      if (errors.sleepHours) {
-                        setErrors(prev => ({ ...prev, sleepHours: undefined }));
-                      }
-                    }}
-                  />
-                  {errors.sleepHours ? (
-                    <Text style={styles.errorText}>{errors.sleepHours}</Text>
-                  ) : null}
-                </View>
-
-                {/* Mood Selection */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Mood Rating *</Text>
-                  <View style={styles.ratingsRow}>
-                    {moodRatings.map(item => {
-                      const isSelected = mood === item.value;
-                      return (
-                        <TouchableOpacity
-                          key={item.value}
+                    {!syncWearable && (
+                      <>
+                        {/* Duration Input */}
+                        <View
                           style={[
-                            styles.moodButton,
-                            isSelected && styles.moodButtonActive,
-                            errors.mood ? styles.borderError : null,
-                          ]}
-                          onPress={() => {
-                            setMood(item.value);
-                            if (errors.mood) {
-                              setErrors(prev => ({ ...prev, mood: undefined }));
-                            }
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.moodEmoji}>{item.emoji}</Text>
-                          <Text
-                            style={[
-                              styles.moodText,
-                              isSelected && styles.moodTextActive,
-                            ]}
-                          >
-                            {item.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                  {errors.mood ? (
-                    <Text style={styles.errorText}>{errors.mood}</Text>
-                  ) : null}
-                </View>
-
-                {/* RPE Exertion */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>
-                    Rate of Perceived Exertion (RPE 1-10) *
-                  </Text>
-                  <View style={styles.rpeRow}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => {
-                      const isSelected = rpe === val;
-                      const colors = getRpeColorProps(val, isSelected);
-                      return (
-                        <TouchableOpacity
-                          key={val}
-                          style={[
-                            styles.rpeButton,
+                            styles.inputGroup,
                             {
-                              backgroundColor: colors.bg,
-                              borderColor: errors.rpe
-                                ? theme.colors.error
-                                : colors.border,
-                              borderWidth: errors.rpe || isSelected ? 2 : 1,
+                              marginBottom: isDistanceBased
+                                ? theme.spacing.lg
+                                : 0,
                             },
                           ]}
-                          onPress={() => {
-                            setRpe(val);
-                            if (errors.rpe) {
-                              setErrors(prev => ({ ...prev, rpe: undefined }));
-                            }
-                          }}
-                          activeOpacity={0.8}
                         >
-                          <Text
+                          <Text style={styles.label}>Duration (minutes)</Text>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="e.g. 30"
+                            placeholderTextColor={theme.colors.textLight}
+                            keyboardType="numeric"
+                            value={duration}
+                            onChangeText={setDuration}
+                          />
+                        </View>
+
+                        {/* Distance Input (Conditional) */}
+                        {isDistanceBased && (
+                          <View
+                            style={[styles.inputGroup, { marginBottom: 0 }]}
+                          >
+                            <Text style={styles.label}>Distance (KM)</Text>
+                            <TextInput
+                              style={styles.input}
+                              placeholder="e.g. 2.5"
+                              placeholderTextColor={theme.colors.textLight}
+                              keyboardType="numeric"
+                              value={distance}
+                              onChangeText={setDistance}
+                            />
+                            {parsedDuration > 0 && parsedDistance > 0 && (
+                              <View style={styles.velocityContainer}>
+                                <Text style={styles.velocityText}>
+                                  ⚡ Live Velocity Speed:{' '}
+                                  {liveVelocity.toFixed(1)} km/h
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </>
+                    )}
+
+                    {/* Resistance Parameters (Strength workouts) */}
+                    {activeRegistryItem?.category === 'strength' && (
+                      <LinearGradient
+                        colors={['#4f46e5', '#3730a3']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.flatten([
+                          styles.strengthParamsContainer,
+                          {
+                            marginBottom: 0,
+                            marginTop: !syncWearable ? theme.spacing.lg : 0,
+                          },
+                        ])}
+                      >
+                        <Text style={styles.sectionHeader}>
+                          🏋️‍♂️ Resistance Parameters
+                        </Text>
+                        <View style={styles.paramsRow}>
+                          <View style={styles.paramInputGroup}>
+                            <Text style={styles.paramLabel}>Sets</Text>
+                            <TextInput
+                              style={styles.paramInput}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                              value={sets}
+                              onChangeText={setSets}
+                            />
+                          </View>
+                          <View style={styles.paramInputGroup}>
+                            <Text style={styles.paramLabel}>Reps</Text>
+                            <TextInput
+                              style={styles.paramInput}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                              value={reps}
+                              onChangeText={setReps}
+                            />
+                          </View>
+                          <View style={styles.paramInputGroup}>
+                            <Text style={styles.paramLabel}>Weight (kg)</Text>
+                            <TextInput
+                              style={styles.paramInput}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                              value={weightKg}
+                              onChangeText={setWeightKg}
+                            />
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    )}
+                  </View>
+                )}
+
+                {/* Card 4: Wellness & Exertion */}
+                <View style={styles.formCard}>
+                  <Text style={styles.formCardTitle}>
+                    🌱 Wellness & Exertion
+                  </Text>
+
+                  {/* Sleep Hours Logged (Fatigue Guard) */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Sleep Hours (Last Night) *</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        errors.sleepHours ? styles.inputError : null,
+                      ]}
+                      placeholder="e.g. 7.5"
+                      placeholderTextColor={theme.colors.textLight}
+                      keyboardType="numeric"
+                      value={sleepHours}
+                      onChangeText={text => {
+                        setSleepHours(text);
+                        if (errors.sleepHours) {
+                          setErrors(prev => ({
+                            ...prev,
+                            sleepHours: undefined,
+                          }));
+                        }
+                      }}
+                    />
+                    {errors.sleepHours ? (
+                      <Text style={styles.errorText}>{errors.sleepHours}</Text>
+                    ) : null}
+                  </View>
+
+                  {/* Mood Selection */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Mood Rating *</Text>
+                    <View style={styles.ratingsRow}>
+                      {moodRatings.map(item => {
+                        const isSelected = mood === item.value;
+                        return (
+                          <TouchableOpacity
+                            key={item.value}
                             style={[
-                              styles.rpeText,
+                              styles.moodButton,
+                              isSelected && styles.moodButtonActive,
+                              errors.mood ? styles.borderError : null,
+                            ]}
+                            onPress={() => {
+                              setMood(item.value);
+                              if (errors.mood) {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  mood: undefined,
+                                }));
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.moodEmoji}>{item.emoji}</Text>
+                            <Text
+                              style={[
+                                styles.moodText,
+                                isSelected && styles.moodTextActive,
+                              ]}
+                            >
+                              {item.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {errors.mood ? (
+                      <Text style={styles.errorText}>{errors.mood}</Text>
+                    ) : null}
+                  </View>
+
+                  {/* RPE Exertion */}
+                  <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+                    <Text style={styles.label}>
+                      Rate of Perceived Exertion (RPE 1-10) *
+                    </Text>
+                    <View style={styles.rpeRow}>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => {
+                        const isSelected = rpe === val;
+                        const colors = getRpeColorProps(val, isSelected);
+                        return (
+                          <TouchableOpacity
+                            key={val}
+                            style={[
+                              styles.rpeButton,
                               {
-                                color: colors.text,
-                                fontWeight: isSelected ? 'bold' : 'normal',
+                                backgroundColor: colors.bg,
+                                borderColor: errors.rpe
+                                  ? theme.colors.error
+                                  : colors.border,
+                                borderWidth: errors.rpe || isSelected ? 2 : 1,
                               },
                             ]}
+                            onPress={() => {
+                              setRpe(val);
+                              if (errors.rpe) {
+                                setErrors(prev => ({
+                                  ...prev,
+                                  rpe: undefined,
+                                }));
+                              }
+                            }}
+                            activeOpacity={0.8}
                           >
-                            {val}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                            <Text
+                              style={[
+                                styles.rpeText,
+                                {
+                                  color: colors.text,
+                                  fontWeight: isSelected ? 'bold' : 'normal',
+                                },
+                              ]}
+                            >
+                              {val}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {errors.rpe ? (
+                      <Text style={styles.errorText}>{errors.rpe}</Text>
+                    ) : null}
                   </View>
-                  {errors.rpe ? (
-                    <Text style={styles.errorText}>{errors.rpe}</Text>
-                  ) : null}
                 </View>
 
-                {/* Notes Input */}
-                <View style={styles.inputGroup}>
+                <View style={[styles.inputGroup, { marginTop: 8 }]}>
                   <Text style={styles.label}>Notes</Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
@@ -972,49 +1086,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                     onChangeText={setNotes}
                   />
                 </View>
-
-                {/* Dynamic Session Summary Preview */}
-                {/* <View style={styles.previewCard}>
-                  <Text style={styles.previewCardTitle}>
-                    📊 Live Session Estimate
-                  </Text>
-
-                  <View style={styles.previewMetricsRow}>
-                    <View style={styles.previewMetricItem}>
-                      <Text style={styles.previewMetricLabel}>Intensity</Text>
-                      <Text style={styles.previewMetricValue}>
-                        {liveCalculatedMET.toFixed(1)} METs
-                      </Text>
-                    </View>
-
-                    <View style={styles.previewMetricItem}>
-                      <Text style={styles.previewMetricLabel}>Est. Burn</Text>
-                      <Text style={styles.previewMetricValue}>
-                        {liveCalories} kcal
-                      </Text>
-                    </View>
-
-                    <View style={styles.previewMetricItem}>
-                      <Text style={styles.previewMetricLabel}>Gain Points</Text>
-                      <Text style={styles.previewMetricValue}>
-                        {liveGainPoints} pts
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.previewSplitsRow}>
-                    <Text style={styles.previewSplitText}>
-                      🦾 Musculo:{' '}
-                      <Text style={styles.boldText}>
-                        {liveMusculoSplit} pts
-                      </Text>
-                    </Text>
-                    <Text style={styles.previewSplitText}>
-                      🫁 Cardio:{' '}
-                      <Text style={styles.boldText}>{liveCardioSplit} pts</Text>
-                    </Text>
-                  </View>
-                </View> */}
               </ScrollView>
 
               {/* Modal Footer */}
@@ -1039,7 +1110,6 @@ export const ActivityTrackingScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Searchable Activity Picker Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -1121,7 +1191,6 @@ export const ActivityTrackingScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Workout Benefits Summary Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -1161,8 +1230,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                     </Text>
                   </View>
                 </View>
-
-                {/* Scorecard Progress Bars */}
                 <Text style={styles.scorecardTitle}>
                   Daily Scorecard Progress
                 </Text>
@@ -1248,19 +1315,19 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)', // slate transparent overlay
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
   },
   modalKeyboardAvoiding: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#0F172A',
     borderTopLeftRadius: theme.spacing.borderRadiusLg,
     borderTopRightRadius: theme.spacing.borderRadiusLg,
     maxHeight: '88%',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#1E293B',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1268,28 +1335,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#1E293B',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
+    color: '#FFFFFF',
   },
   closeBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#1E293B',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeText: {
     fontSize: 16,
-    color: theme.colors.textSecondary,
+    color: '#94A3B8',
     fontWeight: 'bold',
   },
   modalScroll: {
     padding: theme.spacing.lg,
+  },
+  formCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  formCardTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#818cf8',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 16,
   },
   inputGroup: {
     marginBottom: theme.spacing.lg,
@@ -1297,7 +1385,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14.5,
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
+    color: '#F1F5F9',
     marginBottom: theme.spacing.sm,
   },
   labelRow: {
@@ -1309,11 +1397,11 @@ const styles = StyleSheet.create({
   labelNoMargin: {
     fontSize: 14.5,
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
+    color: '#F1F5F9',
   },
   showAllTextLink: {
     fontSize: 14,
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
   optionsScroll: {
@@ -1326,16 +1414,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 22,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0F172A',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#334155',
     marginRight: 8,
   },
   searchModalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.4)', // slate transparent overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   searchModalKeyboardAvoiding: {
     flex: 1,
@@ -1344,17 +1432,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   searchModalContent: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#0F172A',
     borderRadius: theme.spacing.borderRadiusLg,
     width: '90%',
     height: 400,
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#1E293B',
     overflow: 'hidden',
-    shadowColor: '#0f172a',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
   },
@@ -1364,28 +1452,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#1E293B',
   },
   searchModalTitle: {
     fontSize: 16.5,
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
+    color: '#FFFFFF',
   },
   searchBarContainer: {
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0B0F19',
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#1E293B',
   },
   searchInput: {
     height: 44,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#1E293B',
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#334155',
     paddingHorizontal: theme.spacing.md,
     fontSize: 15,
-    color: theme.colors.text,
+    color: '#FFFFFF',
   },
   searchScroll: {
     padding: theme.spacing.sm,
@@ -1399,7 +1487,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   searchRowItemActive: {
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
   },
   searchRowEmoji: {
     fontSize: 18,
@@ -1407,21 +1495,21 @@ const styles = StyleSheet.create({
   },
   searchRowText: {
     fontSize: 14.5,
-    color: theme.colors.text,
+    color: '#E2E8F0',
     flex: 1,
   },
   searchRowTextActive: {
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.primary,
+    color: '#818cf8',
   },
   searchRowCheck: {
     fontSize: 16,
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: 'bold',
   },
   optionItemActive: {
-    backgroundColor: theme.colors.primaryLight,
-    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: '#6366f1',
   },
   optionEmoji: {
     fontSize: 17,
@@ -1429,22 +1517,22 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: '#94A3B8',
     fontWeight: theme.fonts.weights.medium as any,
   },
   optionTextActive: {
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
   input: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0F172A',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#334155',
     borderRadius: theme.spacing.borderRadiusMd,
     height: 48,
     paddingHorizontal: theme.spacing.md,
     fontSize: 15.5,
-    color: theme.colors.text,
+    color: '#FFFFFF',
   },
   textArea: {
     height: 80,
@@ -1455,18 +1543,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#0F172A',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 14,
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#334155',
     marginBottom: theme.spacing.lg,
   },
   syncWearableLabel: {
     fontSize: 12.5,
     fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.textSecondary,
+    color: '#94A3B8',
     letterSpacing: 0.3,
     flex: 1,
     marginRight: theme.spacing.md,
@@ -1488,14 +1576,14 @@ const styles = StyleSheet.create({
   },
   velocityContainer: {
     marginTop: theme.spacing.xs,
-    backgroundColor: theme.colors.primaryLight,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     paddingVertical: 8,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.spacing.borderRadiusMd,
   },
   velocityText: {
     fontSize: 13.5,
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
   ratingsRow: {
@@ -1508,14 +1596,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
+    borderColor: '#334155',
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   moodButtonActive: {
-    backgroundColor: theme.colors.primaryLight,
-    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: '#6366f1',
     elevation: 2,
   },
   moodEmoji: {
@@ -1524,11 +1612,11 @@ const styles = StyleSheet.create({
   },
   moodText: {
     fontSize: 10,
-    color: theme.colors.textSecondary,
+    color: '#94A3B8',
     fontWeight: theme.fonts.weights.medium as any,
   },
   moodTextActive: {
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
   rpeRow: {
@@ -1538,7 +1626,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rpeButton: {
-    width: '18%', // Renders exactly 5 items per row nicely on a 10 items grid
+    width: '18%',
     height: 38,
     borderRadius: 8,
     borderWidth: 1,
@@ -1554,19 +1642,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: theme.spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: '#1E293B',
     gap: theme.spacing.md,
   },
   footerButton: {
     flex: 1,
   },
-
-  // Resistance Parameters Styles
   strengthParamsContainer: {
     marginBottom: theme.spacing.lg,
     padding: theme.spacing.lg,
     borderRadius: 16,
-    // iOS shadow
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -1606,8 +1691,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
   },
-
-  // Contextual Modifiers Styles
   modifiersRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1619,29 +1702,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
+    borderColor: '#334155',
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modifierButtonActive: {
-    backgroundColor: theme.colors.primaryLight,
-    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: '#6366f1',
   },
   modifierText: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
+    color: '#94A3B8',
     fontWeight: theme.fonts.weights.medium as any,
     textAlign: 'center',
   },
   modifierTextActive: {
-    color: theme.colors.primary,
+    color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
-
-  // Preview Card Styles
   previewCard: {
-    backgroundColor: theme.colors.primaryLight + '30', // soft translucent indigo
+    backgroundColor: theme.colors.primaryLight + '30',
     borderColor: theme.colors.primary + '30',
     borderWidth: 1.5,
     borderRadius: theme.spacing.borderRadiusLg,
@@ -1690,13 +1771,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text,
   },
-
-  // Benefits Summary Modal Styles
   benefitsModalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)', // darker overlay for focus
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
   },
   benefitsContent: {
     backgroundColor: theme.colors.surface,
@@ -1795,8 +1874,6 @@ const styles = StyleSheet.create({
   benefitsCloseBtn: {
     width: '100%',
   },
-
-  // Validation Error Styles
   errorText: {
     fontSize: 12,
     color: theme.colors.error,
@@ -1809,18 +1886,16 @@ const styles = StyleSheet.create({
   borderError: {
     borderColor: theme.colors.error,
   },
-
-  // Category Selector Tabs Styles
   categoryTabsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 0,
     marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.background,
-    padding: 4,
+    backgroundColor: '#0F172A',
+    padding: 2,
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#1E293B',
   },
   categoryTab: {
     flex: 1,
@@ -1831,24 +1906,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   categoryTabActive: {
-    backgroundColor: theme.colors.surface,
-    shadowColor: '#64748b',
+    backgroundColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   categoryTabText: {
-    fontSize: 12.5,
-    color: theme.colors.textSecondary,
+    fontSize: 12,
+    color: '#94A3B8',
     fontWeight: theme.fonts.weights.medium as any,
   },
   categoryTabTextActive: {
-    color: theme.colors.primary,
+    color: '#FFFFFF',
     fontWeight: theme.fonts.weights.bold as any,
   },
-
-  // Upper screen tab styles
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#0E1626',
@@ -1881,8 +1954,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-
-  // Steps placeholder styles
   stepsPlaceholderContainer: {
     flexGrow: 1,
     justifyContent: 'center',

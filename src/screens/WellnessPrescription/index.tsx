@@ -83,6 +83,8 @@ export const WellnessPrescriptionScreen: React.FC<
   const [accepting, setAccepting] = useState(false);
   const [payload, setPayload] = useState<DualCardPayload | null>(null);
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
+  const [apiUserProfile, setApiUserProfile] = useState<any | null>(null);
+  const [apiPacingProfile, setApiPacingProfile] = useState<any | null>(null);
 
   // Local Checklist tracking
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
@@ -102,6 +104,30 @@ export const WellnessPrescriptionScreen: React.FC<
             STORAGE_KEYS.PACING_OTHER_TEXT,
           )) || '';
 
+        // Fetch User Profile and Pacing Profile APIs (for verification logging)
+        const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+        try {
+          const userProfileRes = await fetch(`http://13.235.135.98:8081/backend/health-connect/userProfile?uhid=${targetUhid}`);
+          const userProfileJson = await userProfileRes.json();
+          console.log('[WellnessPrescription] GET User Profile Response:', JSON.stringify(userProfileJson, null, 2));
+          if (userProfileJson && userProfileJson.status === 'Success' && userProfileJson.data) {
+            setApiUserProfile(userProfileJson.data);
+          }
+        } catch (err) {
+          console.error('[WellnessPrescription] Error fetching User Profile:', err);
+        }
+
+        try {
+          const pacingProfileRes = await fetch(`http://13.235.135.98:8081/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
+          const pacingProfileJson = await pacingProfileRes.json();
+          console.log('[WellnessPrescription] GET Pacing Profile Response:', JSON.stringify(pacingProfileJson, null, 2));
+          if (pacingProfileJson && pacingProfileJson.status === 'Success' && pacingProfileJson.data) {
+            setApiPacingProfile(pacingProfileJson.data);
+          }
+        } catch (err) {
+          console.error('[WellnessPrescription] Error fetching Pacing Profile:', err);
+        }
+
         const name = cachedProfile?.name || 'Anand Verma';
         const age = cachedProfile?.age || 60;
         const weight = cachedProfile?.weight || 73.0;
@@ -116,7 +142,7 @@ export const WellnessPrescriptionScreen: React.FC<
           systemic_restoration: '🧘 Systemic',
           none: '🛡️ None',
           other: customOtherText ? `🌀 Other (${customOtherText})` : '🌀 Other',
-        };
+        };  
 
         const activePacingLabels = cachedPacing.map(
           id => pacingLabelsMap[id] || id,
@@ -412,18 +438,133 @@ export const WellnessPrescriptionScreen: React.FC<
           {/* User Profile Header */}
           <View style={styles.profileHeaderBox}>
             <Text style={styles.profileHeaderTitle}>
-              👤 USER PROFILE HEADER
+              👤 CLINICAL USER PROFILE
             </Text>
-            <Text style={styles.profileText}>
-              Name: {payload.userName} | Age: {payload.age} yrs | Calibrated
-              Mass: {payload.weightKg} kg
+            
+            <View style={styles.profileGrid}>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>NAME</Text>
+                <Text style={styles.profileItemValue}>{apiUserProfile?.name || payload.userName}</Text>
+              </View>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>AGE</Text>
+                <Text style={styles.profileItemValue}>{apiUserProfile?.age || payload.age} yrs</Text>
+              </View>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>MASS</Text>
+                <Text style={styles.profileItemValue}>{apiUserProfile?.weight || payload.weightKg} kg</Text>
+              </View>
+            </View>
+
+            <View style={[styles.profileGrid, { marginTop: 8 }]}>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>HEIGHT</Text>
+                <Text style={styles.profileItemValue}>
+                  {apiUserProfile?.height ? `${apiUserProfile.height} cm` : '178 cm'}
+                </Text>
+              </View>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>CALORIE GOAL</Text>
+                <Text style={styles.profileItemValue}>
+                  {apiUserProfile?.calorieGoal ? `${apiUserProfile.calorieGoal} kcal` : '2400 kcal'}
+                </Text>
+              </View>
+              <View style={styles.profileGridItem}>
+                <Text style={styles.profileItemLabel}>UHID</Text>
+                <Text style={styles.profileItemValue}>{apiUserProfile?.uhid || 'SAUSHA9775'}</Text>
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.profileDivider} />
+
+            {/* Pacing Configuration */}
+            <Text style={styles.pacingHeaderTitle}>
+              🎯 ACTIVE CLINICAL PACING MODULES
             </Text>
-            <Text style={styles.pacingProfileText}>
-              Selected Pacing Profile:{' '}
-              <Text style={styles.highlightTrack}>
-                [ {payload.pacingModeLabel} ]
+
+            {apiPacingProfile ? (
+              <View style={styles.pacingModesContainer}>
+                {apiPacingProfile.selectedPacingModes?.map((mode: string) => {
+                  const pacingModeLabels: Record<string, { label: string; color: string; emoji: string }> = {
+                    cardio_pacing: { label: 'Cardiovascular Pacing', color: '#06b6d4', emoji: '🫀' },
+                    metabolic_buffer: { label: 'Metabolic Optimization', color: '#f97316', emoji: '🧪' },
+                    joint_focus: { label: 'Joint & Muscle Density', color: '#10b981', emoji: '🦾' },
+                    pulmonary_balancing: { label: 'Pulmonary Volume', color: '#8b5cf6', emoji: '🫁' },
+                    vascular_stabilization: { label: 'Vascular Flow', color: '#ef4444', emoji: '🩸' },
+                    systemic_restoration: { label: 'Systemic Restoration', color: '#ec4899', emoji: '🧘' },
+                    none: { label: 'None', color: '#64748b', emoji: '🛡️' },
+                    other: { label: 'Other', color: '#0f172a', emoji: '🌀' },
+                  };
+
+                  const currentMode = pacingModeLabels[mode] || { label: mode, color: '#64748b', emoji: '⚙️' };
+                  
+                  // Sub-options mapping
+                  const cardioSubsMap: Record<string, string> = {
+                    hypertension: 'Controlled Hypertension',
+                    heart_disease: 'Heart Disease / History of Stroke',
+                    diabetes: 'Diabetes'
+                  };
+                  const metabolicSubsMap: Record<string, string> = {
+                    diabetes_t1_t2: 'Type 1 / Type 2 Diabetes',
+                    pcos_pcod: 'PCOS / PCOD',
+                    thyroid_fatty_liver: 'Thyroid / Fatty Liver'
+                  };
+
+                  return (
+                    <View key={mode} style={styles.pacingModuleBadge}>
+                      <View style={styles.pacingModuleHeader}>
+                        <Text style={styles.pacingEmoji}>{currentMode.emoji}</Text>
+                        <Text style={[styles.pacingModuleTitle, { color: currentMode.color }]}>
+                          {currentMode.label}
+                        </Text>
+                      </View>
+
+                      {/* Render Cardiovascular Sub-Modes */}
+                      {mode === 'cardio_pacing' && apiPacingProfile.selectedCardioSubModes && apiPacingProfile.selectedCardioSubModes.length > 0 && (
+                        <View style={styles.subModesList}>
+                          {apiPacingProfile.selectedCardioSubModes.map((sub: string) => (
+                            <View key={sub} style={styles.subModeItem}>
+                              <Text style={styles.subModeBullet}>•</Text>
+                              <Text style={styles.subModeText}>{cardioSubsMap[sub] || sub}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Render Metabolic Sub-Modes */}
+                      {mode === 'metabolic_buffer' && apiPacingProfile.selectedMetabolicSubModes && apiPacingProfile.selectedMetabolicSubModes.length > 0 && (
+                        <View style={styles.subModesList}>
+                          {apiPacingProfile.selectedMetabolicSubModes.map((sub: string) => (
+                            <View key={sub} style={styles.subModeItem}>
+                              <Text style={styles.subModeBullet}>•</Text>
+                              <Text style={styles.subModeText}>{metabolicSubsMap[sub] || sub}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Render Custom Other Text */}
+                      {mode === 'other' && apiPacingProfile.otherText && (
+                        <View style={styles.subModesList}>
+                          <View style={styles.subModeItem}>
+                            <Text style={styles.subModeBullet}>•</Text>
+                            <Text style={styles.subModeText}>{apiPacingProfile.otherText}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={styles.pacingProfileText}>
+                Selected Pacing Profile:{' '}
+                <Text style={styles.highlightTrack}>
+                  [ {payload.pacingModeLabel} ]
+                </Text>
               </Text>
-            </Text>
+            )}
           </View>
 
           {/* Timeline Meta Row */}
@@ -1379,6 +1520,85 @@ const styles = StyleSheet.create({
   },
   modalCloseBtn: {
     marginTop: theme.spacing.sm,
+  },
+  profileGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  profileGridItem: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 8,
+    marginHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  profileItemLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  profileItemValue: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  profileDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 12,
+  },
+  pacingHeaderTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  pacingModesContainer: {
+    gap: 8,
+  },
+  pacingModuleBadge: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  pacingModuleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pacingEmoji: {
+    fontSize: 16,
+  },
+  pacingModuleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  subModesList: {
+    marginTop: 6,
+    paddingLeft: 22,
+    gap: 4,
+  },
+  subModeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subModeBullet: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  subModeText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
 

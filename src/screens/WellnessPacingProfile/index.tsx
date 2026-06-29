@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -15,6 +15,7 @@ import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { apiService } from '../../services/api';
 
 interface PacingModeOption {
   id: string;
@@ -83,30 +84,106 @@ const PACING_OPTIONS: PacingModeOption[] = [
   },
 ];
 
+const CARDIO_SUB_OPTIONS = [
+  { id: 'hypertension', label: 'A: Controlled Hypertension / High Blood Pressure' },
+  { id: 'heart_disease', label: 'B: Heart Disease (CVD / Ischemic / Valvular) or History of Stroke' }
+];
+
+const METABOLIC_SUB_OPTIONS = [
+  { id: 'diabetes_t1_t2', label: 'A: Type 1 / Type 2 Diabetes' },
+  { id: 'pcos_pcod', label: 'B: Polycystic Ovary Syndrome (PCOS) / PCOD' },
+  { id: 'thyroid_fatty_liver', label: 'C: Thyroid Disorders (Hyper / Hypo) or Fatty Liver Disease' }
+];
+
 export const WellnessPacingProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [otherText, setOtherText] = useState('');
+  const [selectedCardioSubs, setSelectedCardioSubs] = useState<string[]>([]);
+  const [selectedMetabolicSubs, setSelectedMetabolicSubs] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSavedPacing = async () => {
+      try {
+        const savedIds = await storageHelper.getItem<string[]>(STORAGE_KEYS.PACING_PROFILE);
+        if (savedIds && savedIds.length > 0) {
+          setSelectedIds(savedIds);
+        }
+        const savedOther = await storageHelper.getItem<string>(STORAGE_KEYS.PACING_OTHER_TEXT);
+        if (savedOther) {
+          setOtherText(savedOther);
+        }
+        const savedCardio = await storageHelper.getItem<string[]>(STORAGE_KEYS.PACING_CARDIO_SUBS);
+        if (savedCardio) {
+          setSelectedCardioSubs(savedCardio);
+        }
+        const savedMetabolic = await storageHelper.getItem<string[]>(STORAGE_KEYS.PACING_METABOLIC_SUBS);
+        if (savedMetabolic) {
+          setSelectedMetabolicSubs(savedMetabolic);
+        }
+      } catch (error) {
+        console.error('Failed to load pacing profile from storage:', error);
+      }
+    };
+    loadSavedPacing();
+  }, []);
 
   const toggleOption = (id: string) => {
     setSelectedIds((prev) => {
+      let updated: string[];
       if (id === 'none') {
         // Selecting None deselects everything else
-        return prev.includes('none') ? [] : ['none'];
+        updated = prev.includes('none') ? [] : ['none'];
       } else {
         // Selecting any other option deselects None
         const filtered = prev.filter((item) => item !== 'none');
-        return filtered.includes(id)
+        updated = filtered.includes(id)
           ? filtered.filter((item) => item !== id)
           : [...filtered, id];
       }
+
+      // Clear sub-options if parent is deselected
+      if (!updated.includes('cardio_pacing')) {
+        setSelectedCardioSubs([]);
+      }
+      if (!updated.includes('metabolic_buffer')) {
+        setSelectedMetabolicSubs([]);
+      }
+      if (!updated.includes('other')) {
+        setOtherText('');
+      }
+
+      return updated;
     });
+  };
+
+  const toggleCardioSub = (subId: string) => {
+    setSelectedCardioSubs((prev) =>
+      prev.includes(subId)
+        ? prev.filter((item) => item !== subId)
+        : [...prev, subId]
+    );
+  };
+
+  const toggleMetabolicSub = (subId: string) => {
+    setSelectedMetabolicSubs((prev) =>
+      prev.includes(subId)
+        ? prev.filter((item) => item !== subId)
+        : [...prev, subId]
+    );
   };
 
   const handleSavePacing = async () => {
     setSaving(true);
     try {
+      await apiService.savePacingProfile({
+        selectedPacingModes: selectedIds,
+        otherText: selectedIds.includes('other') ? otherText.trim() : undefined,
+        selectedCardioSubModes: selectedIds.includes('cardio_pacing') ? selectedCardioSubs : undefined,
+        selectedMetabolicSubModes: selectedIds.includes('metabolic_buffer') ? selectedMetabolicSubs : undefined,
+      });
+
       // Save selected pacing profiles to storage for clinical alignment integrations
       await storageHelper.setItem(STORAGE_KEYS.PACING_PROFILE, selectedIds);
 
@@ -115,6 +192,19 @@ export const WellnessPacingProfileScreen: React.FC = () => {
         await storageHelper.setItem(STORAGE_KEYS.PACING_OTHER_TEXT, otherText);
       } else {
         await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);
+      }
+
+      // Save selected sub-options to storage
+      if (selectedIds.includes('cardio_pacing')) {
+        await storageHelper.setItem(STORAGE_KEYS.PACING_CARDIO_SUBS, selectedCardioSubs);
+      } else {
+        await storageHelper.removeItem(STORAGE_KEYS.PACING_CARDIO_SUBS);
+      }
+
+      if (selectedIds.includes('metabolic_buffer')) {
+        await storageHelper.setItem(STORAGE_KEYS.PACING_METABOLIC_SUBS, selectedMetabolicSubs);
+      } else {
+        await storageHelper.removeItem(STORAGE_KEYS.PACING_METABOLIC_SUBS);
       }
       
       // Navigate to the next step: Disclaimer
@@ -208,18 +298,101 @@ export const WellnessPacingProfileScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
 
+                {option.id === 'cardio_pacing' && isSelected && (
+                  <View style={[styles.subOptionsContainer, { borderColor: 'rgba(6, 182, 212, 0.3)', backgroundColor: 'rgba(6, 182, 212, 0.05)' }]}>
+                    <Text style={[styles.subInputLabel, { color: '#06b6d4' }]}>
+                      Select Cardiovascular Sub-Profile *
+                    </Text>
+                    {CARDIO_SUB_OPTIONS.map((sub, idx) => {
+                      const isSubSelected = selectedCardioSubs.includes(sub.id);
+                      return (
+                        <TouchableOpacity
+                          key={sub.id}
+                          style={[
+                            styles.subOptionRow,
+                            idx < CARDIO_SUB_OPTIONS.length - 1 && styles.subOptionRowBorder
+                          ]}
+                          onPress={() => toggleCardioSub(sub.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[
+                            styles.subCheckboxOutline,
+                            isSubSelected && { borderColor: '#06b6d4', backgroundColor: '#06b6d4' }
+                          ]}>
+                            {isSubSelected && <Text style={styles.subCheckboxCheck}>✓</Text>}
+                          </View>
+                          <Text style={styles.subOptionLabel}>{sub.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {selectedCardioSubs.length === 0 && (
+                      <Text style={{ fontSize: 11, color: theme.colors.warning, marginTop: 6, fontWeight: '600' }}>
+                        ⚠️ Please select at least one cardiovascular sub-option.
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {option.id === 'metabolic_buffer' && isSelected && (
+                  <View style={[styles.subOptionsContainer, { borderColor: 'rgba(249, 115, 22, 0.3)', backgroundColor: 'rgba(249, 115, 22, 0.05)' }]}>
+                    <Text style={[styles.subInputLabel, { color: '#f97316' }]}>
+                      Select Metabolic Sub-Profile *
+                    </Text>
+                    {METABOLIC_SUB_OPTIONS.map((sub, idx) => {
+                      const isSubSelected = selectedMetabolicSubs.includes(sub.id);
+                      return (
+                        <TouchableOpacity
+                          key={sub.id}
+                          style={[
+                            styles.subOptionRow,
+                            idx < METABOLIC_SUB_OPTIONS.length - 1 && styles.subOptionRowBorder
+                          ]}
+                          onPress={() => toggleMetabolicSub(sub.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[
+                            styles.subCheckboxOutline,
+                            isSubSelected && { borderColor: '#f97316', backgroundColor: '#f97316' }
+                          ]}>
+                            {isSubSelected && <Text style={styles.subCheckboxCheck}>✓</Text>}
+                          </View>
+                          <Text style={styles.subOptionLabel}>{sub.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {selectedMetabolicSubs.length === 0 && (
+                      <Text style={{ fontSize: 11, color: theme.colors.warning, marginTop: 6, fontWeight: '600' }}>
+                        ⚠️ Please select at least one metabolic sub-option.
+                      </Text>
+                    )}
+                  </View>
+                )}
+
                 {option.id === 'other' && isSelected && (
                   <View style={styles.otherInputContainer}>
-                    <Text style={styles.otherInputLabel}>Add your limitation here</Text>
+                    <Text style={[styles.otherInputLabel, { color: theme.colors.primary }]}>
+                      Add your limitation here *
+                    </Text>
                     <TextInput
-                      style={styles.otherInput}
+                      style={[
+                        styles.otherInput,
+                        {
+                          borderColor: otherText.trim() === '' ? theme.colors.warning : theme.colors.primary,
+                          borderWidth: 1.5,
+                        }
+                      ]}
                       value={otherText}
                       onChangeText={setOtherText}
-                      placeholder="Type your limitation..."
+                      placeholder="Type your custom limitation (required)..."
                       placeholderTextColor="#94a3b8"
                       multiline
                       numberOfLines={2}
                     />
+                    {otherText.trim() === '' && (
+                      <Text style={{ fontSize: 11, color: theme.colors.warning, marginTop: 6, fontWeight: '600' }}>
+                        ⚠️ This field is required to calibrate your pacing profile.
+                      </Text>
+                    )}
                   </View>
                 )}
               </View>
@@ -234,7 +407,13 @@ export const WellnessPacingProfileScreen: React.FC = () => {
             onPress={handleSavePacing}
             variant="primary"
             loading={saving}
-            disabled={saving}
+            disabled={
+              saving ||
+              selectedIds.length === 0 ||
+              (selectedIds.includes('other') && otherText.trim() === '') ||
+              (selectedIds.includes('cardio_pacing') && selectedCardioSubs.length === 0) ||
+              (selectedIds.includes('metabolic_buffer') && selectedMetabolicSubs.length === 0)
+            }
             style={styles.submitBtn}
             textStyle={styles.submitBtnText}
           />
@@ -423,9 +602,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   otherInputContainer: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: '#EEF2FF', // Soft Indigo background
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE', // Light Indigo border
     borderTopWidth: 0,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
@@ -451,6 +630,52 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     minHeight: 50,
     textAlignVertical: 'top',
+  },
+  subOptionsContainer: {
+    borderWidth: 1.5,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    padding: theme.spacing.md,
+    marginTop: -4,
+    zIndex: -1,
+  },
+  subInputLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  subOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  subOptionRowBorder: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  subCheckboxOutline: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: theme.colors.borderDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    marginRight: theme.spacing.sm,
+  },
+  subCheckboxCheck: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  subOptionLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    lineHeight: 18,
   },
 });
 
