@@ -155,11 +155,42 @@ const calculateDynamicStepTrends = (activities: Activity[]): TrendData => {
 export const apiService = {
   // --- Profile ---
   async getProfile(): Promise<UserProfile> {
-    // Future API: return axiosInstance.get('/profile');
-    const cachedProfile = await storageHelper.getItem<UserProfile>(
-      STORAGE_KEYS.USER_PROFILE,
-    );
-    return simulateNetworkCall(cachedProfile || MOCK_PROFILE);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const response = await axios.get(
+        `http://13.235.135.98:8081/backend/health-connect/userProfile?uhid=${targetUhid}`,
+      );
+      
+      if (
+        response &&
+        response.data &&
+        response.data.status === 'Success' &&
+        response.data.data
+      ) {
+        const apiData = response.data.data;
+        const merged: UserProfile = {
+          uhid: apiData.uhid || targetUhid,
+          name: apiData.name || cachedProfile?.name || 'Robert D.',
+          age: apiData.age || cachedProfile?.age || 55,
+          weight: apiData.weight || cachedProfile?.weight || 75.0,
+          height: apiData.height || cachedProfile?.height || 178,
+          calorieGoal: apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
+          isSetupComplete: cachedProfile?.isSetupComplete || false,
+        };
+        await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
+        return merged;
+      }
+      return cachedProfile || MOCK_PROFILE;
+    } catch (err) {
+      console.error('Error fetching live profile in apiService.getProfile:', err);
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      return cachedProfile || MOCK_PROFILE;
+    }
   },
 
   async updateProfile(profile: Partial<UserProfile>): Promise<UserProfile> {
@@ -263,6 +294,33 @@ export const apiService = {
   },
 
   async getCalorieTrends(): Promise<TrendData> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const url = `http://13.235.135.98:8081/backend/health-connect/getWeeklyTrends?uhid=${targetUhid}`;
+      
+      const response = await axios.get(url);
+      console.log('[apiService] GET Calorie Trends Response:', JSON.stringify(response.data, null, 2));
+
+      if (
+        response &&
+        response.data &&
+        response.data.status === 'Success' &&
+        response.data.data
+      ) {
+        const trend = response.data.data;
+        return {
+          labels: trend.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          data: trend.data || [0, 0, 0, 0, 0, 0, 0],
+          legendLabel: trend.legendLabel || 'Calories Burned (kcal)',
+        };
+      }
+    } catch (error) {
+      console.error('[apiService] Error fetching live Calorie Trends:', error);
+    }
+
     const cachedActivities = await storageHelper.getItem<Activity[]>(
       STORAGE_KEYS.ACTIVITIES,
     );
