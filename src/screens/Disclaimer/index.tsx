@@ -8,15 +8,12 @@ import { ROUTES } from '../../constants/routes';
 import { CustomButton } from '../../components/common/CustomButton';
 import { CustomHeader } from '../../components/common/CustomHeader';
 
-import { storageHelper } from '../../storage/storageHelper';
-import { STORAGE_KEYS } from '../../storage/storageKeys';
-import { UserProfile } from '../../types';
 
 export const DisclaimerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   const handleAccept = () => {
-    navigation.replace(ROUTES.LOGIN);
+    navigation.replace(ROUTES.DRAWER);
   };
 
   return (
