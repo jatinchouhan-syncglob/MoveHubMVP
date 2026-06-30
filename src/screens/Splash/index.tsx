@@ -46,11 +46,11 @@ export const SplashScreen: React.FC = () => {
         if (cachedProfile?.isSetupComplete) {
           navigation.replace(ROUTES.DRAWER);
         } else {
-          navigation.replace(ROUTES.PROFILE_SETUP);
+          navigation.replace(ROUTES.LOGIN);
         }
       } catch (error) {
         console.error('Failed to read profile in splash:', error);
-        navigation.replace(ROUTES.PROFILE_SETUP);
+        navigation.replace(ROUTES.LOGIN);
       }
     };
 
@@ -67,10 +67,10 @@ export const SplashScreen: React.FC = () => {
       if (cachedProfile?.isSetupComplete) {
         navigation.replace(ROUTES.DRAWER);
       } else {
-        navigation.replace(ROUTES.PROFILE_SETUP);
+        navigation.replace(ROUTES.LOGIN);
       }
     } catch {
-      navigation.replace(ROUTES.PROFILE_SETUP);
+      navigation.replace(ROUTES.LOGIN);
     }
   };
 

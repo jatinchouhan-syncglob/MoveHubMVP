@@ -1,6 +1,8 @@
 export const ROUTES = {
   SPLASH: 'Splash',
   DISCLAIMER: 'Disclaimer',
+  LOGIN: 'Login',
+  SIGNUP: 'Signup',
   PROFILE_SETUP: 'ProfileSetup',
   WELLNESS_PACING_PROFILE: 'WellnessPacingProfile',
   WELLNESS_PRESCRIPTION: 'WellnessPrescription',

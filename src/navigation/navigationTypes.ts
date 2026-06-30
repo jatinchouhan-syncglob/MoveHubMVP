@@ -11,6 +11,8 @@ export type DrawerParamList = {
 export type RootStackParamList = {
   Splash: undefined;
   Disclaimer: undefined;
+  Login: undefined;
+  Signup: undefined;
   ProfileSetup: undefined;
   WellnessPacingProfile: undefined;
   WellnessPrescription: undefined;

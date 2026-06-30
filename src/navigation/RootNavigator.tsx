@@ -5,6 +5,8 @@ import { RootStackParamList } from './navigationTypes';
 
 import SplashScreen from '../screens/Splash';
 import DisclaimerScreen from '../screens/Disclaimer';
+import LoginScreen from '../screens/Login';
+import SignupScreen from '../screens/Signup';
 import ProfileSetupScreen from '../screens/ProfileSetup';
 import { WellnessPacingProfileScreen } from '../screens/WellnessPacingProfile';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
@@ -28,6 +30,14 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen 
         name={ROUTES.DISCLAIMER as 'Disclaimer'} 
         component={DisclaimerScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.LOGIN as 'Login'} 
+        component={LoginScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.SIGNUP as 'Signup'} 
+        component={SignupScreen} 
       />
       <Stack.Screen 
         name={ROUTES.PROFILE_SETUP as 'ProfileSetup'} 
