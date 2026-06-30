@@ -21,30 +21,44 @@ export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
+    let hasError = false;
+
+    // Reset errors
+    setEmailError('');
+    setPasswordError('');
+
+    if (!email.trim()) {
+      setEmailError('Email address is required.');
+      hasError = true;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setEmailError('Please enter a valid email address.');
+        hasError = true;
+      }
     }
-    
-    // Simple email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
+
+    if (!password.trim()) {
+      setPasswordError('Password is required.');
+      hasError = true;
     }
+
+    if (hasError) return;
 
     setLoading(true);
     try {
       // Simulate authentication delay
       await new Promise(resolve => setTimeout(() => resolve(null), 1000));
-      
+
       // Go to setup profile after successful login
       navigation.replace(ROUTES.PROFILE_SETUP);
     } catch (err) {
-      Alert.alert('Error', 'Failed to sign in. Please try again.');
+      setPasswordError('Failed to sign in. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -53,8 +67,6 @@ export const LoginScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader title="Sign In" />
-      
-      {/* Background glowing rings */}
       <View style={styles.blurRing1} />
       <View style={styles.blurRing2} />
 
@@ -68,39 +80,48 @@ export const LoginScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.card}>
-            {/* Header Lock Emoji Circle */}
             <View style={styles.iconCircle}>
               <Text style={styles.iconText}>🔐</Text>
             </View>
-            
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.subtitleText}>Sign in to continue your fitness pacing targets</Text>
 
-            {/* Input Forms */}
+            <Text style={styles.welcomeText}>Welcome Back</Text>
+            <Text style={styles.subtitleText}>
+              Sign in to continue your fitness pacing targets
+            </Text>
             <View style={styles.formContainer}>
               <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, emailError !== '' && styles.textInputError]}
                 placeholder="Enter your email"
                 placeholderTextColor={theme.colors.textLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={val => {
+                  setEmail(val);
+                  setEmailError('');
+                }}
               />
+              {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
 
-              <Text style={[styles.inputLabel, { marginTop: 16 }]}>PASSWORD</Text>
+              <Text style={[styles.inputLabel, { marginTop: 16 }]}>
+                PASSWORD
+              </Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, passwordError !== '' && styles.textInputError]}
                 placeholder="Enter your password"
                 placeholderTextColor={theme.colors.textLight}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={val => {
+                  setPassword(val);
+                  setPasswordError('');
+                }}
               />
+              {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
             </View>
 
             <CustomButton
@@ -112,10 +133,13 @@ export const LoginScreen: React.FC = () => {
               style={styles.submitBtn}
             />
 
-            {/* Link to Sign Up */}
             <View style={styles.footerLinkContainer}>
-              <Text style={styles.footerLinkLabel}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.SIGNUP as any)}>
+              <Text style={styles.footerLinkLabel}>
+                Don't have an account?{' '}
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate(ROUTES.SIGNUP as any)}
+              >
                 <Text style={styles.footerLinkAction}>Sign Up</Text>
               </TouchableOpacity>
             </View>
@@ -240,6 +264,16 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
     color: theme.colors.primary,
+  },
+  textInputError: {
+    borderColor: theme.colors.error,
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

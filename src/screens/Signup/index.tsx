@@ -22,34 +22,84 @@ import { UserProfile } from '../../types';
 
 export const SignupScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [name, setName] = useState('');
+  
+  // Fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [whatsappCommunication, setWhatsappCommunication] = useState(true);
+  const [termsAndCondition, setTermsAndCondition] = useState(false);
+
+  // Errors
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [phoneNumberError, setPhoneNumberError] = useState('');
+  const [termsError, setTermsError] = useState('');
+  
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
+    let hasError = false;
+
+    // Reset errors
+    setFirstNameError('');
+    setLastNameError('');
+    setEmailError('');
+    setPasswordError('');
+    setPhoneNumberError('');
+    setTermsError('');
+
+    if (!firstName.trim()) {
+      setFirstNameError('First name required.');
+      hasError = true;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
-      return;
+    if (!lastName.trim()) {
+      setLastNameError('Last name required.');
+      hasError = true;
     }
 
-    // Email pattern check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
+    if (!email.trim()) {
+      setEmailError('Email is required.');
+      hasError = true;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setEmailError('Please enter a valid email.');
+        hasError = true;
+      }
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
-      return;
+    if (!phoneNumber.trim()) {
+      setPhoneNumberError('Phone number required.');
+      hasError = true;
+    } else {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phoneNumber.trim())) {
+        setPhoneNumberError('Enter a valid 10-digit number.');
+        hasError = true;
+      }
     }
+
+    if (!password.trim()) {
+      setPasswordError('Password is required.');
+      hasError = true;
+    } else if (password.length < 6) {
+      setPasswordError('Must be at least 6 characters.');
+      hasError = true;
+    }
+
+    if (!termsAndCondition) {
+      setTermsError('You must agree to the Terms & Conditions.');
+      hasError = true;
+    }
+
+    if (hasError) return;
 
     setLoading(true);
     try {
@@ -58,9 +108,9 @@ export const SignupScreen: React.FC = () => {
 
       // Preset the user profile locally with the signed-up name
       const defaultProfile: UserProfile = {
-        uhid: 'SAUSHA9775', // default dummy uhid for onboarding flow
-        name: name.trim(),
-        age: 30, // onboarding default fallback
+        uhid: 'SAUSHA9775',
+        name: `${firstName.trim()} ${lastName.trim()}`,
+        age: 30,
         weight: 70.0,
         height: 170,
         calorieGoal: 2000,
@@ -71,7 +121,7 @@ export const SignupScreen: React.FC = () => {
       // Navigate to the Setup Profile screen
       navigation.replace(ROUTES.PROFILE_SETUP);
     } catch (err) {
-      Alert.alert('Error', 'Failed to create account. Please try again.');
+      setPasswordError('Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -101,56 +151,141 @@ export const SignupScreen: React.FC = () => {
             </View>
             
             <Text style={styles.welcomeText}>Create Account</Text>
-            <Text style={styles.subtitleText}>Join MoveHub to begin tracking your biometric pacing</Text>
+            <Text style={styles.subtitleText}>Join MoveHub to begin tracking your pacing</Text>
 
             {/* Input Forms */}
             <View style={styles.formContainer}>
-              <Text style={styles.inputLabel}>FULL NAME</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter your full name"
-                placeholderTextColor={theme.colors.textLight}
-                autoCapitalize="words"
-                autoCorrect={false}
-                value={name}
-                onChangeText={setName}
-              />
+              {/* Row for First Name & Last Name */}
+              <View style={styles.inputRow}>
+                <View style={styles.flexHalf}>
+                  <Text style={styles.inputLabel}>FIRST NAME</Text>
+                  <TextInput
+                    style={[styles.textInput, firstNameError !== '' && styles.textInputError]}
+                    placeholder=""
+                    placeholderTextColor={theme.colors.textLight}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    value={firstName}
+                    onChangeText={val => {
+                      setFirstName(val);
+                      setFirstNameError('');
+                    }}
+                  />
+                  {firstNameError !== '' && <Text style={styles.errorText}>{firstNameError}</Text>}
+                </View>
+                
+                <View style={[styles.flexHalf, { marginLeft: 12 }]}>
+                  <Text style={styles.inputLabel}>LAST NAME</Text>
+                  <TextInput
+                    style={[styles.textInput, lastNameError !== '' && styles.textInputError]}
+                    placeholder=""
+                    placeholderTextColor={theme.colors.textLight}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    value={lastName}
+                    onChangeText={val => {
+                      setLastName(val);
+                      setLastNameError('');
+                    }}
+                  />
+                  {lastNameError !== '' && <Text style={styles.errorText}>{lastNameError}</Text>}
+                </View>
+              </View>
 
-              <Text style={[styles.inputLabel, { marginTop: 16 }]}>EMAIL ADDRESS</Text>
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>EMAIL ADDRESS</Text>
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, emailError !== '' && styles.textInputError]}
                 placeholder="Enter your email address"
                 placeholderTextColor={theme.colors.textLight}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={val => {
+                  setEmail(val);
+                  setEmailError('');
+                }}
               />
+              {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
 
-              <Text style={[styles.inputLabel, { marginTop: 16 }]}>PASSWORD</Text>
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>PHONE NUMBER</Text>
               <TextInput
-                style={styles.textInput}
-                placeholder="Create a password (min. 6 chars)"
+                style={[styles.textInput, phoneNumberError !== '' && styles.textInputError]}
+                placeholder="Enter your phone number"
+                placeholderTextColor={theme.colors.textLight}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={phoneNumber}
+                onChangeText={val => {
+                  setPhoneNumber(val);
+                  setPhoneNumberError('');
+                }}
+              />
+              {phoneNumberError !== '' && <Text style={styles.errorText}>{phoneNumberError}</Text>}
+
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>PASSWORD</Text>
+              <TextInput
+                style={[styles.textInput, passwordError !== '' && styles.textInputError]}
+                placeholder="Enter password"
                 placeholderTextColor={theme.colors.textLight}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={val => {
+                  setPassword(val);
+                  setPasswordError('');
+                }}
               />
+              {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
 
-              <Text style={[styles.inputLabel, { marginTop: 16 }]}>CONFIRM PASSWORD</Text>
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>REFERRAL CODE (OPTIONAL)</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Re-type your password"
+                placeholder="Enter referral code (optional)"
                 placeholderTextColor={theme.colors.textLight}
-                secureTextEntry
-                autoCapitalize="none"
+                autoCapitalize="characters"
                 autoCorrect={false}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                value={referralCode}
+                onChangeText={setReferralCode}
               />
+
+              {/* Custom Checkbox - WhatsApp */}
+              <TouchableOpacity
+                style={[styles.checkboxRow, { marginTop: 18 }]}
+                onPress={() => setWhatsappCommunication(prev => !prev)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.customCheckbox, whatsappCommunication && styles.customCheckboxChecked]}>
+                  {whatsappCommunication && <Text style={styles.customCheckMark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>
+                  Allow updates & alerts via WhatsApp
+                </Text>
+              </TouchableOpacity>
+
+              {/* Custom Checkbox - Terms */}
+              <TouchableOpacity
+                style={[styles.checkboxRow, { marginTop: 12 }]}
+                onPress={() => {
+                  setTermsAndCondition(prev => !prev);
+                  setTermsError('');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[
+                  styles.customCheckbox, 
+                  termsAndCondition && styles.customCheckboxChecked,
+                  termsError !== '' && styles.customCheckboxError
+                ]}>
+                  {termsAndCondition && <Text style={styles.customCheckMark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>
+                  I agree to the Terms & Conditions
+                </Text>
+              </TouchableOpacity>
+              {termsError !== '' && <Text style={styles.errorText}>{termsError}</Text>}
             </View>
 
             <CustomButton
@@ -252,6 +387,13 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: theme.spacing.xl,
   },
+  inputRow: {
+    flexDirection: 'row',
+    width: '100%',
+  },
+  flexHalf: {
+    flex: 1,
+  },
   inputLabel: {
     fontSize: 10.5,
     fontWeight: '800' as any,
@@ -270,6 +412,51 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: '500',
+  },
+  textInputError: {
+    borderColor: theme.colors.error,
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 4,
+  },
+  customCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: theme.colors.borderDark,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  customCheckboxChecked: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
+  },
+  customCheckboxError: {
+    borderColor: theme.colors.error,
+  },
+  customCheckMark: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  checkboxLabel: {
+    fontSize: 13,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1,
   },
   submitBtn: {
     width: '100%',
