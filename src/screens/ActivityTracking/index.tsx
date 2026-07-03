@@ -24,7 +24,9 @@ import { Loader } from '../../components/common/Loader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ActivityCard } from '../../components/cards/ActivityCard';
 import { apiService } from '../../services/api';
-import { Activity } from '../../types';
+import { Activity, UserProfile } from '../../types';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
 
@@ -262,8 +264,13 @@ export const ActivityTrackingScreen: React.FC = () => {
       console.log('--------------------------------------------------');
       console.log('[Health Connect] SAVE API Initiated with payload...');
 
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+
       const savePayload = {
-        uhid: 'SAUSHA9775',
+        uhid: targetUhid,
         deviceId: '99kjkhgg',
         type: activityType,
         value: value,

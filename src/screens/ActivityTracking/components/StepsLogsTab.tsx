@@ -9,6 +9,9 @@ import {
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { apiService } from '../../../services/api';
+import { storageHelper } from '../../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../../storage/storageKeys';
+import { UserProfile } from '../../../types';
 
 
 
@@ -748,12 +751,19 @@ const FitnessActivityCard: React.FC<{
 // 6. Main StepsLogsTab Wrapper Component
 export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
+  const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
 
   useEffect(() => {
     const fetchHealthActivities = async () => {
       try {
-        console.log('Fetching Health Connect activities for SAUSHA9775...');
-        const response = await apiService.getHealthConnectActivities('SAUSHA9775');
+        const cachedProfile = await storageHelper.getItem<UserProfile>(
+          STORAGE_KEYS.USER_PROFILE,
+        );
+        const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+        setActiveUhid(targetUhid);
+
+        console.log(`Fetching Health Connect activities for ${targetUhid}...`);
+        const response = await apiService.getHealthConnectActivities(targetUhid);
         console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
       } catch (error) {
         console.error('Error fetching Health Connect activities in StepsLogsTab:', error);
@@ -767,7 +777,7 @@ export const StepsLogsTab: React.FC = () => {
       {/* Static Info Bar (UHID & Date) */}
       <View style={styles.topHeader}>
         <View style={styles.leftSection}>
-          <Text style={styles.userId}>UHID: SAUSHA9775</Text>
+          <Text style={styles.userId}>UHID: {activeUhid}</Text>
         </View>
         <View style={styles.rightSection}>
           <Text style={styles.dateText}>19 Jun, Friday</Text>

@@ -31,6 +31,20 @@ export const ProfileSetupScreen: React.FC = () => {
   // Local active focused state to highlight border
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const loadProfileName = async () => {
+      try {
+        const cached = await apiService.getProfile();
+        if (cached && cached.name) {
+          setName(cached.name);
+        }
+      } catch (err) {
+        console.error('Failed to prefill name in setup:', err);
+      }
+    };
+    loadProfileName();
+  }, []);
+
   const isFormValid = name.trim() !== '' && age.trim() !== '' && weight.trim() !== '' && height.trim() !== '' && goal.trim() !== '';
 
   const handleCompleteSetup = async () => {
@@ -105,14 +119,10 @@ export const ProfileSetupScreen: React.FC = () => {
               <TextInput
                 style={[
                   styles.input,
-                  focusedField === 'name' && styles.inputFocused
+                  styles.inputDisabled
                 ]}
-                placeholder={STRINGS.PROFILE_SETUP.PLACEHOLDER_NAME}
-                placeholderTextColor={theme.colors.textLight}
                 value={name}
-                onChangeText={setName}
-                onFocus={() => setFocusedField('name')}
-                onBlur={() => setFocusedField(null)}
+                editable={false}
               />
             </View>
 
@@ -346,6 +356,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     borderWidth: 1.5,
     backgroundColor: theme.colors.surface,
+  },
+  inputDisabled: {
+    backgroundColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
+    color: '#475569',
+    opacity: 0.8,
   },
   footer: {
     padding: theme.spacing.lg,

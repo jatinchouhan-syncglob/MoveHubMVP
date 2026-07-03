@@ -8,13 +8,19 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Platform,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme';
 import { useDrawer, DrawerProvider, DrawerScreenType } from './DrawerContext';
 import { apiService } from '../services/api';
 import { UserProfile } from '../types';
 import { getInitials } from '../utils/helpers';
+import { ROUTES } from '../constants/routes';
+import { storageHelper } from '../storage/storageHelper';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
 import DashboardScreen from '../screens/Dashboard';
 import AwardsScreen from '../screens/Awards';
@@ -32,8 +38,38 @@ const DrawerNavigatorContent: React.FC = () => {
   const { isOpen, activeScreen, closeDrawer, setActiveScreen } = useDrawer();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  const navigation = useNavigation<any>();
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [todayCalories, setTodayCalories] = React.useState(0);
+  const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
+  const [logoutLoading, setLogoutLoading] = React.useState(false);
+
+  const handleLogout = async () => {
+    setLogoutLoading(true);
+    try {
+      const email = profile?.email || 'saurabh.sharma@example.com';
+      await apiService.logout(email);
+    } catch (err) {
+      console.error('Logout API call failed:', err);
+    } finally {
+      // Clear all cached keys
+      await storageHelper.removeItem(STORAGE_KEYS.USER_PROFILE);
+      await storageHelper.removeItem(STORAGE_KEYS.PACING_PROFILE);
+      await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);
+      await storageHelper.removeItem(STORAGE_KEYS.PACING_CARDIO_SUBS);
+      await storageHelper.removeItem(STORAGE_KEYS.PACING_METABOLIC_SUBS);
+      
+      setLogoutLoading(false);
+      setLogoutModalVisible(false);
+      closeDrawer();
+      
+      // Reset navigation stack to Login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: ROUTES.LOGIN }],
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchDrawerData = async () => {
@@ -212,12 +248,66 @@ const DrawerNavigatorContent: React.FC = () => {
 
           {/* Footer Section */}
           <View style={styles.footer}>
+            {/* Logout Button */}
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              activeOpacity={0.8}
+              onPress={() => setLogoutModalVisible(true)}
+            >
+              <Text style={styles.logoutIcon}>🚪</Text>
+              <Text style={styles.logoutLabel}>Logout</Text>
+            </TouchableOpacity>
+
             <View style={styles.versionBadge}>
               <Text style={styles.versionText}>🛡️ MoveHub Premium v1.0.0</Text>
             </View>
           </View>
         </SafeAreaView>
       </Animated.View>
+
+      {/* Logout Confirmation Custom Modal */}
+      <Modal
+        visible={logoutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconBadge}>
+              <Text style={styles.modalIconText}>🚪</Text>
+            </View>
+            <Text style={styles.modalTitleText}>Confirm Logout</Text>
+            <Text style={styles.modalMessageText}>
+              Are you sure you want to log out of MoveHub? Your local metrics will remain saved.
+            </Text>
+            
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setLogoutModalVisible(false)}
+                activeOpacity={0.8}
+                disabled={logoutLoading}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.confirmBtn]}
+                onPress={handleLogout}
+                activeOpacity={0.8}
+                disabled={logoutLoading}
+              >
+                {logoutLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Logout</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -409,6 +499,106 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.bold as any,
     color: theme.colors.textSecondary,
     letterSpacing: 0.5,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.spacing.borderRadiusMd,
+    marginBottom: 12,
+    backgroundColor: 'rgba(244, 63, 94, 0.05)', // light rose tint
+  },
+  logoutIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  logoutLabel: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#e11d48', // rose-600 color
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)', // dim overlay
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  modalIconBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(244, 63, 94, 0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(244, 63, 94, 0.15)',
+    marginBottom: 16,
+  },
+  modalIconText: {
+    fontSize: 26,
+  },
+  modalTitleText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalMessageText: {
+    fontSize: 13.5,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 24,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#f1f5f9',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  cancelBtnText: {
+    color: '#475569',
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  confirmBtn: {
+    backgroundColor: '#e11d48', // rose-600
+  },
+  confirmBtnText: {
+    color: '#ffffff',
+    fontSize: 14.5,
+    fontWeight: '800',
   },
 });
 

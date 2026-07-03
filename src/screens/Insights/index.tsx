@@ -27,7 +27,9 @@ import Svg, {
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
-import { Activity } from '../../types';
+import { Activity, UserProfile } from '../../types';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
 import {
   smoothPath,
   areaPath,
@@ -159,6 +161,52 @@ export const InsightsScreen: React.FC = () => {
   // Month selection states
   const [selectedMonth, setSelectedMonth] = useState<string>('Jun 2026');
   const [showMonthDropdown, setShowMonthDropdown] = useState<boolean>(false);
+
+  // Health Transformation Dynamic API Data states
+  const [transformationLoading, setTransformationLoading] = useState(false);
+  const [transformationData, setTransformationData] = useState<any>(null);
+
+  // Scroll & Ref states for horizontal see-more chart
+  const chartScrollViewRef = React.useRef<ScrollView>(null);
+  const [chartScrollX, setChartScrollX] = useState(0);
+
+  const loadTransformationData = async (monthStr: string) => {
+    setTransformationLoading(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      
+      // Convert short name to full month name (e.g. "Jun 2026" to "June 2026")
+      const parts = monthStr.split(' ');
+      const shortName = parts[0];
+      const year = parts[1] || '2026';
+      const monthMap: { [key: string]: string } = {
+        Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April',
+        May: 'May', Jun: 'June', Jul: 'July', Aug: 'August',
+        Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December'
+      };
+      const fullMonth = `${monthMap[shortName] || shortName} ${year}`;
+
+      const res = await apiService.getHealthTransformation(targetUhid, fullMonth);
+      console.log('[InsightsScreen] getHealthTransformation Response:', JSON.stringify(res, null, 2));
+
+      if (res && res.status === 'Success' && res.data) {
+        setTransformationData(res.data);
+      }
+    } catch (error) {
+      console.error('Failed to load health transformation data:', error);
+    } finally {
+      setTransformationLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeScreenTab === 'transformation') {
+      loadTransformationData(selectedMonth);
+    }
+  }, [activeScreenTab, selectedMonth]);
 
   const loadData = async () => {
     try {
@@ -556,114 +604,155 @@ export const InsightsScreen: React.FC = () => {
 
   // Draw 30-Day Predictive Health View (Neon-Green)
   const renderPredictiveHealthChart = () => {
+    const activeData = transformationData?.chartData?.vitalityIndexData || VITALITY_INDEX_DATA;
+    const activeLabels = transformationData?.chartData?.vitalityIndexLabels || VITALITY_INDEX_LABELS;
+
     const pL = scale(32);
     const pR = scale(20);
     const pT = verticalScale(16);
     const pB = verticalScale(20);
-    const cW = CHART_WIDTH - pL - pR;
+    
+    // Wider width to support scrolling
+    const dynamicChartWidth = CHART_WIDTH * 1.35;
+    const cW = dynamicChartWidth - pL - pR;
     const cH = CHART_HEIGHT - pT - pB;
-    const n = VITALITY_INDEX_DATA.length;
+    const n = activeData.length;
     const baseY = pT + cH;
 
-    const xsPoints = VITALITY_INDEX_DATA.map((_, i) =>
+    const xsPoints = activeData.map((_: number, i: number) =>
       pL + (i / (n - 1)) * cW
     );
     const toY = (v: number) => pT + cH - lerp(v, 0, 100, 0, cH);
 
-    const points = VITALITY_INDEX_DATA.map((v, i) => ({
+    const points = activeData.map((v: number, i: number) => ({
       x: xsPoints[i],
       y: toY(v),
     }));
 
     const linePath = smoothPath(points);
 
-    // Map labels to align at Days 1, 5, 10, 15, 20, 25, 30
-    const labelIndices = [0, 4, 9, 14, 19, 24, 29];
-    const xsLabels = VITALITY_INDEX_LABELS.map((_, idx) => {
+    // Map labels to align at Days 1, 5, 10, 15, 20, 25, 30 mathematically
+    const labelIndices = activeLabels.map((_: string, idx: number) => {
+      if (idx === 0) return 0;
+      if (idx === activeLabels.length - 1) return n - 1;
+      return Math.round((idx / (activeLabels.length - 1)) * (n - 1));
+    });
+    const xsLabels = activeLabels.map((_: string, idx: number) => {
       const dataIdx = labelIndices[idx];
       return xsPoints[dataIdx];
     });
 
     return (
-      <View style={styles.chartOuterContainer}>
-        <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-          <Defs>
-            <SvgLinearGradient id="emeraldFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-              <Stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
-            </SvgLinearGradient>
-          </Defs>
+      <View style={styles.scrollChartContainer}>
+        <ScrollView
+          ref={chartScrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScroll={(e) => setChartScrollX(e.nativeEvent.contentOffset.x)}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ width: dynamicChartWidth }}
+        >
+          <Svg width={dynamicChartWidth} height={CHART_HEIGHT}>
+            <Defs>
+              <SvgLinearGradient id="emeraldFill" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
+                <Stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
+              </SvgLinearGradient>
+            </Defs>
 
-          {/* Grid lines (Horizontal: 0, 20, 40, 60, 80, 100) */}
-          {[0, 20, 40, 60, 80, 100].map((v) => {
-            const y = toY(v);
-            return (
-              <G key={v}>
-                <Line
-                  x1={pL}
-                  y1={y}
-                  x2={CHART_WIDTH - pR}
-                  y2={y}
-                  stroke="#cbd5e1"
-                  strokeWidth={0.8}
-                  opacity={0.12}
+            {/* Grid lines (Horizontal: 0, 20, 40, 60, 80, 100) */}
+            {[0, 20, 40, 60, 80, 100].map((v) => {
+              const y = toY(v);
+              return (
+                <G key={v}>
+                  <Line
+                    x1={pL}
+                    y1={y}
+                    x2={dynamicChartWidth - pR}
+                    y2={y}
+                    stroke="#cbd5e1"
+                    strokeWidth={0.8}
+                    opacity={0.12}
+                  />
+                  <SvgText
+                    x={pL - 6}
+                    y={y + 3}
+                    textAnchor="end"
+                    fontSize={8}
+                    fill={C.textGray}
+                    fontWeight="600"
+                  >
+                    {String(v)}
+                  </SvgText>
+                </G>
+              );
+            })}
+
+            {/* Area Fill */}
+            {showEmeraldGradient && (
+              <Path d={areaPath(points, baseY)} fill="url(#emeraldFill)" />
+            )}
+
+            {/* Green Line */}
+            <Path
+              d={linePath}
+              stroke={showGreenLine ? '#10b981' : '#64748b'}
+              strokeWidth={3}
+              fill="none"
+            />
+
+            {/* Key data point highlight dots */}
+            {labelIndices.map((dataIdx: number, i: number) => {
+              const p = points[dataIdx];
+              if (!p) return null;
+              return (
+                <Circle
+                  key={i}
+                  cx={p.x}
+                  cy={p.y}
+                  r={4}
+                  fill={showGreenLine ? '#10b981' : '#64748b'}
                 />
-                <SvgText
-                  x={pL - 6}
-                  y={y + 3}
-                  textAnchor="end"
-                  fontSize={8}
-                  fill={C.textGray}
-                  fontWeight="600"
-                >
-                  {String(v)}
-                </SvgText>
-              </G>
-            );
-          })}
+              );
+            })}
 
-          {/* Area Fill */}
-          {showEmeraldGradient && (
-            <Path d={areaPath(points, baseY)} fill="url(#emeraldFill)" />
-          )}
-
-          {/* Green Line */}
-          <Path
-            d={linePath}
-            stroke={showGreenLine ? '#10b981' : '#64748b'}
-            strokeWidth={3}
-            fill="none"
-          />
-
-          {/* Key data point highlight dots */}
-          {labelIndices.map((dataIdx, i) => {
-            const p = points[dataIdx];
-            return (
-              <Circle
+            {/* X Axis Labels */}
+            {activeLabels.map((l: string, i: number) => (
+              <SvgText
                 key={i}
-                cx={p.x}
-                cy={p.y}
-                r={4}
-                fill={showGreenLine ? '#10b981' : '#64748b'}
-              />
-            );
-          })}
+                x={xsLabels[i]}
+                y={CHART_HEIGHT - 4}
+                textAnchor={i === 0 ? 'start' : i === activeLabels.length - 1 ? 'end' : 'middle'}
+                fontSize={8}
+                fill={C.textGray}
+                fontWeight="600"
+              >
+                {l}
+              </SvgText>
+            ))}
+          </Svg>
+        </ScrollView>
 
-          {/* X Axis Labels */}
-          {VITALITY_INDEX_LABELS.map((l, i) => (
-            <SvgText
-              key={i}
-              x={xsLabels[i]}
-              y={CHART_HEIGHT - 4}
-              textAnchor={i === 0 ? 'start' : i === VITALITY_INDEX_LABELS.length - 1 ? 'end' : 'middle'}
-              fontSize={8}
-              fill={C.textGray}
-              fontWeight="600"
-            >
-              {l}
-            </SvgText>
-          ))}
-        </Svg>
+        {/* See More Navigation Overlay Arrows */}
+        {chartScrollX < (dynamicChartWidth - CHART_WIDTH - 10) && (
+          <TouchableOpacity
+            style={styles.seeMoreBtnRight}
+            onPress={() => chartScrollViewRef.current?.scrollTo({ x: dynamicChartWidth - CHART_WIDTH, animated: true })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.seeMoreText}>See More ➡️</Text>
+          </TouchableOpacity>
+        )}
+
+        {chartScrollX > 10 && (
+          <TouchableOpacity
+            style={styles.seeMoreBtnLeft}
+            onPress={() => chartScrollViewRef.current?.scrollTo({ x: 0, animated: true })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.seeMoreText}>⬅️ Prev</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -883,7 +972,9 @@ export const InsightsScreen: React.FC = () => {
                 </View>
                 <View style={styles.proactiveTextContainer}>
                   <Text style={styles.proactiveLabel}>Total Gain Points</Text>
-                  <Text style={styles.proactiveValue}>15,240 pts</Text>
+                  <Text style={styles.proactiveValue}>
+                    {transformationData?.summaryMetrics?.totalGainPoints || '15,240 pts'}
+                  </Text>
                 </View>
               </View>
 
@@ -893,7 +984,9 @@ export const InsightsScreen: React.FC = () => {
                 </View>
                 <View style={styles.proactiveTextContainer}>
                   <Text style={styles.proactiveLabel}>Avg Sleep Depth</Text>
-                  <Text style={styles.proactiveValue}>7.6 hrs/night</Text>
+                  <Text style={styles.proactiveValue}>
+                    {transformationData?.summaryMetrics?.avgSleepDepth || '7.6 hrs/night'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -903,20 +996,26 @@ export const InsightsScreen: React.FC = () => {
               <Text style={styles.interpretationTitle}>PRECISE LAYMAN INTERPRETATION</Text>
               <Text style={styles.interpretationSub}>What This Trend Means For You</Text>
               <Text style={styles.interpretationBody}>
-                Your Vitality Score represents your overall cardio-respiratory efficiency, muscle endurance, and metabolic stability combined.
+                {transformationData?.interpretation?.generalDescription || 'Your Vitality Score represents your overall cardio-respiratory efficiency, muscle endurance, and metabolic stability combined.'}
               </Text>
               
               <View style={styles.bulletRow}>
                 <Text style={styles.bulletPoint}>•</Text>
                 <Text style={styles.bulletText}>
-                  <Text style={styles.bulletBold}>Your Heart is Getting Stronger (The Upward Curve):</Text> Notice how your trend line steadily climbs. This isn't random; it means as your heart pumps blood more efficiently per beat, your lungs utilize oxygen better, and your overall physical stamina has increased by about 10%.
+                  <Text style={styles.bulletBold}>
+                    {transformationData?.interpretation?.heartStrengthTitle || 'Your Heart is Getting Stronger (The Upward Curve):'}{' '}
+                  </Text>
+                  {transformationData?.interpretation?.heartStrengthText || "Notice how your trend line steadily climbs. This isn't random; it means as your heart pumps blood more efficiently per beat, your lungs utilize oxygen better, and your overall physical stamina has increased by about 10%."}
                 </Text>
               </View>
 
               <View style={styles.bulletRow}>
                 <Text style={styles.bulletPoint}>•</Text>
                 <Text style={styles.bulletText}>
-                  <Text style={styles.bulletBold}>Your Recovery Reserves are Locked In (The Safe Baselines):</Text> Even on harder weeks, your trend never plummets. Maintaining a 7.6-hour average sleep depth protects your nervous system and ensures that on shorter sleep days, our Auto-Pacing Mode steps in so you build up reserves rather than straining muscles.
+                  <Text style={styles.bulletBold}>
+                    {transformationData?.interpretation?.recoveryReservesTitle || 'Your Recovery Reserves are Locked In (The Safe Baselines):'}{' '}
+                  </Text>
+                  {transformationData?.interpretation?.recoveryReservesText || "Even on harder weeks, your trend never plummets. Maintaining a 7.6-hour average sleep depth protects your nervous system and ensures that on shorter sleep days, our Auto-Pacing Mode steps in so you build up reserves rather than straining muscles."}
                 </Text>
               </View>
             </View>
@@ -1421,6 +1520,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: theme.colors.primary,
+  },
+  scrollChartContainer: {
+    position: 'relative',
+    width: '100%',
+    height: CHART_HEIGHT,
+  },
+  seeMoreBtnRight: {
+    position: 'absolute',
+    right: 8,
+    bottom: 24,
+    backgroundColor: 'rgba(16, 185, 129, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  seeMoreBtnLeft: {
+    position: 'absolute',
+    left: scale(36),
+    bottom: 24,
+    backgroundColor: 'rgba(100, 116, 139, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  seeMoreText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
 });
 

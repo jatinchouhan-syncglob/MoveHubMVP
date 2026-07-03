@@ -206,8 +206,12 @@ export const apiService = {
   // --- Activities ---
   async getActivities(): Promise<Activity[]> {
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       const response = await axios.get(
-        'http://13.235.135.98:8081/backend/health-connect/getActivitiesForCurrentDate?uhid=SAUSHA9775',
+        `http://13.235.135.98:8081/backend/health-connect/getActivitiesForCurrentDate?uhid=${targetUhid}`,
       );
 
       if (
@@ -383,8 +387,13 @@ export const apiService = {
     calorieGoal: number;
   }): Promise<any> {
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = profileData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
+
       const payload = {
-        uhid: profileData.uhid || 'SAUSHA9775',
+        uhid: targetUhid,
         deviceId: profileData.deviceId || '99kjkhgg',
         name: profileData.name,
         age: profileData.age,
@@ -414,8 +423,13 @@ export const apiService = {
   }): Promise<any> {
 
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = pacingData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
+
       const payload = {
-        uhid: pacingData.uhid || 'SAUSHA9775',
+        uhid: targetUhid,
         deviceId: pacingData.deviceId || '99kjkhgg',
         selectedPacingModes: pacingData.selectedPacingModes,
         otherText: pacingData.otherText,
@@ -437,6 +451,77 @@ export const apiService = {
       return response.data;
     } catch (error) {
       console.error('Error in savePacingProfile:', error);
+      throw error;
+    }
+  },
+
+  async signin(credentials: {
+    email: string;
+    password: string;
+  }): Promise<any> {
+    try {
+      const response = await axios.post(
+        'http://13.235.135.98:8081/backend/health-connect/auth/signin',
+        credentials,
+      );
+      console.log('[apiService] POST Signin Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in signin:', error);
+      throw error;
+    }
+  },
+
+  async signup(userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    phoneNumber: string;
+    referralCode?: string;
+    whatsappCommunication: boolean;
+    termsAndCondition: boolean;
+  }): Promise<any> {
+    try {
+      const response = await axios.post(
+        'http://13.235.135.98:8081/backend/health-connect/auth/signup',
+        userData,
+      );
+      console.log('[apiService] POST Signup Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in signup:', error);
+      throw error;
+    }
+  },
+
+  async getHealthTransformation(uhid?: string, month?: string): Promise<any> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'SAUSHA9775';
+      const targetMonth = month || 'July 2026';
+      
+      const url = `http://13.235.135.98:8081/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(targetMonth)}`;
+      
+      const response = await axios.get(url);
+      console.log('[apiService] GET Health Transformation Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in getHealthTransformation:', error);
+      throw error;
+    }
+  },
+
+  async logout(email: string): Promise<any> {
+    try {
+      const url = `http://13.235.135.98:8081/backend/health-connect/auth/logout?email=${encodeURIComponent(email)}`;
+      const response = await axios.post(url, '');
+      console.log('[apiService] POST Logout Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in logout:', error);
       throw error;
     }
   },

@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +17,11 @@ import LinearGradient from 'react-native-linear-gradient';
 import { theme } from '../../theme';
 import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -24,14 +30,19 @@ export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  // Focus states for premium highlights
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Error States
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Custom Alert Modal States
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
 
   const handleLogin = async () => {
     let hasError = false;
@@ -60,13 +71,46 @@ export const LoginScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      // Simulate authentication delay
-      await new Promise(resolve => setTimeout(() => resolve(null), 1000));
+      const response = await apiService.signin({
+        email: email.trim(),
+        password: password,
+      });
 
-      // Go to setup profile after successful login
-      navigation.replace(ROUTES.PROFILE_SETUP);
-    } catch (err) {
-      setPasswordError('Failed to sign in. Please check your credentials.');
+      console.log('[LoginScreen] Signin API Response inside Screen:', JSON.stringify(response, null, 2));
+
+      if (response && response.status === 'Success') {
+        const userData = response.data || {};
+        
+        // Save the profile to storage
+        const userProfile: UserProfile = {
+          uhid: userData.uhid || 'SAUSHA9775',
+          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
+          age: userData.age || 30,
+          weight: userData.weight || 70,
+          height: userData.height || 170,
+          calorieGoal: userData.calorieGoal || 2400,
+          isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
+          email: userData.email || email.trim(),
+        };
+        await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+
+        // If profile setup is not complete, go to profile setup. Otherwise go to main app (Drawer)
+        if (userProfile.isSetupComplete) {
+          navigation.replace(ROUTES.DRAWER);
+        } else {
+          navigation.replace(ROUTES.PROFILE_SETUP);
+        }
+      } else {
+        setAlertTitle('Sign In Failed');
+        setAlertMessage(response?.message || 'Invalid credentials or login failed.');
+        setAlertVisible(true);
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const serverMessage = err.response?.data?.message || err.message || 'Failed to sign in. Please check your network connection.';
+      setAlertTitle('Sign In Error');
+      setAlertMessage(serverMessage);
+      setAlertVisible(true);
     } finally {
       setLoading(false);
     }
@@ -153,7 +197,7 @@ export const LoginScreen: React.FC = () => {
                     style={styles.textInput}
                     placeholder="Enter your password"
                     placeholderTextColor={theme.colors.textLight}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
                     value={password}
@@ -164,6 +208,16 @@ export const LoginScreen: React.FC = () => {
                       setPasswordError('');
                     }}
                   />
+                  <TouchableOpacity
+                    style={styles.eyeBtn}
+                    onPress={() => setShowPassword(!showPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.eyeContainer}>
+                      <Text style={styles.eyeText}>👁️</Text>
+                      {!showPassword && <View style={styles.eyeSlash} />}
+                    </View>
+                  </TouchableOpacity>
                 </View>
                 {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
               </View>
@@ -200,6 +254,13 @@ export const LoginScreen: React.FC = () => {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      
+      <CustomAlertModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertVisible(false)}
+      />
     </LinearGradient>
   );
 };
@@ -382,6 +443,28 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
     color: theme.colors.primary,
+  },
+  eyeBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeContainer: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeText: {
+    fontSize: 16,
+  },
+  eyeSlash: {
+    position: 'absolute',
+    width: 18,
+    height: 1.8,
+    backgroundColor: '#64748b', // slate-500
+    transform: [{ rotate: '-45deg' }],
   },
 });
 

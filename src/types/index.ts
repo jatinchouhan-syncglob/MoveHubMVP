@@ -8,6 +8,8 @@ export interface UserProfile {
   calorieGoal: number; // in kcal
   isSetupComplete: boolean;
   uhid?: string;
+  email?: string;
+  userId?: number;
 }
 
 export interface Activity {
