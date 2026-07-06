@@ -29,6 +29,7 @@ import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
+import Svg, { Circle, Text as SvgText, G } from 'react-native-svg';
 
 export const ActivityTrackingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -480,6 +481,165 @@ export const ActivityTrackingScreen: React.FC = () => {
         text: isSelected ? '#FFFFFF' : '#F87171',
       };
     }
+  };
+
+  const getPillarBreakdown = (gainPoints: number, category: string) => {
+    let cardioPct = 0.5;
+    let agilityPct = 0.4;
+    let metabolicPct = 0.3;
+    let structuralPct = 0.2;
+
+    if (category === 'strength') {
+      cardioPct = 0.2;
+      agilityPct = 0.3;
+      metabolicPct = 0.4;
+      structuralPct = 0.8;
+    } else if (category === 'distance') {
+      cardioPct = 0.8;
+      agilityPct = 0.5;
+      metabolicPct = 0.6;
+      structuralPct = 0.1;
+    } else {
+      // Yoga / Other duration based
+      cardioPct = 0.67;
+      agilityPct = 0.4;
+      metabolicPct = 0.2;
+      structuralPct = 0.1;
+    }
+
+    const cardioTarget = 80;
+    const agilityTarget = 80;
+    const metabolicTarget = 50;
+    const structuralTarget = 20;
+
+    const cardio = Math.min(cardioTarget, Math.round(gainPoints * cardioPct));
+    const agility = Math.min(agilityTarget, Math.round(gainPoints * agilityPct));
+    const metabolic = Math.min(metabolicTarget, Math.round(gainPoints * metabolicPct));
+    const structural = Math.min(structuralTarget, Math.round(gainPoints * structuralPct));
+
+    return {
+      cardio,
+      cardioTarget,
+      agility,
+      agilityTarget,
+      metabolic,
+      metabolicTarget,
+      structural,
+      structuralTarget,
+    };
+  };
+
+  const renderConcentricRings = (
+    cardio: number,
+    cardioTarget: number,
+    agility: number,
+    agilityTarget: number,
+    metabolic: number,
+    metabolicTarget: number,
+    structural: number,
+    structuralTarget: number,
+    overallScore: number
+  ) => {
+    const size = 180;
+    const cx = size / 2;
+    const cy = size / 2;
+    const strokeWidth = 7;
+
+    const r1 = 80; // Cardio (outer)
+    const r2 = 72; // Agility
+    const r3 = 64; // Metabolic
+    const r4 = 56; // Structural
+
+    const getDashProps = (val: number, target: number, r: number) => {
+      const circum = 2 * Math.PI * r;
+      const pct = Math.min(1, val / target);
+      const strokeDashoffset = circum * (1 - pct);
+      return {
+        strokeDasharray: `${circum} ${circum}`,
+        strokeDashoffset,
+      };
+    };
+
+    return (
+      <View style={styles.concentricOuterWrapper}>
+        <View style={styles.concentricWrapper}>
+          <Svg width={size} height={size}>
+            {/* Tracks */}
+            <Circle cx={cx} cy={cy} r={r1} stroke="#1e293b" strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+            <Circle cx={cx} cy={cy} r={r2} stroke="#1e293b" strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+            <Circle cx={cx} cy={cy} r={r3} stroke="#1e293b" strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+            <Circle cx={cx} cy={cy} r={r4} stroke="#1e293b" strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+
+            {/* Cardio Progress - Red */}
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={r1}
+              stroke="#ef4444"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              {...getDashProps(cardio, cardioTarget, r1)}
+            />
+
+            {/* Agility Progress - Green */}
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={r2}
+              stroke="#22c55e"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              {...getDashProps(agility, agilityTarget, r2)}
+            />
+
+            {/* Metabolic Progress - Teal */}
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={r3}
+              stroke="#06b6d4"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              {...getDashProps(metabolic, metabolicTarget, r3)}
+            />
+
+            {/* Structural Progress - Blue */}
+            <Circle
+              cx={cx}
+              cy={cy}
+              r={r4}
+              stroke="#3b82f6"
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              {...getDashProps(structural, structuralTarget, r4)}
+            />
+          </Svg>
+
+          {/* Center Text Container */}
+          <View style={styles.concentricCenterText}>
+            <Text style={styles.concentricLabel}>OVERALL</Text>
+            <Text style={styles.concentricLabel}>FITNESS SCORE:</Text>
+            <Text style={styles.concentricValue}>{overallScore}</Text>
+          </View>
+        </View>
+
+        {/* Labels Overlay */}
+        <View style={styles.ringLabelOverlay}>
+          <Text style={[styles.ringLabelItemText, { color: '#ef4444', top: -5 }]}>Cardio</Text>
+          <Text style={[styles.ringLabelItemText, { color: '#22c55e', top: 9 }]}>Agility</Text>
+          <Text style={[styles.ringLabelItemText, { color: '#06b6d4', top: 23 }]}>Metabolic</Text>
+          <Text style={[styles.ringLabelItemText, { color: '#3b82f6', top: 37 }]}>Structural</Text>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -1206,97 +1366,213 @@ export const ActivityTrackingScreen: React.FC = () => {
       >
         <View style={styles.benefitsModalContainer}>
           <View style={styles.benefitsContent}>
-            <Text style={styles.benefitsTitle}>🎉 Workout Saved!</Text>
-            <Text style={styles.benefitsSubtitle}>
-              Here are your estimated workout benefits:
-            </Text>
+            {lastLoggedSummary && (() => {
+              const workoutName = lastLoggedSummary.type || 'Workout';
+              const workoutPoints = lastLoggedSummary.gainPoints || 0;
+              
+              // Get current time formatted (e.g. 6:30 PM)
+              const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const headerTitle = `${workoutPoints} ${workoutName} @ ${formattedTime}`;
 
-            {lastLoggedSummary && (
-              <View style={styles.benefitsMetricsContainer}>
-                {/* Metric Grid */}
-                <View style={styles.metricsGrid}>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricEmoji}>🔥</Text>
-                    <Text style={styles.metricLabel}>Active Burn</Text>
-                    <Text style={styles.metricValueText}>
-                      {lastLoggedSummary.calories} kcal
-                    </Text>
+              const hpp = Math.round(((lastLoggedSummary.cardioPoints || 0) / 11) * 10) / 10;
+              const activeEnergyPct = Math.min(100, (lastLoggedSummary.calories / 500) * 100);
+              const gainPointsPct = Math.min(100, (lastLoggedSummary.gainPoints / 300) * 100);
+              const heartPointsPct = Math.min(100, (hpp / 10) * 100);
+
+              const pillars = getPillarBreakdown(lastLoggedSummary.gainPoints, lastLoggedSummary.category);
+
+              return (
+                <View style={styles.benefitContainerFull}>
+                  {/* Title Header Bar */}
+                  <View style={styles.benefitHeaderBar}>
+                    <Text style={styles.benefitHeaderTitleText} numberOfLines={1}>{headerTitle}</Text>
                   </View>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricEmoji}>⭐</Text>
-                    <Text style={styles.metricLabel}>Gain Points</Text>
-                    <Text style={styles.metricValueText}>
-                      {lastLoggedSummary.gainPoints} pts
-                    </Text>
-                  </View>
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricEmoji}>❤️</Text>
-                    <Text style={styles.metricLabel}>Heart Points</Text>
-                    <Text style={styles.metricValueText}>
-                      {lastLoggedSummary.cardioPoints} pts
-                    </Text>
-                  </View>
+
+                  <ScrollView 
+                    style={{ width: '100%', flex: 1 }}
+                    contentContainerStyle={{ alignItems: 'center', paddingVertical: 12 }}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <View style={styles.innerContentWrapper}>
+                      {/* Exercise Benefit Summary Section */}
+                      <Text style={styles.sectionTitleLabel}>Exercise Benefit Summary</Text>
+                      
+                      <View style={styles.summaryGrid}>
+                        {/* Active Energy Column */}
+                        <View style={styles.summaryCol}>
+                          <View style={[styles.colBadgeCircle, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
+                            <Text style={styles.colEmoji}>🔥</Text>
+                          </View>
+                          <Text style={styles.colLabel}>Total Active Energy</Text>
+                          <View style={styles.colProgressBg}>
+                            <View style={[styles.colProgressFill, { width: `${activeEnergyPct}%`, backgroundColor: '#f97316' }]} />
+                          </View>
+                          <Text style={styles.colValueSub}>{lastLoggedSummary.calories} kcal / 500 kcal</Text>
+                        </View>
+
+                        {/* Gain Points Column */}
+                        <View style={styles.summaryCol}>
+                          <View style={[styles.colBadgeCircle, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                            <Text style={styles.colEmoji}>⭐</Text>
+                          </View>
+                          <Text style={styles.colLabel}>Total Gain Points</Text>
+                          <View style={styles.colProgressBg}>
+                            <View style={[styles.colProgressFill, { width: `${gainPointsPct}%`, backgroundColor: '#22c55e' }]} />
+                          </View>
+                          <Text style={styles.colValueSub}>{lastLoggedSummary.gainPoints} points / 300 pts</Text>
+                        </View>
+
+                        {/* Heart Points Column */}
+                        <View style={styles.summaryCol}>
+                          <View style={[styles.colBadgeCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                            <Text style={styles.colEmoji}>❤️</Text>
+                          </View>
+                          <Text style={styles.colLabel}>Total Heart Points</Text>
+                          <View style={styles.colProgressBg}>
+                            <View style={[styles.colProgressFill, { width: `${heartPointsPct}%`, backgroundColor: '#ef4444' }]} />
+                          </View>
+                          <Text style={styles.colValueSub}>{hpp} HPP / 10.0 HPP</Text>
+                        </View>
+                      </View>
+
+                      {/* Daily Fitness Overview & Progress Section */}
+                      <Text style={styles.sectionTitleLabel}>Daily Fitness Overview & Progress</Text>
+                      
+                      <View style={styles.overviewBarsContainer}>
+                        {/* Cardio */}
+                        <View style={styles.overviewBarRow}>
+                          <View style={styles.barHeaderInfo}>
+                            <Text style={styles.barLabelText}>Cardio</Text>
+                            <Text style={styles.barValueText}>{Math.round((pillars.cardio / pillars.cardioTarget) * 100)}% - {pillars.cardio}/{pillars.cardioTarget}</Text>
+                          </View>
+                          <View style={styles.barTrack}>
+                            <View style={[styles.barFill, { width: `${(pillars.cardio / pillars.cardioTarget) * 100}%`, backgroundColor: '#ef4444' }]} />
+                          </View>
+                        </View>
+
+                        {/* Agility */}
+                        <View style={styles.overviewBarRow}>
+                          <View style={styles.barHeaderInfo}>
+                            <Text style={styles.barLabelText}>Agility</Text>
+                            <Text style={styles.barValueText}>{Math.round((pillars.agility / pillars.agilityTarget) * 100)}% - {pillars.agility}/{pillars.agilityTarget}</Text>
+                          </View>
+                          <View style={styles.barTrack}>
+                            <View style={[styles.barFill, { width: `${(pillars.agility / pillars.agilityTarget) * 100}%`, backgroundColor: '#22c55e' }]} />
+                          </View>
+                        </View>
+
+                        {/* Metabolic */}
+                        <View style={styles.overviewBarRow}>
+                          <View style={styles.barHeaderInfo}>
+                            <Text style={styles.barLabelText}>Metabolic</Text>
+                            <Text style={styles.barValueText}>{Math.round((pillars.metabolic / pillars.metabolicTarget) * 100)}% - {pillars.metabolic}/{pillars.metabolicTarget}</Text>
+                          </View>
+                          <View style={styles.barTrack}>
+                            <View style={[styles.barFill, { width: `${(pillars.metabolic / pillars.metabolicTarget) * 100}%`, backgroundColor: '#06b6d4' }]} />
+                          </View>
+                        </View>
+
+                        {/* Structural */}
+                        <View style={styles.overviewBarRow}>
+                          <View style={styles.barHeaderInfo}>
+                            <Text style={styles.barLabelText}>Structural</Text>
+                            <Text style={styles.barValueText}>{Math.round((pillars.structural / pillars.structuralTarget) * 100)}% - {pillars.structural}/{pillars.structuralTarget}</Text>
+                          </View>
+                          <View style={styles.barTrack}>
+                            <View style={[styles.barFill, { width: `${(pillars.structural / pillars.structuralTarget) * 100}%`, backgroundColor: '#3b82f6' }]} />
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Concentric Rings Visual Chart */}
+                      {renderConcentricRings(
+                        pillars.cardio,
+                        pillars.cardioTarget,
+                        pillars.agility,
+                        pillars.agilityTarget,
+                        pillars.metabolic,
+                        pillars.metabolicTarget,
+                        pillars.structural,
+                        pillars.structuralTarget,
+                        workoutPoints
+                      )}
+
+                      {/* Today's Logged Exercises Section (from Screenshot 2) */}
+                      <Text style={styles.sectionTitleLabel}>Today's Logged Exercises</Text>
+                      
+                      {(() => {
+                        const todayStart = new Date();
+                        todayStart.setHours(0, 0, 0, 0);
+                        const todayEnd = new Date();
+                        todayEnd.setHours(23, 59, 59, 999);
+
+                        const todayActivities = activities.filter(act => {
+                          const actDate = new Date(act.timestamp);
+                          return actDate >= todayStart && actDate <= todayEnd;
+                        });
+
+                        return (
+                          <View style={styles.todayExercisesContainer}>
+                            {todayActivities.length === 0 ? (
+                              <Text style={styles.noExerciseText}>No other exercises logged today.</Text>
+                            ) : (
+                              todayActivities.map((act, index) => {
+                                const isThisOne = index === 0;
+                                const actDateObj = new Date(act.timestamp);
+                                const actTime = actDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const actType = act.type || 'Workout';
+                                const actCalories = act.caloriesBurned || 0;
+                                const actPoints = act.value || 0;
+                                const actHpp = Math.round(((act.caloriesBurned * 0.2) / 10) * 10) / 10 || 5.5;
+
+                                return (
+                                  <View key={act.id || index} style={styles.todayExerciseRow}>
+                                    <Text style={styles.runnerEmoji}>🏃‍♂️</Text>
+                                    <View style={styles.todayExerciseTextCol}>
+                                      <Text style={styles.todayExerciseText}>
+                                        {index + 1}. {actType} {isThisOne && <Text style={{ color: '#10b981', fontWeight: '800' }}>(this one)</Text>} - {actTime}
+                                      </Text>
+                                      <Text style={styles.todayExerciseSubText}>
+                                        (pts: {actPoints}, cal: {actCalories}, hpp: {actHpp})
+                                      </Text>
+                                    </View>
+                                  </View>
+                                );
+                              })
+                            )}
+                          </View>
+                        );
+                      })()}
+                      <Text style={styles.summaryFooterText}>
+                        Overall Health Gain Score: <Text style={{ color: '#22c55e', fontWeight: '800' }}>{workoutPoints} pts</Text>{"\n"}
+                        <Text style={{ fontSize: 11, color: '#94a3b8', fontWeight: '500' }}>(from all activities today)</Text>
+                      </Text>
+
+                      {/* Action Button Row */}
+                      <View style={styles.benefitBtnRow}>
+                        <TouchableOpacity
+                          style={styles.doneOutlineBtn}
+                          onPress={() => setBenefitsVisible(false)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.doneOutlineBtnText}>DONE</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.shareGradientBtn}
+                          onPress={() => {
+                            Alert.alert('Share', 'Sharing your workout progress with your friends!');
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.shareGradientBtnText}>SHARE</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </ScrollView>
                 </View>
-                <Text style={styles.scorecardTitle}>
-                  Daily Scorecard Progress
-                </Text>
-
-                <View style={styles.benefitRow}>
-                  <View style={styles.benefitHeader}>
-                    <Text style={styles.benefitLabel}>
-                      🦾 Musculoskeletal Power
-                    </Text>
-                    <Text style={styles.benefitValueText}>
-                      {lastLoggedSummary.musculoPoints} / 150 pts
-                    </Text>
-                  </View>
-                  <View style={styles.progressBarBg}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          backgroundColor: '#8B5CF6',
-                          width: `${Math.min(
-                            (lastLoggedSummary.musculoPoints / 150) * 100,
-                            100,
-                          )}%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.benefitRow}>
-                  <View style={styles.benefitHeader}>
-                    <Text style={styles.benefitLabel}>🫁 Cardio Health</Text>
-                    <Text style={styles.benefitValueText}>
-                      {lastLoggedSummary.cardioPoints} / 150 pts
-                    </Text>
-                  </View>
-                  <View style={styles.progressBarBg}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          backgroundColor: '#3B82F6',
-                          width: `${Math.min(
-                            (lastLoggedSummary.cardioPoints / 150) * 100,
-                            100,
-                          )}%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
-
-            <CustomButton
-              title="CLOSE!"
-              onPress={() => setBenefitsVisible(false)}
-              variant="primary"
-              style={styles.benefitsCloseBtn}
-            />
+              );
+            })()}
           </View>
         </View>
       </Modal>
@@ -1780,106 +2056,296 @@ const styles = StyleSheet.create({
   },
   benefitsModalContainer: {
     flex: 1,
+    backgroundColor: '#070913e6',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
   },
   benefitsContent: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.spacing.borderRadiusLg,
-    width: '90%',
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 28,
+    width: '92%',
+    height: '88%',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.35,
+    shadowRadius: 32,
+    elevation: 20,
   },
-  benefitsTitle: {
-    fontSize: 22,
-    fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  benefitsSubtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  benefitsMetricsContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
-  },
-  metricCard: {
+  benefitContainerFull: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.spacing.borderRadiusMd,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    width: '100%',
+  },
+  benefitHeaderBar: {
+    width: '100%',
+    backgroundColor: '#1e1b4b',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
-  metricEmoji: {
-    fontSize: 22,
-    marginBottom: 4,
+  benefitHeaderTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
-  metricLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
+  innerContentWrapper: {
+    width: '100%',
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
-  metricValueText: {
-    fontSize: 14,
-    fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
+  sectionTitleLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.6,
+    width: '100%',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    marginTop: 16,
+    marginBottom: 12,
   },
-  scorecardTitle: {
-    fontSize: 15,
-    fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  benefitRow: {
-    marginBottom: theme.spacing.md,
-  },
-  benefitHeader: {
+  summaryGrid: {
     flexDirection: 'row',
+    width: '100%',
     justifyContent: 'space-between',
+    backgroundColor: '#151f32',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  summaryCol: {
+    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  colBadgeCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  colEmoji: {
+    fontSize: 18,
+  },
+  colLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 6,
+    height: 24,
+  },
+  colProgressBg: {
+    width: '75%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
     marginBottom: 6,
   },
-  benefitLabel: {
-    fontSize: 13,
-    fontWeight: theme.fonts.weights.medium as any,
-    color: theme.colors.text,
+  colProgressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
-  benefitValueText: {
-    fontSize: 12.5,
-    fontWeight: theme.fonts.weights.bold as any,
-    color: theme.colors.textSecondary,
+  colValueSub: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#cbd5e1',
+    textAlign: 'center',
   },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: theme.colors.border,
-    borderRadius: 4,
+  overviewBarsContainer: {
+    width: '100%',
+    backgroundColor: '#151f32',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  overviewBarRow: {
+    marginBottom: 12,
+  },
+  barHeaderInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  barLabelText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#e2e8f0',
+  },
+  barValueText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  barTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  barFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
-  benefitsCloseBtn: {
+  concentricOuterWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     width: '100%',
+    backgroundColor: '#151f32',
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    justifyContent: 'center',
+  },
+  concentricWrapper: {
+    position: 'relative',
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  concentricCenterText: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 120,
+    height: 120,
+  },
+  concentricLabel: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  concentricValue: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
+    marginTop: 2,
+  },
+  ringLabelOverlay: {
+    marginLeft: 16,
+    justifyContent: 'center',
+    height: 120,
+  },
+  ringLabelItemText: {
+    fontSize: 11,
+    fontWeight: '800',
+    position: 'relative',
+  },
+  summaryFooterText: {
+    fontSize: 13.5,
+    color: '#ffffff',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginVertical: 18,
+    lineHeight: 18,
+  },
+  benefitBtnRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  doneOutlineBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.8,
+    borderColor: 'rgba(244, 63, 94, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    backgroundColor: 'transparent',
+  },
+  doneOutlineBtnText: {
+    color: '#22c55e',
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  shareGradientBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f43f5e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#f43f5e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  shareGradientBtnText: {
+    color: '#ffffff',
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  todayExercisesContainer: {
+    width: '100%',
+    backgroundColor: '#151f32',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    marginTop: 8,
+  },
+  todayExerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  runnerEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  todayExerciseTextCol: {
+    flex: 1,
+  },
+  todayExerciseText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#e2e8f0',
+    lineHeight: 18,
+  },
+  todayExerciseSubText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  noExerciseText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   errorText: {
     fontSize: 12,

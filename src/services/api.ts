@@ -525,4 +525,16 @@ export const apiService = {
       throw error;
     }
   },
+
+  async deleteUser(email: string): Promise<any> {
+    try {
+      const url = `http://13.235.135.98:8081/backend/health-connect/auth/delete?email=${encodeURIComponent(email)}`;
+      const response = await axios.delete(url);
+      console.log('[apiService] DELETE User Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in deleteUser:', error);
+      throw error;
+    }
+  },
 };

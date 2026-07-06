@@ -7,6 +7,7 @@ import {
   Modal,
   Animated,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -33,8 +34,9 @@ export const ProfileScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  // Custom Animated Modal States
-  const [resetModalVisible, setResetModalVisible] = useState(false);
+  // Custom Animated Modal States for Account Deletion
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -57,8 +59,8 @@ export const ProfileScreen: React.FC = () => {
     fetchProfileAndActivities();
   }, []);
 
-  const showResetAlert = () => {
-    setResetModalVisible(true);
+  const showDeleteAlert = () => {
+    setDeleteModalVisible(true);
     Animated.parallel([
       Animated.timing(opacityAnim, {
         toValue: 1,
@@ -74,7 +76,7 @@ export const ProfileScreen: React.FC = () => {
     ]).start();
   };
 
-  const hideResetAlert = () => {
+  const hideDeleteAlert = () => {
     Animated.parallel([
       Animated.timing(opacityAnim, {
         toValue: 0,
@@ -87,23 +89,25 @@ export const ProfileScreen: React.FC = () => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setResetModalVisible(false);
+      setDeleteModalVisible(false);
     });
   };
 
-  const handleConfirmReset = async () => {
-    hideResetAlert();
-    setLoading(true);
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true);
     try {
+      const email = profile?.email || 'jatin@gmail.com';
+      await apiService.deleteUser(email);
+    } catch (error) {
+      console.error('Failed to delete account from backend:', error);
+    } finally {
       await storageHelper.clear();
+      setDeleteLoading(false);
+      hideDeleteAlert();
       navigation.reset({
         index: 0,
-        routes: [{ name: ROUTES.SPLASH }],
+        routes: [{ name: ROUTES.LOGIN }],
       });
-    } catch (error) {
-      console.error('Failed to clear storage:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -252,27 +256,27 @@ export const ProfileScreen: React.FC = () => {
         {/* Actions Button */}
         <View style={styles.actionsContainer}>
           <CustomButton
-            title={STRINGS.PROFILE.LOGOUT}
-            onPress={showResetAlert}
+            title="Delete Account"
+            onPress={showDeleteAlert}
             variant="outline"
-            style={styles.resetButton}
-            textStyle={styles.resetButtonText}
+            style={styles.deleteButton}
+            textStyle={styles.deleteButtonText}
           />
         </View>
       </ScrollView>
 
-      {/* Custom Animated Reset Alert Modal */}
+      {/* Custom Animated Delete Account Modal */}
       <Modal
         animationType="none"
         transparent={true}
-        visible={resetModalVisible}
-        onRequestClose={hideResetAlert}
+        visible={deleteModalVisible}
+        onRequestClose={hideDeleteAlert}
       >
         <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
           <TouchableOpacity 
             style={styles.modalBackdrop} 
             activeOpacity={1} 
-            onPress={hideResetAlert} 
+            onPress={hideDeleteAlert} 
           />
           <Animated.View 
             style={[
@@ -280,29 +284,35 @@ export const ProfileScreen: React.FC = () => {
               { transform: [{ scale: scaleAnim }] }
             ]}
           >
-            <View style={styles.alertIconCircle}>
-              <Text style={styles.alertIconText}>⚠️</Text>
+            <View style={[styles.alertIconCircle, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}>
+              <Text style={[styles.alertIconText, { color: '#ef4444' }]}>🚨</Text>
             </View>
-            <Text style={styles.modalTitleText}>Reset App Data?</Text>
+            <Text style={styles.modalTitleText}>Delete Account?</Text>
             <Text style={styles.modalDescText}>
-              Are you sure you want to permanently delete your local database, workout logs, and profile settings? This action cannot be undone.
+              Are you sure you want to permanently delete your account? This will erase all your health logs and profile settings from the server. This action cannot be undone.
             </Text>
             
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity 
                 style={styles.cancelModalBtn} 
-                onPress={hideResetAlert}
+                onPress={hideDeleteAlert}
                 activeOpacity={0.8}
+                disabled={deleteLoading}
               >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.confirmModalBtn} 
-                onPress={handleConfirmReset}
+                style={[styles.confirmModalBtn, { backgroundColor: '#ef4444' }]} 
+                onPress={handleConfirmDelete}
                 activeOpacity={0.8}
+                disabled={deleteLoading}
               >
-                <Text style={styles.confirmBtnText}>Reset Data</Text>
+                {deleteLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Delete</Text>
+                )}
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -526,12 +536,12 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xxl,
   },
-  resetButton: {
-    borderColor: theme.colors.error,
-    backgroundColor: theme.colors.surface,
+  deleteButton: {
+    borderColor: '#ef4444', // rose/red border
+    backgroundColor: '#ffffff',
   },
-  resetButtonText: {
-    color: theme.colors.error,
+  deleteButtonText: {
+    color: '#ef4444',
   },
   // Custom Modal Overlay styling
   modalOverlay: {
