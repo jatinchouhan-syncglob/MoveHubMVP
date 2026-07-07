@@ -31,6 +31,7 @@ import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
+import GoogleFitScreen from '../screens/GoogleFit';
 
 const DRAWER_WIDTH = 290;
 
@@ -117,6 +118,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <WellnessPrescriptionScreen showDrawer={true} />;
       case 'Awards':
         return <AwardsScreen />;
+      case 'GoogleFit':
+        return <GoogleFitScreen />;
       case 'FitnessChallenges':
         return <FitnessChallengesScreen />;
       case 'ActivityTracking':
@@ -149,6 +152,7 @@ const DrawerNavigatorContent: React.FC = () => {
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
+      { screen: 'GoogleFit', label: 'Activity Tracker', icon: '❤️' },
     ];
 
   const calorieGoal = profile?.calorieGoal || 2400;
@@ -173,7 +177,6 @@ const DrawerNavigatorContent: React.FC = () => {
         style={[styles.drawerPanel, { transform: [{ translateX }] }]}
       >
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-          {/* Header Profile Card */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarGlow} />
             <View style={styles.avatar}>

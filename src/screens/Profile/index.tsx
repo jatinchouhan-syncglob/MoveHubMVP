@@ -131,8 +131,11 @@ export const ProfileScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader title={STRINGS.PROFILE.TITLE} showDrawerButton />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Card Overlay Background */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarGlow} />
@@ -161,7 +164,9 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
             <Text style={styles.statIcon}>🔥</Text>
-            <Text style={styles.statValue}>{totalCalories.toLocaleString()}</Text>
+            <Text style={styles.statValue}>
+              {totalCalories.toLocaleString()}
+            </Text>
             <Text style={styles.statLabel}>Calories Kcal</Text>
           </View>
         </View>
@@ -169,7 +174,7 @@ export const ProfileScreen: React.FC = () => {
         {/* Personal Details Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📐 Personal Dimensions</Text>
-          
+
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Text style={styles.detailIcon}>🎂</Text>
@@ -202,7 +207,9 @@ export const ProfileScreen: React.FC = () => {
               <Text style={styles.detailIcon}>🎯</Text>
               <Text style={styles.detailLabel}>Daily Goal</Text>
             </View>
-            <Text style={styles.detailValue}>{profile?.calorieGoal?.toLocaleString()} kcal</Text>
+            <Text style={styles.detailValue}>
+              {profile?.calorieGoal?.toLocaleString()} kcal
+            </Text>
           </View>
         </View>
 
@@ -215,10 +222,12 @@ export const ProfileScreen: React.FC = () => {
               <Text style={styles.bmiLabelText}>Calculated BMI</Text>
             </View>
             <View style={styles.bmiStatusPill}>
-              <Text 
+              <Text
                 style={[
-                  styles.bmiStatusText, 
-                  bmiStatus === 'Normal' ? styles.successText : styles.warningText
+                  styles.bmiStatusText,
+                  bmiStatus === 'Normal'
+                    ? styles.successText
+                    : styles.warningText,
                 ]}
               >
                 {bmiStatus}
@@ -230,17 +239,41 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.bmiTrackContainer}>
             <View style={styles.bmiTrack}>
               {/* Underweight Segment */}
-              <View style={[styles.bmiSegment, { backgroundColor: '#60A5FA', borderTopLeftRadius: 3, borderBottomLeftRadius: 3 }]} />
+              <View
+                style={[
+                  styles.bmiSegment,
+                  {
+                    backgroundColor: '#60A5FA',
+                    borderTopLeftRadius: 3,
+                    borderBottomLeftRadius: 3,
+                  },
+                ]}
+              />
               {/* Normal Segment */}
-              <View style={[styles.bmiSegment, { backgroundColor: '#34D399' }]} />
+              <View
+                style={[styles.bmiSegment, { backgroundColor: '#34D399' }]}
+              />
               {/* Overweight Segment */}
-              <View style={[styles.bmiSegment, { backgroundColor: '#FBBF24' }]} />
+              <View
+                style={[styles.bmiSegment, { backgroundColor: '#FBBF24' }]}
+              />
               {/* Obese Segment */}
-              <View style={[styles.bmiSegment, { backgroundColor: '#F87171', borderTopRightRadius: 3, borderBottomRightRadius: 3 }]} />
+              <View
+                style={[
+                  styles.bmiSegment,
+                  {
+                    backgroundColor: '#F87171',
+                    borderTopRightRadius: 3,
+                    borderBottomRightRadius: 3,
+                  },
+                ]}
+              />
             </View>
 
             {/* Sliding pointer dot */}
-            <View style={[styles.bmiPointer, { left: `${getBmiPosition(bmi)}%` }]} />
+            <View
+              style={[styles.bmiPointer, { left: `${getBmiPosition(bmi)}%` }]}
+            />
           </View>
 
           {/* Scale benchmarks */}
@@ -273,37 +306,43 @@ export const ProfileScreen: React.FC = () => {
         onRequestClose={hideDeleteAlert}
       >
         <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={hideDeleteAlert} 
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={hideDeleteAlert}
           />
-          <Animated.View 
-            style={[
-              styles.modalCard, 
-              { transform: [{ scale: scaleAnim }] }
-            ]}
+          <Animated.View
+            style={[styles.modalCard, { transform: [{ scale: scaleAnim }] }]}
           >
-            <View style={[styles.alertIconCircle, { backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}>
-              <Text style={[styles.alertIconText, { color: '#ef4444' }]}>🚨</Text>
+            <View
+              style={[
+                styles.alertIconCircle,
+                { backgroundColor: 'rgba(244, 63, 94, 0.1)' },
+              ]}
+            >
+              <Text style={[styles.alertIconText, { color: '#ef4444' }]}>
+                🚨
+              </Text>
             </View>
             <Text style={styles.modalTitleText}>Delete Account?</Text>
             <Text style={styles.modalDescText}>
-              Are you sure you want to permanently delete your account? This will erase all your health logs and profile settings from the server. This action cannot be undone.
+              Are you sure you want to permanently delete your account? This
+              will erase all your health logs and profile settings from the
+              server. This action cannot be undone.
             </Text>
-            
+
             <View style={styles.modalButtonsRow}>
-              <TouchableOpacity 
-                style={styles.cancelModalBtn} 
+              <TouchableOpacity
+                style={styles.cancelModalBtn}
                 onPress={hideDeleteAlert}
                 activeOpacity={0.8}
                 disabled={deleteLoading}
               >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.confirmModalBtn, { backgroundColor: '#ef4444' }]} 
+
+              <TouchableOpacity
+                style={[styles.confirmModalBtn, { backgroundColor: '#ef4444' }]}
                 onPress={handleConfirmDelete}
                 activeOpacity={0.8}
                 disabled={deleteLoading}
