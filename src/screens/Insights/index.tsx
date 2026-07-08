@@ -35,6 +35,8 @@ import {
   areaPath,
   lerp,
 } from '../../components/charts/CustomSvgCharts';
+import { FitnessTab } from './FitnessTab';
+import { BioSyncTab } from './BioSyncTab';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - scale(32); // margin horizontal (16 * 2)
@@ -145,8 +147,65 @@ const VITALITY_INDEX_DATA = [
 
 const VITALITY_INDEX_LABELS = ['Day 1', '5', '10', '15', '20', '25', '30'];
 
+// Static data for Fitness Tab
+const FITNESS_DAILY_STEPS = {
+  values: [6200, 8100, 5400, 7800, 9200, 11000, 4800],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_DAILY_HEART_POINTS = {
+  values: [22, 35, 18, 30, 42, 55, 15],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_SDEX_ACTIVITY = {
+  values: [45, 58, 42, 60, 72, 85, 38],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_ENERGY_EXPENDED = {
+  values: [240, 310, 210, 290, 350, 420, 180],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_HEART_POINTS_CHARTS = { target: '150', actual: '217', performance: '144' };
+const FITNESS_SDEX_CHARTS = { target: '50', actual: '57', performance: '114' };
+const FITNESS_STEPS_CHARTS = { target: '45,000', actual: '52,900', performance: '117' };
+const FITNESS_ENERGY_EXPANDED_CHARTS = { target: '1,800', actual: '2,000', performance: '111' };
+
+// Static data for Bio-sync Tab
+const BIOSYNC_ENERGY_EFFICIENCY = {
+  values: [4.1, 3.7, 4.3, 3.8, 3.9, 3.5, 4.2],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_INTEGRATED_STAMINA = {
+  values: [88, 85, 90, 86, 87, 92, 84],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE = {
+  labels: ['Wk 41', 'Wk 42', 'Wk 43', 'Wk 44'],
+  cys: [75, 78, 80, 83],
+  eeKm: [4.0, 3.9, 3.8, 3.7],
+  is: [84, 85, 86, 88],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE_SUMMARY = { eeKmAvg: '3.85', isAvg: '85.7', cysTotal: '316' };
+const BIOSYNC_PILLAR_HEALTH_DATA = [
+  { label: 'Sleep Consistency', value: 94, color: '#22C55E' },
+  { label: 'Physical Activity', value: 89, color: '#3B82F6' },
+  { label: 'Circadian Alignment', value: 87, color: '#F59E0B' },
+];
+const BIOSYNC_CARDIO_YIELD_DATA = [
+  { day: 'Mon', trend: '+3%', stacks: [18, 22, 24, 12] },
+  { day: 'Tue', trend: '+5%', stacks: [20, 24, 26, 14] },
+  { day: 'Wed', trend: '-2%', stacks: [15, 18, 20, 10] },
+  { day: 'Thu', trend: '+4%', stacks: [19, 22, 25, 12] },
+  { day: 'Fri', trend: '+8%', stacks: [26, 28, 32, 16] },
+  { day: 'Sat', trend: '+6%', stacks: [24, 26, 30, 15] },
+  { day: 'Sun', trend: '+2%', stacks: [17, 20, 22, 11] },
+];
+const BIOSYNC_EE_PER_KM_CHARTS = { target: '4.0', actual: '3.85', performance: '104' };
+const BIOSYNC_INTEGRATED_STAMINA_CHARTS = { target: '82', actual: '85.7', performance: '104' };
+const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '106' };
+const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
+
 export const InsightsScreen: React.FC = () => {
-  const [activeScreenTab, setActiveScreenTab] = useState<'trends' | 'transformation'>('trends');
+  const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -163,7 +222,7 @@ export const InsightsScreen: React.FC = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState<boolean>(false);
 
   // Health Transformation Dynamic API Data states
-  const [transformationLoading, setTransformationLoading] = useState(false);
+  const [_transformationLoading, setTransformationLoading] = useState(false);
   const [transformationData, setTransformationData] = useState<any>(null);
 
   // Scroll & Ref states for horizontal see-more chart
@@ -766,25 +825,50 @@ export const InsightsScreen: React.FC = () => {
       <View style={styles.glowSpot2} />
 
       {/* Screen Segment Selector */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('trends')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+      {/* Screen Segment Selector */}
+      <View style={styles.tabScrollContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabContainer}
         >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
-            Activity Trends
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('transformation')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
-        >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
-            Health Transformation
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('fitness')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'fitness' && styles.tabActiveText]}>
+              Fitness
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('bio-sync')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'bio-sync' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'bio-sync' && styles.tabActiveText]}>
+              Bio-Sync
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('trends')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
+              Activity Trends
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('transformation')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
+              Health Transformation
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -793,7 +877,41 @@ export const InsightsScreen: React.FC = () => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} />
         }
       >
-        {activeScreenTab === 'trends' ? (
+        {activeScreenTab === 'fitness' && (
+          <FitnessTab
+            chartWidth={CHART_WIDTH}
+            dailyStepsBreakdown={FITNESS_DAILY_STEPS}
+            dailyHeartPoints={FITNESS_DAILY_HEART_POINTS}
+            sdexActivity={FITNESS_SDEX_ACTIVITY}
+            energyExpended={FITNESS_ENERGY_EXPENDED}
+            totalHeartPoint={217}
+            totalDailySdex={57}
+            dailyHeartPointsCharts={FITNESS_HEART_POINTS_CHARTS}
+            dailySdexCharts={FITNESS_SDEX_CHARTS}
+            dailyStepsBreakdownCharts={FITNESS_STEPS_CHARTS}
+            energyExpandedCharts={FITNESS_ENERGY_EXPANDED_CHARTS}
+          />
+        )}
+
+        {activeScreenTab === 'bio-sync' && (
+          <BioSyncTab
+            chartWidth={CHART_WIDTH}
+            energyEfficiency={BIOSYNC_ENERGY_EFFICIENCY}
+            integratedStamina={BIOSYNC_INTEGRATED_STAMINA}
+            weeklyPerformance={BIOSYNC_WEEKLY_PERFORMANCE}
+            weeklyPerformanceSummary={BIOSYNC_WEEKLY_PERFORMANCE_SUMMARY}
+            pillarHealthData={BIOSYNC_PILLAR_HEALTH_DATA}
+            cardioYieldData={BIOSYNC_CARDIO_YIELD_DATA}
+            weeklyBioSyncEfficiencyScore={88}
+            eePerKmCharts={BIOSYNC_EE_PER_KM_CHARTS}
+            integratedStaminaCharts={BIOSYNC_INTEGRATED_STAMINA_CHARTS}
+            weeklyTrendCharts={BIOSYNC_WEEKLY_TREND_CHARTS}
+            cardioYieldPerStepCharts={BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS}
+            status="green"
+          />
+        )}
+
+        {activeScreenTab === 'trends' && (
           /* View 1: Activity Trends Chart */
           <View>
             <View style={styles.sectionHeaderRow}>
@@ -919,7 +1037,9 @@ export const InsightsScreen: React.FC = () => {
               </LinearGradient>
             </View>
           </View>
-        ) : (
+        )}
+
+        {activeScreenTab === 'transformation' && (
           /* View 2: Your 30-Day Health Transformation */
           <View>
             <Text style={styles.transformationHeaderTitle}>Your 30-Day Health Transformation</Text>
@@ -1103,21 +1223,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.secondary + '08',
     zIndex: -1,
   },
+  tabScrollContainer: {
+    paddingHorizontal: theme.spacing.containerPadding,
+    marginTop: theme.spacing.md,
+    height: 48,
+  },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(99, 102, 241, 0.06)',
     borderRadius: 12,
-    marginHorizontal: theme.spacing.containerPadding,
-    marginTop: theme.spacing.md,
     padding: 4,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.12)',
+    alignItems: 'center',
   },
   tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
+    marginRight: 4,
   },
   tabActiveBtn: {
     backgroundColor: theme.colors.primary,

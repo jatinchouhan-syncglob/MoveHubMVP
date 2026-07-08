@@ -174,7 +174,6 @@ export const ProfileScreen: React.FC = () => {
         {/* Personal Details Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📐 Personal Dimensions</Text>
-
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Text style={styles.detailIcon}>🎂</Text>

@@ -45,6 +45,8 @@ interface DualCardPayload {
   userName: string;
   age: number;
   weightKg: number;
+  heightCm?: number;
+  bmi?: number;
   pacingModeLabel: string;
   durationDays: number;
   startDateString: string;
@@ -87,8 +89,6 @@ export const WellnessPrescriptionScreen: React.FC<
   const [apiPrescription, setApiPrescription] = useState<any | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<'week1' | 'week2'>('week1');
 
-  // Local Checklist tracking
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const initializeDualCardData = async () => {
@@ -302,6 +302,8 @@ export const WellnessPrescriptionScreen: React.FC<
           userName: name,
           age,
           weightKg: weight,
+          heightCm: height,
+          bmi: 23.0,
           pacingModeLabel: isCardio ? 'CARDIOVASCULAR PACING PROFILE (HYPERTENSION ACTIVE)' : pacingLabel,
           durationDays: 30,
           startDateString: startDateStr,
@@ -388,58 +390,97 @@ export const WellnessPrescriptionScreen: React.FC<
     
     const active = { ...rawPayload };
     
-    if (selectedWeek === 'week1') {
-      if (apiPrescription) {
-        const pacingLabelsMapUpper: Record<string, string> = {
-          cardio_pacing: 'CARDIOVASCULAR PACING PROFILE (HYPERTENSION ACTIVE)',
-          metabolic_buffer: 'METABOLIC OPTIMIZATION BUFFER (DIABETES ACTIVE)',
-          joint_focus: 'JOINT & MUSCLE DENSITY PROFILE',
-          pulmonary_balancing: 'PULMONARY VOLUME BALANCING PROFILE',
-          vascular_stabilization: 'VASCULAR FLOW STABILIZATION PROFILE',
-          systemic_restoration: 'SYSTEMIC ENERGY RESTORATION PROFILE',
-          none: 'GENERAL PACING PROFILE',
-          other: 'CUSTOM PACING PROFILE',
-        };
+    if (apiPrescription) {
+      const pacingLabelsMapUpper: Record<string, string> = {
+        cardio_pacing: 'CARDIOVASCULAR PACING',
+        metabolic_buffer: 'METABOLIC OPTIMIZATION',
+        joint_focus: 'JOINT & MUSCLE DENSITY',
+        pulmonary_balancing: 'PULMONARY VOLUME BALANCING',
+        vascular_stabilization: 'VASCULAR FLOW STABILIZATION',
+        systemic_restoration: 'SYSTEMIC ENERGY RESTORATION',
+        none: 'GENERAL PACING',
+        other: 'CUSTOM PACING',
+      };
 
-        active.userId = apiPrescription.userId || active.userId;
-        active.pacingModeLabel = pacingLabelsMapUpper[apiPrescription.onboardingPacingMode] || apiPrescription.onboardingPacingMode?.toUpperCase() || active.pacingModeLabel;
-        
+      active.userId = apiPrescription.userId || active.userId;
+      active.userName = apiPrescription.userName || active.userName;
+      active.age = apiPrescription.age || active.age;
+      active.weightKg = apiPrescription.weightKg || active.weightKg;
+      active.heightCm = apiPrescription.heightCm || active.heightCm;
+      active.bmi = apiPrescription.bmi || active.bmi;
+
+      // Map pacingModeLabel from comma-separated string if present
+      if (apiPrescription.pacingModeLabel) {
+        const keys = apiPrescription.pacingModeLabel.split(',');
+        const mappedKeys = keys.map((k: string) => pacingLabelsMapUpper[k.trim()] || k.trim().toUpperCase());
+        active.pacingModeLabel = mappedKeys.join(', ');
+      } else if (apiPrescription.onboardingPacingMode) {
+        // Fallback for onboardingPacingMode
+        active.pacingModeLabel = pacingLabelsMapUpper[apiPrescription.onboardingPacingMode] || apiPrescription.onboardingPacingMode.toUpperCase();
         if (apiPrescription.specificCondition) {
           active.pacingModeLabel += ` (${apiPrescription.specificCondition})`;
         }
+      }
 
-        if (apiPrescription.cycleWindow) {
-          active.startDateString = apiPrescription.cycleWindow.startDate || active.startDateString;
-          active.endDateString = apiPrescription.cycleWindow.endDate || active.endDateString;
-          
-          if (apiPrescription.cycleWindow.startDate && apiPrescription.cycleWindow.endDate) {
-            const diffTime = Math.abs(new Date(apiPrescription.cycleWindow.endDate).getTime() - new Date(apiPrescription.cycleWindow.startDate).getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            active.durationDays = diffDays || active.durationDays;
-          }
-        }
+      // Handle start date and end date
+      active.startDateString = apiPrescription.startDateString || active.startDateString;
+      active.endDateString = apiPrescription.endDateString || active.endDateString;
+      active.durationDays = apiPrescription.durationDays || active.durationDays;
 
-        if (apiPrescription.progressionMetrics) {
-          active.dailyTargetSteps = apiPrescription.progressionMetrics.currentStepTarget || active.dailyTargetSteps;
-        }
+      // Daily Targets
+      active.dailyTargetSteps = apiPrescription.dailyTargetSteps || active.dailyTargetSteps;
+      active.dailyActiveBurnKcal = apiPrescription.dailyActiveBurnKcal || active.dailyActiveBurnKcal;
+      active.dailyTdeeKcal = apiPrescription.dailyTdeeKcal || active.dailyTdeeKcal;
+      active.dailyGainPoints = apiPrescription.dailyGainPoints || active.dailyGainPoints;
 
-        if (apiPrescription.dailyMetrics) {
-          active.dailyActiveBurnKcal = apiPrescription.dailyMetrics.activeBurnKcalTarget || active.dailyActiveBurnKcal;
-          active.dailyGainPoints = apiPrescription.dailyMetrics.dailyGainPointsTarget || active.dailyGainPoints;
-          active.monthlyActiveBurnKcal = active.dailyActiveBurnKcal * 30;
-          active.monthlyGainPoints = active.dailyGainPoints * 30;
-        }
-      } else {
-        // Local failover defaults for week 1
+      // Monthly/Trailing 30-Day Targets
+      active.monthlyActiveBurnKcal = apiPrescription.monthlyActiveBurnKcal || active.monthlyActiveBurnKcal;
+      active.monthlyTdeeKcal = apiPrescription.monthlyTdeeKcal || active.monthlyTdeeKcal;
+      active.monthlyGainPoints = apiPrescription.monthlyGainPoints || active.monthlyGainPoints;
+
+      active.weeklyHeartPointsRange = apiPrescription.weeklyHeartPointsRange || active.weeklyHeartPointsRange;
+
+      // Foundational Checklist mapping (array of strings to array of Routine)
+      if (apiPrescription.foundationalChecklist && Array.isArray(apiPrescription.foundationalChecklist)) {
+        active.foundationalChecklist = apiPrescription.foundationalChecklist.map((item: string, idx: number) => ({
+          id: `fc_${idx}`,
+          title: `${idx + 1}. ${item}`,
+          schedule: 'Daily target',
+          deepDiveText: `Operationalize daily baseline target for ${item.toLowerCase()}.`,
+        }));
+      }
+
+      active.heartRateLimitBpm = apiPrescription.heartRateLimitBpm || active.heartRateLimitBpm;
+      active.absoluteMetCeiling = apiPrescription.absoluteMetCeiling || active.absoluteMetCeiling;
+      active.minSleepThresholdHours = apiPrescription.minSleepThresholdHours || active.minSleepThresholdHours;
+      
+      active.physiologicalRationale = apiPrescription.physiologicalRationale || active.physiologicalRationale;
+      active.medicalLiteratureCitation = apiPrescription.medicalLiteratureCitation || active.medicalLiteratureCitation;
+      active.overloadForecastText = apiPrescription.overloadForecastText || active.overloadForecastText;
+
+      // Biometric targets mapping
+      if (apiPrescription.biometricTargets) {
+        active.biometricTargets = {
+          hppsTargetValue: apiPrescription.biometricTargets.hppsTargetValue ?? active.biometricTargets.hppsTargetValue,
+          insulinSensitivityIndicator: apiPrescription.biometricTargets.interdailyStabilityIndicator || 
+                                       (apiPrescription.biometricTargets.isTargetValue ? `${apiPrescription.biometricTargets.isTargetValue} IS Target` : active.biometricTargets.insulinSensitivityIndicator),
+          eePerKmTarget: apiPrescription.biometricTargets.eePerKmTarget ?? active.biometricTargets.eePerKmTarget,
+          bseTargetValue: apiPrescription.biometricTargets.bseTargetValue ?? active.biometricTargets.bseTargetValue,
+          sDexTargetValue: apiPrescription.biometricTargets.sDexTargetValue ?? active.biometricTargets.sDexTargetValue,
+        };
+      }
+      active.engineVerificationSignature = apiPrescription.engineVerificationSignature || active.engineVerificationSignature;
+    } else {
+      // Local failover defaults
+      if (selectedWeek === 'week1') {
         active.startDateString = '18-06-2026';
         active.endDateString = '18-07-2026';
+      } else {
+        active.startDateString = '29-06-2026';
+        active.endDateString = '29-07-2026';
       }
-    } else {
-      // Local failover defaults for week 2
-      active.startDateString = '29-06-2026';
-      active.endDateString = '29-07-2026';
     }
-    
+
     return active;
   };
 
@@ -470,12 +511,6 @@ export const WellnessPrescriptionScreen: React.FC<
     }
   };
 
-  const toggleChecklist = (id: string) => {
-    setChecklist(prev => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
 
   const toggleDrawer = (id: string) => {
     setActiveDrawerId(prev => (prev === id ? null : id));
@@ -510,44 +545,46 @@ export const WellnessPrescriptionScreen: React.FC<
       <View style={styles.glowSpot2} />
 
       {/* Dynamic Week Toggle Selector (outside ScrollView so it remains sticky at the top) */}
-      <View style={styles.headerToggleWrapper}>
-        <View style={styles.toggleSelectorContainer}>
-          <TouchableOpacity
-            style={[
-              styles.toggleBtn,
-              selectedWeek === 'week1' && styles.toggleBtnActive,
-            ]}
-            onPress={() => setSelectedWeek('week1')}
-            activeOpacity={0.8}
-          >
-            <Text
+      {!apiPrescription && (
+        <View style={styles.headerToggleWrapper}>
+          <View style={styles.toggleSelectorContainer}>
+            <TouchableOpacity
               style={[
-                styles.toggleBtnText,
-                selectedWeek === 'week1' && styles.toggleBtnTextActive,
+                styles.toggleBtn,
+                selectedWeek === 'week1' && styles.toggleBtnActive,
               ]}
+              onPress={() => setSelectedWeek('week1')}
+              activeOpacity={0.8}
             >
-              📅 Week 1: Initial
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.toggleBtn,
-              selectedWeek === 'week2' && styles.toggleBtnActive,
-            ]}
-            onPress={() => setSelectedWeek('week2')}
-            activeOpacity={0.8}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.toggleBtnText,
+                  selectedWeek === 'week1' && styles.toggleBtnTextActive,
+                ]}
+              >
+                📅 Week 1: Initial
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
-                styles.toggleBtnText,
-                selectedWeek === 'week2' && styles.toggleBtnTextActive,
+                styles.toggleBtn,
+                selectedWeek === 'week2' && styles.toggleBtnActive,
               ]}
+              onPress={() => setSelectedWeek('week2')}
+              activeOpacity={0.8}
             >
-              ⚡ Week 2: Adaptive
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.toggleBtnText,
+                  selectedWeek === 'week2' && styles.toggleBtnTextActive,
+                ]}
+              >
+                ⚡ Week 2: Adaptive
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -573,15 +610,15 @@ export const WellnessPrescriptionScreen: React.FC<
             <View style={styles.profileGrid}>
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>NAME</Text>
-                <Text style={styles.profileItemValue}>{apiUserProfile?.name || payload.userName}</Text>
+                <Text style={styles.profileItemValue}>{payload.userName}</Text>
               </View>
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>AGE</Text>
-                <Text style={styles.profileItemValue}>{apiUserProfile?.age || payload.age} yrs</Text>
+                <Text style={styles.profileItemValue}>{payload.age} yrs</Text>
               </View>
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>MASS</Text>
-                <Text style={styles.profileItemValue}>{apiUserProfile?.weight || payload.weightKg} kg</Text>
+                <Text style={styles.profileItemValue}>{payload.weightKg} kg</Text>
               </View>
             </View>
 
@@ -589,18 +626,18 @@ export const WellnessPrescriptionScreen: React.FC<
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>HEIGHT</Text>
                 <Text style={styles.profileItemValue}>
-                  {apiUserProfile?.height ? `${apiUserProfile.height} cm` : '178 cm'}
+                  {payload.heightCm ? `${payload.heightCm} cm` : '178 cm'}
                 </Text>
               </View>
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>CALORIE GOAL</Text>
                 <Text style={styles.profileItemValue}>
-                  {apiUserProfile?.calorieGoal ? `${apiUserProfile.calorieGoal} kcal` : '2400 kcal'}
+                  {payload.dailyTdeeKcal ? `${payload.dailyTdeeKcal} kcal` : '2400 kcal'}
                 </Text>
               </View>
               <View style={styles.profileGridItem}>
                 <Text style={styles.profileItemLabel}>UHID</Text>
-                <Text style={styles.profileItemValue}>{apiUserProfile?.uhid || 'SAUSHA9775'}</Text>
+                <Text style={styles.profileItemValue}>{apiUserProfile?.uhid || apiPrescription?.uhid || payload.userId}</Text>
               </View>
             </View>
 
@@ -745,34 +782,38 @@ export const WellnessPrescriptionScreen: React.FC<
           </View>
 
           {/* 4-Quadrant weekly metric distributions */}
-          <Text style={styles.subSectionHeader}>
-            🎯 4-QUADRANT WEEKLY METRIC DISTRIBUTIONS
-          </Text>
-          <View style={styles.quadrantWrapper}>
-            {payload.quadrants.map((quad, idx) => (
-              <View key={idx} style={{ marginBottom: 10 }}>
-                <View style={styles.flexRowBetween}>
-                  <Text style={styles.quadrantLabel}>
-                    {quad.label} - {quad.percentage}%
-                  </Text>
-                  <Text style={styles.quadrantValue}>
-                    {quad.points} <Text style={styles.pointsSub}>pts</Text>
-                  </Text>
-                </View>
-                <View style={styles.progressBarBackground}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${quad.percentage}%`,
-                        backgroundColor: quad.color,
-                      },
-                    ]}
-                  />
-                </View>
+          {payload.quadrants && payload.quadrants.length > 0 && (
+            <>
+              <Text style={styles.subSectionHeader}>
+                🎯 4-QUADRANT WEEKLY METRIC DISTRIBUTIONS
+              </Text>
+              <View style={styles.quadrantWrapper}>
+                {payload.quadrants.map((quad, idx) => (
+                  <View key={idx} style={{ marginBottom: 10 }}>
+                    <View style={styles.flexRowBetween}>
+                      <Text style={styles.quadrantLabel}>
+                        {quad.label} - {quad.percentage}%
+                      </Text>
+                      <Text style={styles.quadrantValue}>
+                        {quad.points} <Text style={styles.pointsSub}>pts</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarBackground}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${quad.percentage}%`,
+                            backgroundColor: quad.color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          )}
 
           {/* Daily expectations grid */}
           <Text style={styles.subSectionHeader}>
@@ -1232,9 +1273,9 @@ export const WellnessPrescriptionScreen: React.FC<
             <Text style={[styles.profileText, { fontFamily: 'monospace', fontSize: 11 }]}>
               {payload.engineVerificationSignature || 'PYTHON_CORE_LITERATURE_WORKER_VERIFIED_V1'}
             </Text>
-            {selectedWeek === 'week1' && apiPrescription?.generatedAtTimestamp ? (
+            {payload.startDateString ? (
               <Text style={[styles.profileText, { fontFamily: 'monospace', fontSize: 9, color: theme.colors.textLight, marginTop: 4 }]}>
-                CALIBRATED AT: {new Date(apiPrescription.generatedAtTimestamp * 1000).toLocaleString('en-GB')}
+                CALIBRATED AT: {payload.startDateString}
               </Text>
             ) : null}
           </View>
