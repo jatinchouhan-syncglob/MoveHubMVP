@@ -229,6 +229,9 @@ export const apiService = {
           caloriesBurned: item.caloriesBurned,
           timestamp: item.timestamp || new Date().toISOString(),
           notes: item.notes,
+          gainPoints: item.gainPoints,
+          cardioPoints: item.cardioPoints,
+          musculoPoints: item.musculoPoints,
         }));
         // Reverse the array to ensure the latest added exercises are always at the top of the list
         return mapped.reverse();

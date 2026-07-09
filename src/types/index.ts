@@ -21,6 +21,9 @@ export interface Activity {
   caloriesBurned: number;
   timestamp: string;
   notes?: string;
+  gainPoints?: number;
+  cardioPoints?: number;
+  musculoPoints?: number;
 }
 
 export interface LeaderboardEntry {

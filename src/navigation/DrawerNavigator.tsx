@@ -146,7 +146,7 @@ const DrawerNavigatorContent: React.FC = () => {
         icon: '📋',
       },
       { screen: 'ActivityTracking', label: 'Activity Tracking', icon: '🏃‍♂️' },
-      { screen: 'Dashboard', label: 'Dashboard', icon: '📊' },
+      { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'FitnessChallenges', label: 'Fitness Challenges', icon: '🎯' },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },

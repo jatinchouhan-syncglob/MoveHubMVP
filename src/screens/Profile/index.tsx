@@ -199,17 +199,7 @@ export const ProfileScreen: React.FC = () => {
             </View>
             <Text style={styles.detailValue}>{profile?.height} cm</Text>
           </View>
-          <View style={styles.divider} />
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Text style={styles.detailIcon}>🎯</Text>
-              <Text style={styles.detailLabel}>Daily Goal</Text>
-            </View>
-            <Text style={styles.detailValue}>
-              {profile?.calorieGoal?.toLocaleString()} kcal
-            </Text>
-          </View>
         </View>
 
         {/* Visual BMI Scale Evaluation Card */}

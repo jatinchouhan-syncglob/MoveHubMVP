@@ -35,6 +35,7 @@ interface Routine {
 interface BiometricTargets {
   hppsTargetValue: number;
   insulinSensitivityIndicator: string;
+  isTargetValue?: number;
   eePerKmTarget: number;
   bseTargetValue: number;
   sDexTargetValue: number;
@@ -427,6 +428,18 @@ export const WellnessPrescriptionScreen: React.FC<
       active.endDateString = apiPrescription.endDateString || active.endDateString;
       active.durationDays = apiPrescription.durationDays || active.durationDays;
 
+      // Quadrants
+      if (apiPrescription.quadrants && apiPrescription.quadrants.length > 0) {
+        active.quadrants = apiPrescription.quadrants;
+      } else {
+        active.quadrants = [
+          { label: 'Cardio Health (V1)', points: 0, percentage: 0, color: '#06b6d4' },
+          { label: 'Balance & Agility (A3)', points: 0, percentage: 0, color: '#8b5cf6' },
+          { label: 'Metabolic Fluidity (M2)', points: 0, percentage: 0, color: '#f97316' },
+          { label: 'Structural Density (D4)', points: 0, percentage: 0, color: '#10b981' }
+        ];
+      }
+
       // Daily Targets
       active.dailyTargetSteps = apiPrescription.dailyTargetSteps || active.dailyTargetSteps;
       active.dailyActiveBurnKcal = apiPrescription.dailyActiveBurnKcal || active.dailyActiveBurnKcal;
@@ -441,11 +454,23 @@ export const WellnessPrescriptionScreen: React.FC<
       active.weeklyHeartPointsRange = apiPrescription.weeklyHeartPointsRange || active.weeklyHeartPointsRange;
 
       // Foundational Checklist mapping (array of strings to array of Routine)
-      if (apiPrescription.foundationalChecklist && Array.isArray(apiPrescription.foundationalChecklist)) {
+      if (apiPrescription.foundationalChecklist && Array.isArray(apiPrescription.foundationalChecklist) && apiPrescription.foundationalChecklist.length > 0) {
         active.foundationalChecklist = apiPrescription.foundationalChecklist.map((item: string, idx: number) => ({
           id: `fc_${idx}`,
           title: `${idx + 1}. ${item}`,
           schedule: 'Daily target',
+          deepDiveText: `Operationalize daily baseline target for ${item.toLowerCase()}.`,
+        }));
+      } else {
+        const defaultItems = [
+          'Walk daily',
+          'Maintain sleep threshold',
+          'Avoid excessive sedentary blocks'
+        ];
+        active.foundationalChecklist = defaultItems.map((item, idx) => ({
+          id: `fc_${idx}`,
+          title: `${idx + 1}. ${item}`,
+          schedule: 'Daily target (Pending Setup)',
           deepDiveText: `Operationalize daily baseline target for ${item.toLowerCase()}.`,
         }));
       }
@@ -782,38 +807,36 @@ export const WellnessPrescriptionScreen: React.FC<
           </View>
 
           {/* 4-Quadrant weekly metric distributions */}
-          {payload.quadrants && payload.quadrants.length > 0 && (
-            <>
-              <Text style={styles.subSectionHeader}>
-                🎯 4-QUADRANT WEEKLY METRIC DISTRIBUTIONS
-              </Text>
-              <View style={styles.quadrantWrapper}>
-                {payload.quadrants.map((quad, idx) => (
-                  <View key={idx} style={{ marginBottom: 10 }}>
-                    <View style={styles.flexRowBetween}>
-                      <Text style={styles.quadrantLabel}>
-                        {quad.label} - {quad.percentage}%
-                      </Text>
-                      <Text style={styles.quadrantValue}>
-                        {quad.points} <Text style={styles.pointsSub}>pts</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.progressBarBackground}>
-                      <View
-                        style={[
-                          styles.progressBarFill,
-                          {
-                            width: `${quad.percentage}%`,
-                            backgroundColor: quad.color,
-                          },
-                        ]}
-                      />
-                    </View>
+          <>
+            <Text style={styles.subSectionHeader}>
+              🎯 4-QUADRANT WEEKLY METRIC DISTRIBUTIONS
+            </Text>
+            <View style={styles.quadrantWrapper}>
+              {payload.quadrants.map((quad, idx) => (
+                <View key={idx} style={{ marginBottom: 10 }}>
+                  <View style={styles.flexRowBetween}>
+                    <Text style={styles.quadrantLabel}>
+                      {quad.label} - {quad.percentage}%
+                    </Text>
+                    <Text style={styles.quadrantValue}>
+                      {quad.points} <Text style={styles.pointsSub}>pts</Text>
+                    </Text>
                   </View>
-                ))}
-              </View>
-            </>
-          )}
+                  <View style={styles.progressBarBackground}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${quad.percentage}%`,
+                          backgroundColor: quad.color,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
 
           {/* Daily expectations grid */}
           <Text style={styles.subSectionHeader}>
@@ -889,122 +912,101 @@ export const WellnessPrescriptionScreen: React.FC<
           </View>
 
           {/* Foundational checklist routines */}
-          <Text style={styles.subSectionHeader}>
-            📋 FOUNDATIONAL ROUTINE CHECKLIST
-          </Text>
-          <View style={styles.quadrantWrapper}>
-            {payload.foundationalChecklist.map(routine => {
-              const isOpen = activeDrawerId === routine.id;
-              return (
-                <View key={routine.id} style={styles.routineItem}>
-                  <TouchableOpacity
-                    onPress={() => toggleDrawer(routine.id)}
-                    activeOpacity={0.8}
-                    style={styles.routineHeaderClick}
-                  >
-                    <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={styles.routineTitle}>{routine.title}</Text>
-                      <Text style={styles.routineSchedule}>
-                        {routine.schedule}
-                      </Text>
-                    </View>
-                    <View style={[styles.dropdownIconContainer, isOpen && styles.dropdownIconContainerActive]}>
-                      <Text style={[styles.dropdownIcon, isOpen && styles.dropdownIconActive]}>
-                        {isOpen ? '▲' : '▼'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+          <>
+            <Text style={styles.subSectionHeader}>
+              📋 FOUNDATIONAL ROUTINE CHECKLIST
+            </Text>
+            <View style={styles.quadrantWrapper}>
+              {payload.foundationalChecklist.map(routine => {
+                const isOpen = activeDrawerId === routine.id;
+                return (
+                  <View key={routine.id} style={styles.routineItem}>
+                    <TouchableOpacity
+                      onPress={() => toggleDrawer(routine.id)}
+                      activeOpacity={0.8}
+                      style={styles.routineHeaderClick}
+                    >
+                      <View style={{ flex: 1, paddingRight: 10 }}>
+                        <Text style={styles.routineTitle}>{routine.title}</Text>
+                        <Text style={styles.routineSchedule}>
+                          {routine.schedule}
+                        </Text>
+                      </View>
+                      <View style={[styles.dropdownIconContainer, isOpen && styles.dropdownIconContainerActive]}>
+                        <Text style={[styles.dropdownIcon, isOpen && styles.dropdownIconActive]}>
+                          {isOpen ? '▲' : '▼'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
 
-                  {isOpen && (
-                    <View style={styles.drawerWrapper}>
-                      {routine.id === 'rc_walk' || routine.id === 'c1' ? (
-                        <View style={styles.richDropdownContent}>
-                          <Text style={styles.richDropdownHeader}>🚶 Walk Routine Insights</Text>
-                          
-                          <Text style={styles.richDropdownSectionTitle}>📋 HOW TO EXECUTE</Text>
-                          <Text style={styles.richDropdownBody}>
-                            • <Text style={styles.bulletBold}>Posture:</Text> Maintain an upright spine, relaxed shoulders, and let your arms swing naturally to establish a continuous stride rhythm.
-                          </Text>
-                          <Text style={[styles.richDropdownBody, { marginTop: 4 }]}>
-                            • <Text style={styles.bulletBold}>Cadence:</Text> Target a steady brisk pace of roughly 100 steps per minute. Fast enough to raise breathing rate while speaking a full sentence comfortably.
-                          </Text>
-
-                          <Text style={styles.richDropdownSectionTitle}>🎯 TARGET HEART RATE ZONE JUSTIFICATION</Text>
-                          <Text style={styles.richDropdownBody}>
-                            • <Text style={styles.bulletBold}>Your Personalized Zone:</Text> {selectedWeek === 'week1' ? '75 - 95 BPM (RPE 10-11)' : '75 - 95 BPM'}
-                          </Text>
-                          <Text style={[styles.richDropdownBody, { marginTop: 4 }]}>
-                            • <Text style={styles.bulletBold}>Mathematical Derivation:</Text> Calculated natively using your age constant ({payload.age} yrs). Implements a strict 50% to 65% aerobic capacity envelope.
-                          </Text>
-                          <Text style={[styles.richDropdownBody, { marginTop: 4 }]}>
-                            • <Text style={styles.bulletBold}>Rationale:</Text> Maximizes cardiac output and stroke volume efficiency while keeping systolic limits safely beneath blunted vascular thresholds ({payload.heartRateLimitBpm} BPM max).
-                          </Text>
-
-                          <Text style={styles.richDropdownSectionTitle}>📚 SCIENTIFIC FOUNDATION & LITERATURE CITATIONS</Text>
-                          <Text style={styles.richDropdownBody}>
-                            • <Text style={styles.bulletBold}>Metabolic Impact:</Text> Continuous 30-minute brisk walking splits trigger GLUT4 vesicle translocation to skeletal muscle cell membranes to clear blood sugar.
-                          </Text>
-                          <Text style={[styles.richDropdownBody, { marginTop: 4 }]}>
-                            • <Text style={styles.bulletBold}>Authoritative Guidance:</Text> Aligned with AHA Council on Lifestyle, maintaining this steady stimulus directly preserves arterial compliance. (Circulation, 2024).
-                          </Text>
-                        </View>
-                      ) : (
+                    {isOpen && (
+                      <View style={styles.drawerWrapper}>
                         <Text style={styles.drawerText}>{routine.deepDiveText}</Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </>
 
           {/* Rule-based system safety clamps */}
-          <Text style={styles.subSectionHeader}>
-            🛡️ RULE-BASED SYSTEM SAFETY CLAMPS
-          </Text>
-          <View style={styles.quadrantWrapper}>
-            <Text style={styles.clampText}>
-              🚨 Heart Rate Limit:{' '}
-              <Text style={styles.whiteValue}>
-                {payload.heartRateLimitBpm} BPM Max
-              </Text>
+          <>
+            <Text style={styles.subSectionHeader}>
+              🛡️ RULE-BASED SYSTEM SAFETY CLAMPS
             </Text>
-            <Text style={styles.clampText}>
-              ⚡ Absolute Intensity Ceiling:{' '}
-              <Text style={styles.whiteValue}>
-                {payload.absoluteMetCeiling} METs Max
+            <View style={styles.quadrantWrapper}>
+              <Text style={styles.clampText}>
+                🚨 Heart Rate Limit:{' '}
+                <Text style={payload.heartRateLimitBpm ? styles.whiteValue : styles.notAvailableValueInline}>
+                  {payload.heartRateLimitBpm ? `${payload.heartRateLimitBpm} BPM Max` : 'Not Available'}
+                </Text>
               </Text>
-            </Text>
-            <Text style={styles.clampText}>
-              🌙 Minimum Recovery Window:{' '}
-              <Text style={styles.whiteValue}>
-                {payload.minSleepThresholdHours} Hours Sleep
+              <Text style={styles.clampText}>
+                ⚡ Absolute Intensity Ceiling:{' '}
+                <Text style={payload.absoluteMetCeiling ? styles.whiteValue : styles.notAvailableValueInline}>
+                  {payload.absoluteMetCeiling ? `${payload.absoluteMetCeiling} METs Max` : 'Not Available'}
+                </Text>
               </Text>
-            </Text>
-          </View>
-
-          {/* Physiological rationale */}
-          <Text style={styles.subSectionHeader}>
-            📚 PHYSIOLOGICAL RATIONALE & MEDICAL LITERATURE
-          </Text>
-          <View style={styles.quadrantWrapper}>
-            <Text style={styles.bodyText}>
-              <Text style={styles.highlightText}>
-                Physiological Rationale:{' '}
-              </Text>
-              {payload.physiologicalRationale}
-            </Text>
-            <View style={styles.citationBox}>
-              <Text style={styles.citationText}>
-                {payload.medicalLiteratureCitation}
+              <Text style={styles.clampText}>
+                🌙 Minimum Recovery Window:{' '}
+                <Text style={payload.minSleepThresholdHours ? styles.whiteValue : styles.notAvailableValueInline}>
+                  {payload.minSleepThresholdHours ? `${payload.minSleepThresholdHours} Hours Sleep` : 'Not Available'}
+                </Text>
               </Text>
             </View>
-          </View>
+          </>
+
+          {/* Physiological rationale */}
+          <>
+            <Text style={styles.subSectionHeader}>
+              📚 PHYSIOLOGICAL RATIONALE & MEDICAL LITERATURE
+            </Text>
+            <View style={styles.quadrantWrapper}>
+              <Text style={styles.bodyText}>
+                <Text style={styles.highlightText}>
+                  Physiological Rationale:{' '}
+                </Text>
+                {payload.physiologicalRationale || 'Not Available'}
+              </Text>
+              {payload.medicalLiteratureCitation ? (
+                <View style={styles.citationBox}>
+                  <Text style={styles.citationText}>
+                    {payload.medicalLiteratureCitation}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.citationBox, { opacity: 0.5 }]}>
+                  <Text style={styles.citationText}>Literature Citation: Not Available</Text>
+                </View>
+              )}
+            </View>
+          </>
 
           {/* Forecast Footer banner */}
           <View style={styles.footerInsightBox}>
             <Text style={styles.footerText}>
-              💡 {payload.overloadForecastText}
+              💡 {payload.overloadForecastText || 'Overload Forecast: Not Available'}
             </Text>
           </View>
 
@@ -1072,13 +1074,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     1. ❤️ HPPS Target (Heart Points Per Step Coefficient)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.biometricTargets?.hppsTargetValue} HP / Step Target Baseline
+                    Target: {payload.biometricTargets?.hppsTargetValue ?? 0} HP / Step Target Baseline
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '50%', backgroundColor: theme.colors.primary },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.hppsTargetValue || 0) / 0.02) * 100)}%`,
+                          backgroundColor: theme.colors.primary,
+                        },
                       ]}
                     />
                   </View>
@@ -1090,13 +1095,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     2. 🔥 Daily Active Energy Maintenance Target Allocation
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.dailyActiveBurnKcal} KCAL / Day Safe Baseline
+                    Target: {payload.dailyActiveBurnKcal ?? 0} KCAL / Day Safe Baseline
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '40%', backgroundColor: '#ef4444' },
+                        {
+                          width: `${Math.min(100, ((payload.dailyActiveBurnKcal || 0) / 500) * 100)}%`,
+                          backgroundColor: '#ef4444',
+                        },
                       ]}
                     />
                   </View>
@@ -1108,13 +1116,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     3. 🧪 IS Target (Interdaily Stability Metric Indicator)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.biometricTargets?.insulinSensitivityIndicator}
+                    Target: {payload.biometricTargets?.insulinSensitivityIndicator || `${payload.biometricTargets?.isTargetValue ?? 0} IS Target`}
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '70%', backgroundColor: theme.colors.secondary },
+                        {
+                          width: `${Math.min(100, (payload.biometricTargets?.isTargetValue || 0) * 100)}%`,
+                          backgroundColor: theme.colors.secondary,
+                        },
                       ]}
                     />
                   </View>
@@ -1126,13 +1137,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     4. 🏃‍♂️ EE/KM Target (Energy Expenditure Per Kilometer)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.biometricTargets?.eePerKmTarget} kcal / km Active Footprint
+                    Target: {payload.biometricTargets?.eePerKmTarget ?? 0} kcal / km Active Footprint
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '60%', backgroundColor: '#10b981' },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.eePerKmTarget || 0) / 100) * 100)}%`,
+                          backgroundColor: '#10b981',
+                        },
                       ]}
                     />
                   </View>
@@ -1144,13 +1158,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     5. 🔋 BSE Target (Bio-Sync Efficiency Core Vector)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.biometricTargets?.bseTargetValue}% Synchronized Pacing State
+                    Target: {payload.biometricTargets?.bseTargetValue ?? 0}% Synchronized Pacing State
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '85%', backgroundColor: '#3b82f6' },
+                        {
+                          width: `${payload.biometricTargets?.bseTargetValue || 0}%`,
+                          backgroundColor: '#3b82f6',
+                        },
                       ]}
                     />
                   </View>
@@ -1162,13 +1179,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     6. 🛌 Sedentary Index Target Cap Value (S-DEX Ceiling)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    Target: {payload.biometricTargets?.sDexTargetValue} Max Total Hours Inactive
+                    Target: {payload.biometricTargets?.sDexTargetValue ?? 0} Max Total Hours Inactive
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '45%', backgroundColor: '#f59e0b' },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.sDexTargetValue || 0) / 24) * 100)}%`,
+                          backgroundColor: '#f59e0b',
+                        },
                       ]}
                     />
                   </View>
@@ -1182,13 +1202,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     [Vector A] 📈 HPPS Target (Heart Points Per 1k Steps)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    {"----> "}{payload.biometricTargets?.hppsTargetValue} HP / 1k Steps Target Baseline Profile (Maintained for safety)
+                    {"----> "}{payload.biometricTargets?.hppsTargetValue ?? 0} HP / 1k Steps Target Baseline Profile (Maintained for safety)
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '60%', backgroundColor: theme.colors.primary },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.hppsTargetValue || 0) / 0.02) * 100)}%`,
+                          backgroundColor: theme.colors.primary,
+                        },
                       ]}
                     />
                   </View>
@@ -1200,13 +1223,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     [Vector B] 🧘 IS (Interdaily Stability Metric Indicator)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    {"----> "}{payload.biometricTargets?.insulinSensitivityIndicator}
+                    {"----> "}{payload.biometricTargets?.insulinSensitivityIndicator || `${payload.biometricTargets?.isTargetValue ?? 0} IS Target`}
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '100%', backgroundColor: theme.colors.secondary },
+                        {
+                          width: `${Math.min(100, (payload.biometricTargets?.isTargetValue || 0) * 100)}%`,
+                          backgroundColor: theme.colors.secondary,
+                        },
                       ]}
                     />
                   </View>
@@ -1218,13 +1244,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     [Vector C] 🏃‍♂️ EE/KM Target (Energy Expenditure / Kilometer Volatility)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    {"----> "}{payload.biometricTargets?.eePerKmTarget} kcal / km Active Metabolic Footprint Consolidated
+                    {"----> "}{payload.biometricTargets?.eePerKmTarget ?? 0} kcal / km Active Metabolic Footprint Consolidated
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '70%', backgroundColor: '#10b981' },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.eePerKmTarget || 0) / 100) * 100)}%`,
+                          backgroundColor: '#10b981',
+                        },
                       ]}
                     />
                   </View>
@@ -1236,13 +1265,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     [Vector D] 🔋 BSE Target (Bio-Sync Efficiency Core Vector)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    {"----> Recalculated: "}{payload.biometricTargets?.bseTargetValue}% {"-> "}{((payload.biometricTargets?.bseTargetValue || 85.0) + 3.5).toFixed(1)}% Synchronized Device Pacing Stability
+                    {"----> Recalculated: "}{payload.biometricTargets?.bseTargetValue ?? 0}% {"-> "}{((payload.biometricTargets?.bseTargetValue || 0) + 3.5).toFixed(1)}% Synchronized Device Pacing Stability
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '88.5%', backgroundColor: '#3b82f6' },
+                        {
+                          width: `${payload.biometricTargets?.bseTargetValue || 0}%`,
+                          backgroundColor: '#3b82f6',
+                        },
                       ]}
                     />
                   </View>
@@ -1254,13 +1286,16 @@ export const WellnessPrescriptionScreen: React.FC<
                     [Metric 5] 🛌 Sedentary Index Target Cap Value (S-DEX Ceiling)
                   </Text>
                   <Text style={styles.meterTargetText}>
-                    {"----> "}{payload.biometricTargets?.sDexTargetValue} Max Total Hours Inactive (Locked Baseline Control to Manage Systemic Load)
+                    {"----> "}{payload.biometricTargets?.sDexTargetValue ?? 0} Max Total Hours Inactive (Locked Baseline Control to Manage Systemic Load)
                   </Text>
                   <View style={styles.progressBarBackground}>
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: '45%', backgroundColor: '#f59e0b' },
+                        {
+                          width: `${Math.min(100, ((payload.biometricTargets?.sDexTargetValue || 0) / 24) * 100)}%`,
+                          backgroundColor: '#f59e0b',
+                        },
                       ]}
                     />
                   </View>
@@ -1691,6 +1726,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.textSecondary,
     lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  notAvailableBox: {
+    padding: theme.spacing.md,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  notAvailableText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  notAvailableValueInline: {
+    color: '#94a3b8',
+    fontSize: 12,
     fontStyle: 'italic',
   },
   footerInsightBox: {
