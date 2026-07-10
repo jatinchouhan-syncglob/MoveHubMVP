@@ -32,6 +32,10 @@ import {
   openHealthConnectStorePage,
   checkGoogleFitInstalled,
   openGoogleFitStorePage,
+  syncHealthConnectAnalytics,
+  getHealthConnectWorkManagerStatus,
+  openHealthConnectExactAlarmSettings,
+  openHealthConnectBatteryOptimizationSettings,
 } from '../../services/healthConnect';
 
 import {
@@ -346,61 +350,67 @@ const HealthConnectScreen = () => {
     }
   };
 
+  const checkNativePermissions = async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const nativeStatus = await getHealthConnectWorkManagerStatus();
+      if (!nativeStatus) return;
+
+      const { exactAlarmAllowed, batteryOptimizationIgnored } = nativeStatus;
+      
+      if (!batteryOptimizationIgnored || !exactAlarmAllowed) {
+        let message = 'To ensure your health data is synchronized automatically in the background, please:\n\n';
+        if (!batteryOptimizationIgnored) {
+          message += '• Disable battery restrictions (Select "Don\'t Restrict" / "Ignore Battery Optimization")\n';
+        }
+        if (!exactAlarmAllowed) {
+          message += '• Allow scheduling exact alarms\n';
+        }
+        
+        Alert.alert(
+          'Background Sync Settings Required',
+          message,
+          [
+            {
+              text: 'Configure Settings',
+              onPress: async () => {
+                if (!batteryOptimizationIgnored) {
+                  await openHealthConnectBatteryOptimizationSettings();
+                } else if (!exactAlarmAllowed) {
+                  await openHealthConnectExactAlarmSettings();
+                }
+              }
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to check background sync permissions:', err);
+    }
+  };
+
   const _saveHealthData = async () => {
-    if (!summary) return;
     setSyncing(true);
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-      const currentTime = new Date().toISOString();
-      const currentSteps = getCurrentPeriodSteps(
-        summary.stepsRecords ?? [],
-        currentTime,
-      );
-
-      // Save steps as walking activity
-      if (currentSteps > 0) {
-        await apiService.saveHealthConnectActivity({
-          uhid: targetUhid,
-          deviceId: '99kjkhgg',
-          type: 'Walking',
-          value: currentSteps,
-          metric: 'steps',
-          durationMinutes: 30,
-          caloriesBurned: summary.activeCaloriesInKcal || 150,
-          notes: 'Google Fit auto sync steps.',
-        });
+      const success = await syncHealthConnectAnalytics();
+      if (success) {
+        const syncTime = new Date().toISOString();
+        setLastSyncedText(syncTime);
+        setSyncStatus('success');
+        Alert.alert('Sync Successful', 'Your Health Connect data has been synced to the server!');
+        await checkStatusAndData(true);
+      } else {
+        setSyncStatus('failure');
+        Alert.alert('Sync Failed', 'An error occurred during synchronization. Please check your network and try again.');
       }
-
-      for (const item of todayExerciseRecords) {
-        let typeString = 'Workout';
-        if (item.type === 8) typeString = 'Running';
-        else if (item.type === 1) typeString = 'Walking';
-        else if (item.type === 57) typeString = 'Cycling';
-
-        await apiService.saveHealthConnectActivity({
-          uhid: targetUhid,
-          deviceId: '99kjkhgg',
-          type: typeString,
-          value: Math.round(item.durationHours * 60),
-          metric: 'mins',
-          durationMinutes: Math.round(item.durationHours * 60),
-          caloriesBurned: Math.round(item.durationHours * 300),
-          notes:
-            item.title ||
-            `Google Fit synced ${typeString.toLowerCase()} session.`,
-        });
-      }
-
-      const syncTime = new Date().toISOString();
-      await storageHelper.setItem(STORAGE_KEYS.LAST_GOOGLE_FIT_SYNC, syncTime);
-      setLastSyncedText(syncTime);
-      setSyncStatus('success');
     } catch (err) {
       console.error('Failed to save health data:', err);
       setSyncStatus('failure');
+      Alert.alert('Sync Failed', 'Failed to save health data.');
     } finally {
       setSyncing(false);
     }
@@ -423,6 +433,7 @@ const HealthConnectScreen = () => {
     }
 
     checkStatusAndData();
+    checkNativePermissions();
 
     hasMountedRef.current = true;
 
@@ -435,6 +446,7 @@ const HealthConnectScreen = () => {
       if (nextState === 'active') {
         setTimeout(() => {
           checkStatusAndData(true);
+          checkNativePermissions();
         }, 800);
       }
     });

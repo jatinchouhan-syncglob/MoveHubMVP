@@ -1,5 +1,7 @@
 import {Linking, NativeModules, Platform} from 'react-native';
 import dayjs from 'dayjs';
+import axios from 'axios';
+import DeviceInfo from 'react-native-device-info';
 import {
   aggregateRecord,
   type BackgroundAccessPermission,
@@ -25,6 +27,10 @@ import {
   IHealthConnectSleepSession,
   IHealthConnectState,
 } from './types';
+
+import { storageHelper } from '../storage/storageHelper';
+import { STORAGE_KEYS } from '../storage/storageKeys';
+import { UserProfile } from '../types';
 
 const HEALTH_CONNECT_MARKET_URI =
   'market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding';
@@ -1063,4 +1069,156 @@ export const saveHealthConnectSyncedIntervals = async (
     return false;
   }
   return healthConnectWorkManagerModule.saveSyncedIntervals(intervals);
+};
+
+export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
+  try {
+    const access = await refreshHealthConnectPermissions();
+    if (access.availability !== 'available' || !access.isInitialized || access.grantedPermissions.length === 0) {
+      console.warn('Sync cancelled: Health Connect access/permissions not ready');
+      return false;
+    }
+
+    const cachedProfile = await storageHelper.getItem<UserProfile>(
+      STORAGE_KEYS.USER_PROFILE,
+    );
+    const uhid = cachedProfile?.uhid || 'SAUSHA9775';
+    let deviceId = '99kjkhgg';
+    try {
+      deviceId = await DeviceInfo.getUniqueId();
+    } catch (err) {
+      console.warn('Failed to get unique deviceId, using fallback', err);
+    }
+
+    const API_BASE_URL = 'http://13.235.135.98:8082/backend';
+    const syncedIntervalsSet = new Set(await getHealthConnectSyncedIntervals());
+
+    const sessions = ['morning', 'afternoon', 'evening', 'night'];
+    const now = dayjs();
+
+    let overallSuccess = true;
+    let syncedSomething = false;
+
+    // Generate intervals for last 7 days
+    const intervalsToSync: { dateStr: string; session: string }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const dateStr = now.subtract(i, 'day').format('YYYY-MM-DD');
+      sessions.forEach(session => {
+        intervalsToSync.push({ dateStr, session });
+      });
+    }
+
+    // Configure Native Worker settings (so background worker always has correct profile credentials)
+    await startHealthConnectWorkManagerSync({
+      baseUrl: API_BASE_URL,
+      deviceId,
+      uhid,
+    });
+
+    for (const item of intervalsToSync) {
+      const { dateStr, session: sessionName } = item;
+      const intervalKey = `${dateStr}:${sessionName}`;
+
+      // Calculate start and end times for this session
+      const selectedDay = dayjs(dateStr);
+      let sessionStartTime = selectedDay.startOf('day');
+      let sessionEndTime = selectedDay.endOf('day');
+
+      switch (sessionName) {
+        case 'morning':
+          sessionStartTime = selectedDay.hour(6).minute(0).second(0).millisecond(0);
+          sessionEndTime = selectedDay.hour(11).minute(59).second(59).millisecond(999);
+          break;
+        case 'afternoon':
+          sessionStartTime = selectedDay.hour(12).minute(0).second(0).millisecond(0);
+          sessionEndTime = selectedDay.hour(16).minute(59).second(59).millisecond(999);
+          break;
+        case 'evening':
+          sessionStartTime = selectedDay.hour(17).minute(0).second(0).millisecond(0);
+          sessionEndTime = selectedDay.hour(20).minute(59).second(59).millisecond(999);
+          break;
+        case 'night':
+          sessionStartTime = selectedDay.hour(21).minute(0).second(0).millisecond(0);
+          sessionEndTime = selectedDay.add(1, 'day').hour(5).minute(59).second(59).millisecond(999);
+          break;
+      }
+
+      // Skip future sessions
+      if (sessionStartTime.isAfter(now)) {
+        continue;
+      }
+
+      const isPastSession = sessionEndTime.isBefore(now);
+
+      // Skip already synced completed past sessions
+      if (isPastSession && syncedIntervalsSet.has(intervalKey)) {
+        continue;
+      }
+
+      syncedSomething = true;
+      console.log(`[JS Sync] Syncing session: ${intervalKey}`);
+
+      try {
+        // Load data snapshot for target day and session
+        const snapshot = await loadHealthConnectSnapshot(access, dateStr, sessionName);
+        const summary = snapshot.summary;
+
+        if (!summary) {
+          continue;
+        }
+
+        const payload = {
+          uhid,
+          deviceId,
+          session: sessionName,
+          date: dateStr,
+          steps: summary.steps || 0,
+          heartPoint: summary.heartPoints || 0,
+          activeCaloriesInKcal: summary.activeCaloriesInKcal || summary.totalCaloriesInKcal || 0,
+          averageHeartRate: summary.averageHeartRate || 0,
+          heartRateMeasurements: summary.heartRateMeasurements || 0,
+          sleepHours: summary.sleepHours || 0,
+          distanceInKm: summary.distanceInKm || 0,
+          createdOn: now.format('YYYY-MM-DD HH:mm:ss'),
+          lastSyncTime: now.format('YYYY-MM-DD HH:mm:ss'),
+          todayExerciseRecords: summary.todayExerciseRecords || [],
+          stepsObject: summary.detailedRecords?.stepsObject || [],
+          distanceObject: summary.detailedRecords?.distanceObject || [],
+          caloriesObject: summary.detailedRecords?.caloriesObject || [],
+          speedObject: summary.detailedRecords?.speedObject || [],
+        };
+
+        // POST request wrapped in array as required
+        await axios.post(
+          `${API_BASE_URL}/health-connect/saveDetailedUserHealthAnalytics`,
+          [payload],
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        console.log(`[JS Sync] Successfully synced session: ${intervalKey}`);
+
+        if (isPastSession) {
+          syncedIntervalsSet.add(intervalKey);
+        }
+      } catch (err) {
+        console.error(`[JS Sync] Failed to sync session: ${intervalKey}`, err);
+        overallSuccess = false;
+      }
+    }
+
+    // Save synced intervals set
+    await saveHealthConnectSyncedIntervals(Array.from(syncedIntervalsSet));
+
+    if (syncedSomething && overallSuccess) {
+      await storageHelper.setItem(
+        STORAGE_KEYS.LAST_GOOGLE_FIT_SYNC,
+        now.toISOString(),
+      );
+    }
+
+    return overallSuccess;
+  } catch (err) {
+    console.error('[JS Sync] Sync crashed:', err);
+    return false;
+  }
 };
