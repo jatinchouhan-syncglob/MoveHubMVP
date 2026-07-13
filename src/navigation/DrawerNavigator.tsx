@@ -32,6 +32,11 @@ import ProfileScreen from '../screens/Profile';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
 import GoogleFitScreen from '../screens/GoogleFit';
+import MealLogScreen from '../screens/Nutrition/meal-log';
+import MealAnalysisScreen from '../screens/Nutrition/meal-analysis';
+import MealPlannerScreen from '../screens/Nutrition/meal-planner-screen';
+import DailyComplianceScreen from '../screens/Nutrition/daily-compliance-screen';
+import WeeklyComplianceScreen from '../screens/Nutrition/weekly-compliance-screen';
 
 const DRAWER_WIDTH = 290;
 
@@ -44,6 +49,13 @@ const DrawerNavigatorContent: React.FC = () => {
   const [todayCalories, setTodayCalories] = React.useState(0);
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
+  const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
+
+  useEffect(() => {
+    if (['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen)) {
+      setIsNutritionExpanded(true);
+    }
+  }, [activeScreen]);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -120,6 +132,16 @@ const DrawerNavigatorContent: React.FC = () => {
         return <AwardsScreen />;
       case 'GoogleFit':
         return <GoogleFitScreen />;
+      case 'MealLog':
+        return <MealLogScreen />;
+      case 'MealAnalysis':
+        return <MealAnalysisScreen />;
+      case 'MealPlanner':
+        return <MealPlannerScreen />;
+      case 'DailyCompliance':
+        return <DailyComplianceScreen />;
+      case 'WeeklyCompliance':
+        return <WeeklyComplianceScreen />;
       case 'FitnessChallenges':
         return <FitnessChallengesScreen />;
       case 'ActivityTracking':
@@ -246,6 +268,62 @@ const DrawerNavigatorContent: React.FC = () => {
                   </TouchableOpacity>
                 );
               })}
+
+              {/* Nutrition Hub Accordion Trigger */}
+              <TouchableOpacity
+                style={[
+                  styles.menuItem,
+                  ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen) && styles.activeMenuItem
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setIsNutritionExpanded(prev => !prev)}
+              >
+                <Text style={styles.menuIcon}>🥑</Text>
+                <Text
+                  style={[
+                    styles.menuLabel,
+                    ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen) && styles.activeMenuLabel,
+                    { flex: 1 }
+                  ]}
+                >
+                  Nutrition Hub
+                </Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                  {isNutritionExpanded ? '▼' : '▶'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Expanded Nutrition Sub-Menus */}
+              {isNutritionExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    { screen: 'MealLog' as const, label: 'Daily Meal Log', icon: '📝' },
+                    { screen: 'MealAnalysis' as const, label: 'Meal Analysis', icon: '📊' },
+                    { screen: 'MealPlanner' as const, label: 'Meal Planner', icon: '📅' },
+                    { screen: 'DailyCompliance' as const, label: 'Daily Compliance', icon: '🛡️' },
+                    { screen: 'WeeklyCompliance' as const, label: 'Weekly Compliance', icon: '📈' },
+                  ].map(subItem => {
+                    const isSubActive = activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[styles.subMenuItem, isSubActive && styles.activeSubMenuItem]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setActiveScreen(subItem.screen);
+                          closeDrawer();
+                        }}
+                      >
+                        {isSubActive && <View style={styles.subActiveIndicator} />}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text style={[styles.subMenuLabel, isSubActive && styles.activeSubMenuLabel]}>
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -602,6 +680,49 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14.5,
     fontWeight: '800',
+  },
+  subMenuContainer: {
+    marginLeft: 16,
+    borderLeftWidth: 1.5,
+    borderLeftColor: theme.colors.border,
+    paddingLeft: 8,
+    marginVertical: 4,
+  },
+  subMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing.md,
+    marginVertical: 2,
+    borderRadius: theme.spacing.borderRadiusMd,
+    position: 'relative',
+  },
+  activeSubMenuItem: {
+    backgroundColor: theme.colors.primaryLight + '25',
+  },
+  subActiveIndicator: {
+    position: 'absolute',
+    left: -10,
+    top: '30%',
+    bottom: '30%',
+    width: 3,
+    borderRadius: 1.5,
+    backgroundColor: theme.colors.primary,
+  },
+  subMenuIcon: {
+    fontSize: 16,
+    marginRight: theme.spacing.sm,
+    width: 20,
+    textAlign: 'center',
+  },
+  subMenuLabel: {
+    fontSize: 13.5,
+    color: theme.colors.textSecondary,
+    fontWeight: theme.fonts.weights.medium as any,
+  },
+  activeSubMenuLabel: {
+    color: theme.colors.primary,
+    fontWeight: theme.fonts.weights.bold as any,
   },
 });
 

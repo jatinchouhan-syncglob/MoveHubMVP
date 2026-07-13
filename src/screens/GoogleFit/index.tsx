@@ -8,6 +8,7 @@ import {
   AppState,
   TouchableOpacity,
   Modal,
+  Platform,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import dayjs from 'dayjs';
