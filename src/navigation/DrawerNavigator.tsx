@@ -31,12 +31,12 @@ import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
-import GoogleFitScreen from '../screens/GoogleFit';
 import MealLogScreen from '../screens/Nutrition/meal-log';
 import MealAnalysisScreen from '../screens/Nutrition/meal-analysis';
 import MealPlannerScreen from '../screens/Nutrition/meal-planner-screen';
 import DailyComplianceScreen from '../screens/Nutrition/daily-compliance-screen';
 import WeeklyComplianceScreen from '../screens/Nutrition/weekly-compliance-screen';
+import { WellnessModal } from '../components/common/WellnessModal';
 
 const DRAWER_WIDTH = 290;
 
@@ -50,12 +50,63 @@ const DrawerNavigatorContent: React.FC = () => {
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
   const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
+  const [wellnessModalVisible, setWellnessModalVisible] = React.useState(false);
+  const [pendingScreen, setPendingScreen] =
+    React.useState<DrawerScreenType | null>(null);
+  const navTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (navTimeoutRef.current) {
+        clearTimeout(navTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleDelayedNavigation = (screen: DrawerScreenType) => {
+    if (navTimeoutRef.current) {
+      clearTimeout(navTimeoutRef.current);
+    }
+    // Set pendingScreen immediately so the item highlights
+    setPendingScreen(screen);
+
+    // Wait 0.8 seconds, then transition screen, close drawer, and clear pending screen
+    navTimeoutRef.current = setTimeout(() => {
+      setActiveScreen(screen);
+      closeDrawer();
+      setPendingScreen(null);
+    }, 400);
+  };
 
   useEffect(() => {
-    if (['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen)) {
+    const timer = setInterval(() => {
+      setWellnessModalVisible(true);
+    }, 300000); // 5 minutes (300,000 milliseconds)
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (
+      [
+        'MealLog',
+        'MealAnalysis',
+        'MealPlanner',
+        'DailyCompliance',
+        'WeeklyCompliance',
+      ].includes(activeScreen) ||
+      (pendingScreen &&
+        [
+          'MealLog',
+          'MealAnalysis',
+          'MealPlanner',
+          'DailyCompliance',
+          'WeeklyCompliance',
+        ].includes(pendingScreen))
+    ) {
       setIsNutritionExpanded(true);
     }
-  }, [activeScreen]);
+  }, [activeScreen, pendingScreen]);
 
   const handleLogout = async () => {
     setLogoutLoading(true);
@@ -71,11 +122,11 @@ const DrawerNavigatorContent: React.FC = () => {
       await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_CARDIO_SUBS);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_METABOLIC_SUBS);
-      
+
       setLogoutLoading(false);
       setLogoutModalVisible(false);
       closeDrawer();
-      
+
       // Reset navigation stack to Login screen
       navigation.reset({
         index: 0,
@@ -130,8 +181,6 @@ const DrawerNavigatorContent: React.FC = () => {
         return <WellnessPrescriptionScreen showDrawer={true} />;
       case 'Awards':
         return <AwardsScreen />;
-      case 'GoogleFit':
-        return <GoogleFitScreen />;
       case 'MealLog':
         return <MealLogScreen />;
       case 'MealAnalysis':
@@ -167,14 +216,13 @@ const DrawerNavigatorContent: React.FC = () => {
         label: 'Fitness Prescription',
         icon: '📋',
       },
-      { screen: 'ActivityTracking', label: 'Activity Tracking', icon: '🏃‍♂️' },
-      { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
+      { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
       { screen: 'FitnessChallenges', label: 'Fitness Challenges', icon: '🎯' },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
+      { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
-      { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
-      { screen: 'GoogleFit', label: 'Activity Tracker', icon: '❤️' },
+      { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
     ];
 
   const calorieGoal = profile?.calorieGoal || 2400;
@@ -235,16 +283,16 @@ const DrawerNavigatorContent: React.FC = () => {
           >
             <View style={styles.menuContainer}>
               {menuItems.map(item => {
-                const isActive = activeScreen === item.screen;
+                const isActive =
+                  pendingScreen !== null
+                    ? pendingScreen === item.screen
+                    : activeScreen === item.screen;
                 return (
                   <TouchableOpacity
                     key={item.screen}
                     style={[styles.menuItem, isActive && styles.activeMenuItem]}
                     activeOpacity={0.7}
-                    onPress={() => {
-                      setActiveScreen(item.screen);
-                      closeDrawer();
-                    }}
+                    onPress={() => handleDelayedNavigation(item.screen)}
                   >
                     {/* Active vertical left accent line */}
                     {isActive && <View style={styles.activeIndicator} />}
@@ -270,53 +318,90 @@ const DrawerNavigatorContent: React.FC = () => {
               })}
 
               {/* Nutrition Hub Accordion Trigger */}
-              <TouchableOpacity
-                style={[
-                  styles.menuItem,
-                  ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen) && styles.activeMenuItem
-                ]}
-                activeOpacity={0.7}
-                onPress={() => setIsNutritionExpanded(prev => !prev)}
-              >
-                <Text style={styles.menuIcon}>🥑</Text>
-                <Text
-                  style={[
-                    styles.menuLabel,
-                    ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen) && styles.activeMenuLabel,
-                    { flex: 1 }
-                  ]}
-                >
-                  Nutrition Hub
-                </Text>
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
-                  {isNutritionExpanded ? '▼' : '▶'}
-                </Text>
-              </TouchableOpacity>
+              {/* {(() => {
+                const isNutritionActive = pendingScreen !== null
+                  ? ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(pendingScreen)
+                  : ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isNutritionActive && styles.activeMenuItem
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setIsNutritionExpanded(prev => !prev)}
+                  >
+                    <Text style={styles.menuIcon}>🥑</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isNutritionActive && styles.activeMenuLabel,
+                        { flex: 1 }
+                      ]}
+                    >
+                      Nutrition Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isNutritionExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()} */}
 
               {/* Expanded Nutrition Sub-Menus */}
               {isNutritionExpanded && (
                 <View style={styles.subMenuContainer}>
                   {[
-                    { screen: 'MealLog' as const, label: 'Daily Meal Log', icon: '📝' },
-                    { screen: 'MealAnalysis' as const, label: 'Meal Analysis', icon: '📊' },
-                    { screen: 'MealPlanner' as const, label: 'Meal Planner', icon: '📅' },
-                    { screen: 'DailyCompliance' as const, label: 'Daily Compliance', icon: '🛡️' },
-                    { screen: 'WeeklyCompliance' as const, label: 'Weekly Compliance', icon: '📈' },
+                    {
+                      screen: 'MealLog' as const,
+                      label: 'Daily Meal Log',
+                      icon: '📝',
+                    },
+                    {
+                      screen: 'MealAnalysis' as const,
+                      label: 'Meal Analysis',
+                      icon: '📊',
+                    },
+                    {
+                      screen: 'MealPlanner' as const,
+                      label: 'Meal Planner',
+                      icon: '📅',
+                    },
+                    {
+                      screen: 'DailyCompliance' as const,
+                      label: 'Daily Compliance',
+                      icon: '🛡️',
+                    },
+                    {
+                      screen: 'WeeklyCompliance' as const,
+                      label: 'Weekly Compliance',
+                      icon: '📈',
+                    },
                   ].map(subItem => {
-                    const isSubActive = activeScreen === subItem.screen;
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
                     return (
                       <TouchableOpacity
                         key={subItem.screen}
-                        style={[styles.subMenuItem, isSubActive && styles.activeSubMenuItem]}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
                         activeOpacity={0.7}
-                        onPress={() => {
-                          setActiveScreen(subItem.screen);
-                          closeDrawer();
-                        }}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
                       >
-                        {isSubActive && <View style={styles.subActiveIndicator} />}
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
                         <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
-                        <Text style={[styles.subMenuLabel, isSubActive && styles.activeSubMenuLabel]}>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
                           {subItem.label}
                         </Text>
                       </TouchableOpacity>
@@ -360,9 +445,10 @@ const DrawerNavigatorContent: React.FC = () => {
             </View>
             <Text style={styles.modalTitleText}>Confirm Logout</Text>
             <Text style={styles.modalMessageText}>
-              Are you sure you want to log out of MoveHub? Your local metrics will remain saved.
+              Are you sure you want to log out of MoveHub? Your local metrics
+              will remain saved.
             </Text>
-            
+
             <View style={styles.modalBtnRow}>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.cancelBtn]}
@@ -389,6 +475,11 @@ const DrawerNavigatorContent: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      <WellnessModal
+        visible={wellnessModalVisible}
+        onClose={() => setWellnessModalVisible(false)}
+      />
     </View>
   );
 };

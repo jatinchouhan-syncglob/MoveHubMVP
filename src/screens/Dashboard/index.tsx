@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   Modal,
+  TouchableOpacity,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { Loader } from '../../components/common/Loader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { apiService } from '../../services/api';
 import { UserProfile, Activity } from '../../types';
+import StepsTrackingTab from '../GoogleFit';
 import {
   sumCaloriesBurned,
   sumActiveMinutes,
@@ -28,6 +30,7 @@ export const DashboardScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [celebrationVisible, setCelebrationVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'activities' | 'steps'>('activities');
 
   const getActivityCategory = (type: string): 'distance' | 'strength' | 'duration' => {
     const distanceTypes = ['Walking', 'Running', 'Cycling', 'Hiking', 'Jogging', 'Swimming'];
@@ -347,17 +350,40 @@ export const DashboardScreen: React.FC = () => {
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[theme.colors.primary]}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Dashboard Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'activities' && styles.tabButtonActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('activities')}
+        >
+          <Text style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}>
+            All Activities
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'steps' && styles.tabButtonActive]}
+          activeOpacity={0.8}
+          onPress={() => setActiveTab('steps')}
+        >
+          <Text style={[styles.tabText, activeTab === 'steps' && styles.tabTextActive]}>
+            Steps Tracking
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'activities' ? (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
         {/* ==========================================
             SECTION 1: TODAY'S LOGGED EXERCISES
             ========================================== */}
@@ -520,6 +546,9 @@ export const DashboardScreen: React.FC = () => {
           );
         })()}
       </ScrollView>
+      ) : (
+        <StepsTrackingTab />
+      )}
 
       {/* Celebration Modal */}
       <Modal
@@ -576,6 +605,33 @@ export const DashboardScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#151f32',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  tabText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  tabTextActive: {
+    color: '#ffffff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0f172a',

@@ -246,7 +246,7 @@ const buildRequiredAppsMessage = (actions: any[]) =>
     .concat(actions.map((a, i) => `${i + 1}. ${a.title}: ${a.description}`))
     .join('\n');
 
-const HealthConnectScreen = () => {
+const StepsTrackingTab = () => {
   const isFocused = useIsFocused();
   const installPromptKeyRef = useRef<string | null>(null);
 
@@ -480,7 +480,6 @@ const HealthConnectScreen = () => {
 
   return (
     <View style={s.root}>
-      <CustomHeader title={'Activity Tracker'} showDrawerButton />
 
       <ScrollView
         contentContainerStyle={s.container}
@@ -1049,4 +1048,4 @@ const HealthConnectScreen = () => {
   );
 };
 
-export default HealthConnectScreen;
+export default StepsTrackingTab;

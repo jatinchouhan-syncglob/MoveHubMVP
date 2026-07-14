@@ -380,6 +380,25 @@ export const apiService = {
     }
   },
 
+  async saveWellnessFeedback(feedbackData: {
+    uhid: string;
+    sleepHours: number;
+    mood: number;
+    rpe: number;
+    notes?: string;
+  }): Promise<any> {
+    try {
+      const response = await axios.post(
+        'http://13.235.135.98:8082/backend/health-connect/saveWellnessFeedback',
+        feedbackData,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in saveWellnessFeedback:', error);
+      throw error;
+    }
+  },
+
   async setupProfile(profileData: {
     uhid?: string;
     deviceId?: string;

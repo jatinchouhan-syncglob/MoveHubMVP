@@ -44,17 +44,6 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [activityType, setActivityType] = useState('Walking');
   const [duration, setDuration] = useState('30');
   const [distance, setDistance] = useState('2.0');
-  const [sleepHours, setSleepHours] = useState('');
-  const [mood, setMood] = useState(0);
-  const [rpe, setRpe] = useState(0);
-  const [notes, setNotes] = useState('');
-
-  // Form Validation Errors state
-  const [errors, setErrors] = useState<{
-    sleepHours?: string;
-    mood?: string;
-    rpe?: string;
-  }>({});
 
   // Resistance Parameters (Strength workouts)
   const [sets, setSets] = useState('3');
@@ -157,34 +146,6 @@ export const ActivityTrackingScreen: React.FC = () => {
       : 0;
 
   const handleSaveActivity = async () => {
-    const newErrors: { sleepHours?: string; mood?: string; rpe?: string } = {};
-
-    const trimmedSleep = sleepHours.trim();
-    if (trimmedSleep === '') {
-      newErrors.sleepHours = 'Please enter your sleep hours from last night.';
-    } else {
-      const parsedSleep = parseFloat(trimmedSleep);
-      if (isNaN(parsedSleep) || parsedSleep < 0 || parsedSleep > 24) {
-        newErrors.sleepHours =
-          'Please enter a valid number of sleep hours (between 0 and 24).';
-      }
-    }
-
-    if (mood <= 0) {
-      newErrors.mood = 'Please select your mood rating.';
-    }
-
-    if (rpe <= 0) {
-      newErrors.rpe = 'Please select your Rate of Perceived Exertion (RPE).';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    // Reset Errors if validation passed
-    setErrors({});
     setSaving(true);
     try {
       const registryItem = activeRegistryItem;
@@ -246,20 +207,13 @@ export const ActivityTrackingScreen: React.FC = () => {
         calculatedMET * userWeight * durationMin * 0.0175,
       );
 
-      let formattedNotes = notes.trim();
+      let formattedNotes = '';
       if (syncWearable) {
-        const syncDetail = `Completed ${activityType.toLowerCase()} routine.`;
-        formattedNotes = formattedNotes
-          ? `${formattedNotes}\n${syncDetail}`
-          : syncDetail;
+        formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
       } else if (registryItem.category === 'strength') {
         const workoutDetail = `Logged: ${sets} sets x ${reps} reps @ ${weightKg} kg.`;
-        if (formattedNotes) {
-          formattedNotes = `${formattedNotes}\n${workoutDetail}`;
-        } else {
-          formattedNotes = `Completed ${activityType.toLowerCase()} routine. ${workoutDetail}`;
-        }
-      } else if (!formattedNotes) {
+        formattedNotes = `Completed ${activityType.toLowerCase()} routine. ${workoutDetail}`;
+      } else {
         formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
       }
 
@@ -319,14 +273,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       // Add the newly saved activity to the main list so it displays instantly on the screen
       setActivities(prev => [savedActivity, ...prev]);
 
-      // If sleep hours < 4, trigger recovery alert simulation
-      const parsedSleep = parseFloat(trimmedSleep);
-      if (parsedSleep < 4.0) {
-        Alert.alert(
-          'Recovery Pacing Active',
-          '🧘 Sleep is below 4.0 hours. Auto-pacing mode has paused active progression targets to prioritize recovery.',
-        );
-      }
+
 
       // Store results for the Benefits Summary Modal using response values
       const resDuration =
@@ -375,17 +322,12 @@ export const ActivityTrackingScreen: React.FC = () => {
       setModalVisible(false);
       setDuration('30');
       setDistance('2.0');
-      setSleepHours('');
-      setMood(0);
-      setRpe(0);
-      setNotes('');
       setSets('3');
       setReps('10');
       setWeightKg('15');
       setHighIntensity(false);
       setStrengthRest(false);
       setSyncWearable(false);
-      setErrors({});
       setBenefitsVisible(true);
     } catch (error) {
       console.error('Failed to log workout details:', error);
@@ -454,36 +396,6 @@ export const ActivityTrackingScreen: React.FC = () => {
     visibleOptions = selectedOpt ? [selectedOpt, ...restOptions] : mainOptions;
   }
 
-  const moodRatings = [
-    { value: 1, emoji: '😞', label: 'Poor' },
-    { value: 2, emoji: '😐', label: 'Fair' },
-    { value: 3, emoji: '🙂', label: 'Good' },
-    { value: 4, emoji: '😃', label: 'Great' },
-    { value: 5, emoji: '🤩', label: 'Elite' },
-  ];
-
-  // Helper to color-code RPE buttons dynamically based on exertion level
-  const getRpeColorProps = (val: number, isSelected: boolean) => {
-    if (val <= 3) {
-      return {
-        bg: isSelected ? '#10B981' : '#1E293B',
-        border: isSelected ? '#10B981' : '#334155',
-        text: isSelected ? '#FFFFFF' : '#34D399',
-      };
-    } else if (val <= 6) {
-      return {
-        bg: isSelected ? '#F59E0B' : '#1E293B',
-        border: isSelected ? '#F59E0B' : '#334155',
-        text: isSelected ? '#FFFFFF' : '#FBBF24',
-      };
-    } else {
-      return {
-        bg: isSelected ? '#EF4444' : '#1E293B',
-        border: isSelected ? '#EF4444' : '#334155',
-        text: isSelected ? '#FFFFFF' : '#F87171',
-      };
-    }
-  };
 
   const getPillarBreakdown = (gainPoints: number, category: string) => {
     let cardioPct = 0.5;
@@ -1052,149 +964,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                     )}
                   </View>
                 )}
-
-                {/* Card 4: Wellness & Exertion */}
-                <View style={styles.formCard}>
-                  <Text style={styles.formCardTitle}>
-                    🌱 Wellness & Exertion
-                  </Text>
-
-                  {/* Sleep Hours Logged (Fatigue Guard) */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Sleep Hours (Last Night) *</Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        errors.sleepHours ? styles.inputError : null,
-                      ]}
-                      placeholder="e.g. 7.5"
-                      placeholderTextColor={theme.colors.textLight}
-                      keyboardType="numeric"
-                      value={sleepHours}
-                      onChangeText={text => {
-                        setSleepHours(text);
-                        if (errors.sleepHours) {
-                          setErrors(prev => ({
-                            ...prev,
-                            sleepHours: undefined,
-                          }));
-                        }
-                      }}
-                    />
-                    {errors.sleepHours ? (
-                      <Text style={styles.errorText}>{errors.sleepHours}</Text>
-                    ) : null}
-                  </View>
-
-                  {/* Mood Selection */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Mood Rating *</Text>
-                    <View style={styles.ratingsRow}>
-                      {moodRatings.map(item => {
-                        const isSelected = mood === item.value;
-                        return (
-                          <TouchableOpacity
-                            key={item.value}
-                            style={[
-                              styles.moodButton,
-                              isSelected && styles.moodButtonActive,
-                              errors.mood ? styles.borderError : null,
-                            ]}
-                            onPress={() => {
-                              setMood(item.value);
-                              if (errors.mood) {
-                                setErrors(prev => ({
-                                  ...prev,
-                                  mood: undefined,
-                                }));
-                              }
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={styles.moodEmoji}>{item.emoji}</Text>
-                            <Text
-                              style={[
-                                styles.moodText,
-                                isSelected && styles.moodTextActive,
-                              ]}
-                            >
-                              {item.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                    {errors.mood ? (
-                      <Text style={styles.errorText}>{errors.mood}</Text>
-                    ) : null}
-                  </View>
-
-                  {/* RPE Exertion */}
-                  <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-                    <Text style={styles.label}>
-                      Rate of Perceived Exertion (RPE 1-10) *
-                    </Text>
-                    <View style={styles.rpeRow}>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => {
-                        const isSelected = rpe === val;
-                        const colors = getRpeColorProps(val, isSelected);
-                        return (
-                          <TouchableOpacity
-                            key={val}
-                            style={[
-                              styles.rpeButton,
-                              {
-                                backgroundColor: colors.bg,
-                                borderColor: errors.rpe
-                                  ? theme.colors.error
-                                  : colors.border,
-                                borderWidth: errors.rpe || isSelected ? 2 : 1,
-                              },
-                            ]}
-                            onPress={() => {
-                              setRpe(val);
-                              if (errors.rpe) {
-                                setErrors(prev => ({
-                                  ...prev,
-                                  rpe: undefined,
-                                }));
-                              }
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.rpeText,
-                                {
-                                  color: colors.text,
-                                  fontWeight: isSelected ? 'bold' : 'normal',
-                                },
-                              ]}
-                            >
-                              {val}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                    {errors.rpe ? (
-                      <Text style={styles.errorText}>{errors.rpe}</Text>
-                    ) : null}
-                  </View>
-                </View>
-
-                <View style={[styles.inputGroup, { marginTop: 8 }]}>
-                  <Text style={styles.label}>Notes</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Describe how you felt or log custom notes..."
-                    placeholderTextColor={theme.colors.textLight}
-                    multiline
-                    numberOfLines={3}
-                    value={notes}
-                    onChangeText={setNotes}
-                  />
-                </View>
               </ScrollView>
 
               {/* Modal Footer */}
