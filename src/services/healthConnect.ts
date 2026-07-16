@@ -2,6 +2,7 @@ import {Linking, NativeModules, Platform} from 'react-native';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';
+import { getDynamicDeviceId } from '../utils/device';
 import {
   aggregateRecord,
   type BackgroundAccessPermission,
@@ -1083,12 +1084,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
       STORAGE_KEYS.USER_PROFILE,
     );
     const uhid = cachedProfile?.uhid || 'SAUSHA9775';
-    let deviceId = '99kjkhgg';
-    try {
-      deviceId = await DeviceInfo.getUniqueId();
-    } catch (err) {
-      console.warn('Failed to get unique deviceId, using fallback', err);
-    }
+    const deviceId = await getDynamicDeviceId();
 
     const API_BASE_URL = 'http://13.235.135.98:8082/backend';
     const syncedIntervalsSet = new Set(await getHealthConnectSyncedIntervals());

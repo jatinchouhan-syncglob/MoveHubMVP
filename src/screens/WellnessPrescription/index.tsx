@@ -89,6 +89,9 @@ export const WellnessPrescriptionScreen: React.FC<
   const [apiPacingProfile, setApiPacingProfile] = useState<any | null>(null);
   const [apiPrescription, setApiPrescription] = useState<any | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<'week1' | 'week2'>('week1');
+  const [activeTab, setActiveTab] = useState<'baseline' | 'week4' | 'archive'>('baseline');
+  const [selectedArchiveWeek, setSelectedArchiveWeek] = useState<number>(2);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
 
   useEffect(() => {
@@ -386,12 +389,24 @@ export const WellnessPrescriptionScreen: React.FC<
     initializeDualCardData();
   }, [selectedWeek]);
 
+  const selectedWeekNum = activeTab === 'baseline'
+    ? 1
+    : activeTab === 'week4'
+      ? 4
+      : selectedArchiveWeek;
+
   const getActivePayload = () => {
     if (!rawPayload) return null;
     
     const active = { ...rawPayload };
     
     if (apiPrescription) {
+      // Find the active week's plan from weeklyPlan
+      let selectedWeekPlan: any = null;
+      if (apiPrescription.weeklyPlan && Array.isArray(apiPrescription.weeklyPlan)) {
+        selectedWeekPlan = apiPrescription.weeklyPlan.find((wp: any) => wp.weekNumber === selectedWeekNum) || apiPrescription.weeklyPlan[0];
+      }
+
       const pacingLabelsMapUpper: Record<string, string> = {
         cardio_pacing: 'CARDIOVASCULAR PACING',
         metabolic_buffer: 'METABOLIC OPTIMIZATION',
@@ -424,12 +439,14 @@ export const WellnessPrescriptionScreen: React.FC<
       }
 
       // Handle start date and end date
-      active.startDateString = apiPrescription.startDateString || active.startDateString;
-      active.endDateString = apiPrescription.endDateString || active.endDateString;
+      active.startDateString = selectedWeekPlan?.startDate || apiPrescription.startDateString || active.startDateString;
+      active.endDateString = selectedWeekPlan?.endDate || apiPrescription.endDateString || active.endDateString;
       active.durationDays = apiPrescription.durationDays || active.durationDays;
 
       // Quadrants
-      if (apiPrescription.quadrants && apiPrescription.quadrants.length > 0) {
+      if (selectedWeekPlan && selectedWeekPlan.targets && selectedWeekPlan.targets.weeklyQuadrants && selectedWeekPlan.targets.weeklyQuadrants.length > 0) {
+        active.quadrants = selectedWeekPlan.targets.weeklyQuadrants;
+      } else if (apiPrescription.quadrants && apiPrescription.quadrants.length > 0) {
         active.quadrants = apiPrescription.quadrants;
       } else {
         active.quadrants = [
@@ -441,26 +458,43 @@ export const WellnessPrescriptionScreen: React.FC<
       }
 
       // Daily Targets
-      active.dailyTargetSteps = apiPrescription.dailyTargetSteps || active.dailyTargetSteps;
+      active.dailyTargetSteps = selectedWeekPlan?.targets?.dailyTargetSteps || apiPrescription.dailyTargetSteps || active.dailyTargetSteps;
       active.dailyActiveBurnKcal = apiPrescription.dailyActiveBurnKcal || active.dailyActiveBurnKcal;
       active.dailyTdeeKcal = apiPrescription.dailyTdeeKcal || active.dailyTdeeKcal;
-      active.dailyGainPoints = apiPrescription.dailyGainPoints || active.dailyGainPoints;
+      active.dailyGainPoints = selectedWeekPlan?.targets?.dailyGainPoints || apiPrescription.dailyGainPoints || active.dailyGainPoints;
 
       // Monthly/Trailing 30-Day Targets
       active.monthlyActiveBurnKcal = apiPrescription.monthlyActiveBurnKcal || active.monthlyActiveBurnKcal;
       active.monthlyTdeeKcal = apiPrescription.monthlyTdeeKcal || active.monthlyTdeeKcal;
       active.monthlyGainPoints = apiPrescription.monthlyGainPoints || active.monthlyGainPoints;
 
-      active.weeklyHeartPointsRange = apiPrescription.weeklyHeartPointsRange || active.weeklyHeartPointsRange;
+      active.weeklyHeartPointsRange = selectedWeekPlan?.targets?.weeklyHeartPointsRange || apiPrescription.weeklyHeartPointsRange || active.weeklyHeartPointsRange;
 
-      // Foundational Checklist mapping (array of strings to array of Routine)
-      if (apiPrescription.foundationalChecklist && Array.isArray(apiPrescription.foundationalChecklist) && apiPrescription.foundationalChecklist.length > 0) {
-        active.foundationalChecklist = apiPrescription.foundationalChecklist.map((item: string, idx: number) => ({
-          id: `fc_${idx}`,
-          title: `${idx + 1}. ${item}`,
-          schedule: 'Daily target',
-          deepDiveText: `Operationalize daily baseline target for ${item.toLowerCase()}.`,
+      // Foundational Checklist mapping (activities for selected week)
+      if (selectedWeekPlan && selectedWeekPlan.activities && Array.isArray(selectedWeekPlan.activities) && selectedWeekPlan.activities.length > 0) {
+        active.foundationalChecklist = selectedWeekPlan.activities.map((act: any, idx: number) => ({
+          id: act.id || `act_${idx}`,
+          title: `${idx + 1}. ${act.title || act.activityName}`,
+          schedule: `${act.schedule || `${act.sessionsPerWeek}x Weekly`} • ${act.duration || `${act.durationMinutesPerSession} mins`} • Target Zone: ${act.target || 'N/A'}`,
+          deepDiveText: act.activityTracking?.trackingPolicy?.decisionReason || 'Rhythmic movement targeting cardiac pacing limits.',
         }));
+      } else if (apiPrescription.foundationalChecklist && Array.isArray(apiPrescription.foundationalChecklist) && apiPrescription.foundationalChecklist.length > 0) {
+        active.foundationalChecklist = apiPrescription.foundationalChecklist.map((item: any, idx: number) => {
+          let itemText = '';
+          if (item) {
+            if (typeof item === 'string') {
+              itemText = item;
+            } else if (typeof item === 'object') {
+              itemText = item.title || item.name || item.task || JSON.stringify(item);
+            }
+          }
+          return {
+            id: `fc_${idx}`,
+            title: `${idx + 1}. ${itemText}`,
+            schedule: 'Daily target',
+            deepDiveText: `Operationalize daily baseline target for ${(itemText || '').toLowerCase()}.`,
+          };
+        });
       } else {
         const defaultItems = [
           'Walk daily',
@@ -510,6 +544,7 @@ export const WellnessPrescriptionScreen: React.FC<
   };
 
   const payload = getActivePayload();
+  const isWeek1Active = apiPrescription ? selectedWeekNum === 1 : selectedWeek === 'week1';
 
   const handleAccept = async () => {
     setAccepting(true);
@@ -570,58 +605,185 @@ export const WellnessPrescriptionScreen: React.FC<
       <View style={styles.glowSpot2} />
 
       {/* Dynamic Week Toggle Selector (outside ScrollView so it remains sticky at the top) */}
-      {!apiPrescription && (
+      {/* Dynamic Week Toggle Selector (outside ScrollView so it remains sticky at the top) */}
+      {apiPrescription && apiPrescription.weeklyPlan && apiPrescription.weeklyPlan.length > 0 ? (
         <View style={styles.headerToggleWrapper}>
           <View style={styles.toggleSelectorContainer}>
             <TouchableOpacity
               style={[
                 styles.toggleBtn,
-                selectedWeek === 'week1' && styles.toggleBtnActive,
+                activeTab === 'baseline' && styles.toggleBtnActive,
               ]}
-              onPress={() => setSelectedWeek('week1')}
+              onPress={() => {
+                setActiveTab('baseline');
+                setDropdownOpen(false);
+              }}
               activeOpacity={0.8}
             >
               <Text
                 style={[
                   styles.toggleBtnText,
-                  selectedWeek === 'week1' && styles.toggleBtnTextActive,
+                  activeTab === 'baseline' && styles.toggleBtnTextActive,
                 ]}
               >
-                📅 Week 1: Initial
+                📅 Baseline
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.toggleBtn,
-                selectedWeek === 'week2' && styles.toggleBtnActive,
+                activeTab === 'week4' && styles.toggleBtnActive,
               ]}
-              onPress={() => setSelectedWeek('week2')}
+              onPress={() => {
+                setActiveTab('week4');
+                setDropdownOpen(false);
+              }}
               activeOpacity={0.8}
             >
               <Text
                 style={[
                   styles.toggleBtnText,
-                  selectedWeek === 'week2' && styles.toggleBtnTextActive,
+                  activeTab === 'week4' && styles.toggleBtnTextActive,
                 ]}
               >
-                ⚡ Week 2: Adaptive
+                ⚡ Week 4
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.toggleBtn,
+                activeTab === 'archive' && styles.toggleBtnActive,
+              ]}
+              onPress={() => {
+                setActiveTab('archive');
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.toggleBtnText,
+                  activeTab === 'archive' && styles.toggleBtnTextActive,
+                ]}
+              >
+                📂 Archive
               </Text>
             </TouchableOpacity>
           </View>
         </View>
+      ) : (
+        !apiPrescription && (
+          <View style={styles.headerToggleWrapper}>
+            <View style={styles.toggleSelectorContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleBtn,
+                  selectedWeek === 'week1' && styles.toggleBtnActive,
+                ]}
+                onPress={() => setSelectedWeek('week1')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.toggleBtnText,
+                    selectedWeek === 'week1' && styles.toggleBtnTextActive,
+                  ]}
+                >
+                  📅 Week 1: Initial
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleBtn,
+                  selectedWeek === 'week2' && styles.toggleBtnActive,
+                ]}
+                onPress={() => setSelectedWeek('week2')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.toggleBtnText,
+                    selectedWeek === 'week2' && styles.toggleBtnTextActive,
+                  ]}
+                >
+                  ⚡ Week 2: Adaptive
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )
       )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Archive Week Selector Dropdown */}
+        {activeTab === 'archive' && (
+          <View style={styles.archiveDropdownContainer}>
+            <Text style={styles.dropdownLabel}>WEEKLY PRESCRIPTION</Text>
+            <TouchableOpacity 
+              style={styles.dropdownButton} 
+              onPress={() => setDropdownOpen(prev => !prev)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.dropdownButtonText}>
+                📅 Week {selectedArchiveWeek} Prescription
+              </Text>
+              <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            
+            {dropdownOpen && (
+              <View style={styles.dropdownList}>
+                <TouchableOpacity 
+                  style={[
+                    styles.dropdownItem, 
+                    selectedArchiveWeek === 2 && styles.dropdownItemActive
+                  ]}
+                  onPress={() => {
+                    setSelectedArchiveWeek(2);
+                    setDropdownOpen(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.dropdownItemText,
+                    selectedArchiveWeek === 2 && styles.dropdownItemTextActive
+                  ]}>
+                    📅 Week 2 Prescription
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.dropdownDivider} />
+                <TouchableOpacity 
+                  style={[
+                    styles.dropdownItem, 
+                    selectedArchiveWeek === 3 && styles.dropdownItemActive
+                  ]}
+                  onPress={() => {
+                    setSelectedArchiveWeek(3);
+                    setDropdownOpen(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.dropdownItemText,
+                    selectedArchiveWeek === 3 && styles.dropdownItemTextActive
+                  ]}>
+                    📅 Week 3 Prescription
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* =====================================================
             👑 CARD 1: FOUNDATIONAL ROUTINE & PERFORMANCE TARGETS
             ===================================================== */}
         <View style={styles.card}>
           <Text style={styles.cardHeader}>
-            {selectedWeek === 'week1' 
+            {isWeek1Active 
               ? '📊 INITIAL FOUNDATIONAL ROUTINE & BASELINE PERFORMANCE TARGETS' 
               : '📊 ADAPTIVE FOUNDATIONAL ROUTINE & CLINICAL PERFORMANCE TARGETS'}
           </Text>
@@ -777,7 +939,7 @@ export const WellnessPrescriptionScreen: React.FC<
             </View>
 
             {/* Progression Metrics (from API) */}
-            {selectedWeek === 'week1' && apiPrescription?.progressionMetrics && (
+            {isWeek1Active && apiPrescription?.progressionMetrics && (
               <View style={styles.progressionContainer}>
                 <View style={styles.progressionRowItem}>
                   <Text style={styles.progressionRowLabel}>Operational Status</Text>
@@ -1011,7 +1173,7 @@ export const WellnessPrescriptionScreen: React.FC<
           </View>
 
           {/* Motivational Card Content (from client-provided prescription API) */}
-          {selectedWeek === 'week1' && apiPrescription?.motivationalCardContent?.isVisible && (
+          {isWeek1Active && apiPrescription?.motivationalCardContent?.isVisible && (
             <View style={styles.motivationalCard}>
               <Text style={styles.motivationalTitle}>
                 🔥 {apiPrescription.motivationalCardContent.title}
@@ -1035,7 +1197,7 @@ export const WellnessPrescriptionScreen: React.FC<
             ===================================================== */}
         <View style={[styles.card, { marginTop: 20 }]}>
           <Text style={styles.cardHeader}>
-            {selectedWeek === 'week1'
+            {isWeek1Active
               ? '📊 INITIAL BIOMETRIC BASELINE TARGETS & KINETIC EFFICIENCY'
               : '📊 ADAPTIVE BIOMETRIC BASELINE TARGETS & KINETIC EFFICIENCY'}
           </Text>
@@ -1047,7 +1209,7 @@ export const WellnessPrescriptionScreen: React.FC<
             </Text>
             <Text style={styles.profileText}>
               User ID: {payload.userId ? payload.userId.toUpperCase() : 'UNKNOWN'} |{' '}
-              {selectedWeek === 'week1'
+              {isWeek1Active
                 ? `Active Horizon Tracking Buffer: ${payload.durationDays} Days`
                 : `Current Active Horizon Track: ${payload.startDateString} to ${payload.endDateString}`}
             </Text>
@@ -1061,12 +1223,12 @@ export const WellnessPrescriptionScreen: React.FC<
           </View>
 
           <Text style={styles.subSectionHeader}>
-            {selectedWeek === 'week1'
+            {isWeek1Active
               ? '📊 INITIAL BIOMETRIC BASELINE TARGET METERS'
               : '🎯 THE 4 BIOMETRIC CORE VECTORS & STRUCTURAL METERS'}
           </Text>
           <View style={styles.quadrantWrapper}>
-            {selectedWeek === 'week1' ? (
+            {isWeek1Active ? (
               <>
                 {/* Week 1 - Meter 1: HPPS Target */}
                 <View style={styles.meterRow}>
@@ -1930,6 +2092,91 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     fontWeight: '500',
+  },
+  archiveDropdownContainer: {
+    marginHorizontal: theme.spacing.containerPadding,
+    marginBottom: 16,
+  },
+  dropdownLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  dropdownButtonText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  dropdownArrow: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  dropdownList: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: 6,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+  },
+  dropdownItemActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
+  },
+  dropdownItemText: {
+    fontSize: 13.5,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  dropdownItemTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+  },
+  toggleSelectorContainerHorizontal: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    gap: 8,
+  },
+  toggleBtnHorizontal: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 25,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   toggleSelectorContainer: {
     flexDirection: 'row',

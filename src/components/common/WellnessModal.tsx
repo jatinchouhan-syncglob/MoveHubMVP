@@ -12,15 +12,19 @@ import {
   Alert,
 } from 'react-native';
 import { theme } from '../../theme';
+import Svg, { Path, Polyline } from 'react-native-svg';
 import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { CustomButton } from './CustomButton';
+import { getDynamicDeviceId } from '../../utils/device';
 
 interface WellnessModalProps {
   visible: boolean;
   onClose: () => void;
 }
+
+
 
 const moodRatings = [
   { value: 1, emoji: '😩', label: 'Tired' },
@@ -30,46 +34,34 @@ const moodRatings = [
   { value: 5, emoji: '🤩', label: 'Energetic' },
 ];
 
-const getRpeColorProps = (val: number, isSelected: boolean) => {
-  if (isSelected) {
-    if (val <= 3) return { bg: '#10B981', border: '#10B981', text: '#ffffff' };
-    if (val <= 6) return { bg: '#F59E0B', border: '#F59E0B', text: '#ffffff' };
-    if (val <= 8) return { bg: '#EF4444', border: '#EF4444', text: '#ffffff' };
-    return { bg: '#8B5CF6', border: '#8B5CF6', text: '#ffffff' };
-  }
-  if (val <= 3) return { bg: 'transparent', border: 'rgba(16, 185, 129, 0.3)', text: '#10B981' };
-  if (val <= 6) return { bg: 'transparent', border: 'rgba(245, 158, 11, 0.3)', text: '#F59E0B' };
-  if (val <= 8) return { bg: 'transparent', border: 'rgba(239, 68, 68, 0.3)', text: '#EF4444' };
-  return { bg: 'transparent', border: 'rgba(139, 92, 246, 0.3)', text: '#8B5CF6' };
-};
+const restedOptions = [
+  { value: 1, label: 'Not at all rested' },
+  { value: 2, label: 'Slightly rested' },
+  { value: 3, label: 'Moderately rested' },
+  { value: 4, label: 'Very rested' },
+  { value: 5, label: 'Completely rested' },
+];
 
 export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }) => {
-  const [sleepHours, setSleepHours] = useState('');
+  const [sleepHours, setSleepHours] = useState<number>(7);
   const [mood, setMood] = useState(0);
-  const [rpe, setRpe] = useState(0);
+  const [rested, setRested] = useState(0);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ sleepHours?: string; mood?: string; rpe?: string }>({});
+  const [errors, setErrors] = useState<{ mood?: string; rested?: string }>({});
+  const [trackWidth, setTrackWidth] = useState(0);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = async () => {
-    const newErrors: { sleepHours?: string; mood?: string; rpe?: string } = {};
-
-    const trimmedSleep = sleepHours.trim();
-    if (trimmedSleep === '') {
-      newErrors.sleepHours = 'Please enter your sleep hours from last night.';
-    } else {
-      const parsedSleep = parseFloat(trimmedSleep);
-      if (isNaN(parsedSleep) || parsedSleep < 0 || parsedSleep > 24) {
-        newErrors.sleepHours = 'Please enter a valid number of sleep hours (between 0 and 24).';
-      }
-    }
+    const newErrors: { mood?: string; rested?: string } = {};
 
     if (mood <= 0) {
       newErrors.mood = 'Please select your mood rating.';
     }
 
-    if (rpe <= 0) {
-      newErrors.rpe = 'Please select your Rate of Perceived Exertion (RPE).';
+    if (rested <= 0) {
+      newErrors.rested = 'Please select how rested you felt.';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -85,24 +77,33 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
       );
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
 
-      await apiService.saveWellnessFeedback({
-        uhid: targetUhid,
-        sleepHours: parseFloat(sleepHours),
-        mood: mood,
-        rpe: rpe,
-        notes: notes.trim() || undefined,
-      });
-
-      Alert.alert('Success', 'Wellness & exertion details logged successfully!');
+      const deviceId = await getDynamicDeviceId();
       
-      // Reset state and close modal
-      setSleepHours('');
+      const selectedRestedObj = restedOptions.find(o => o.value === rested);
+      const sleepQualityStr = selectedRestedObj ? `${selectedRestedObj.value} - ${selectedRestedObj.label}` : '';
+
+      const payload = {
+        uhid: targetUhid,
+        deviceId: deviceId,
+        sleepHours: sleepHours,
+        mood: mood,
+        sleepQuality: sleepQualityStr,
+        rpe: null,
+        notes: notes.trim() || undefined,
+      };
+
+      console.log('[WellnessModal] Calling saveWorkoutFeedback with payload:', JSON.stringify(payload, null, 2));
+      const response = await apiService.saveWorkoutFeedback(payload);
+      console.log('[WellnessModal] saveWorkoutFeedback Response:', JSON.stringify(response, null, 2));
+
+      // Reset state and show custom success screen
+      setSleepHours(7);
       setMood(0);
-      setRpe(0);
+      setRested(0);
       setNotes('');
-      onClose();
+      setShowSuccess(true);
     } catch (error) {
-      console.error('Error saving wellness feedback:', error);
+      console.error('Error saving workout feedback:', error);
       Alert.alert('Error', 'Failed to save feedback. Please try again.');
     } finally {
       setSaving(false);
@@ -110,11 +111,12 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
   };
 
   const handleCancel = () => {
-    setSleepHours('');
+    setSleepHours(7);
     setMood(0);
-    setRpe(0);
+    setRested(0);
     setNotes('');
     setErrors({});
+    setShowSuccess(false);
     onClose();
   };
 
@@ -130,37 +132,135 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>🌱 Wellness & Exertion</Text>
+          {showSuccess ? (
+            <View style={[styles.modalContainer, styles.successContainer]}>
+              <View style={styles.successGlowCircle}>
+                <Svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <Polyline points="22 4 12 14.01 9 11.01" />
+                </Svg>
+              </View>
+              
+              <Text style={styles.successTitle}>Logged Successfully!</Text>
+              <Text style={styles.successSubtitle}>
+                Your daily wellness and sleep metrics have been synchronized with MoveHub.
+              </Text>
+              
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                style={styles.successDoneButton}
+                onPress={() => {
+                  setShowSuccess(false);
+                  onClose();
+                }}
+              >
+                <Text style={styles.successDoneButtonText}>Continue</Text>
+              </TouchableOpacity>
             </View>
+          ) : (
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>🌱 Sleep and Mood</Text>
+              </View>
 
             <ScrollView 
               style={styles.scrollContainer}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={scrollEnabled}
             >
-              {/* Sleep Hours Logged */}
+              {/* Sleep Hours Logged via Custom Slider */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Sleep Hours (Last Night) *</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    errors.sleepHours ? styles.inputError : null,
-                  ]}
-                  placeholder="e.g. 7.5"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numeric"
-                  value={sleepHours}
-                  onChangeText={text => {
-                    setSleepHours(text);
-                    if (errors.sleepHours) {
-                      setErrors(prev => ({ ...prev, sleepHours: undefined }));
-                    }
+                <View style={styles.sliderLabelRow}>
+                  <Text style={styles.label}>
+                    How many hours did you sleep last night? *
+                  </Text>
+                  <Text style={styles.sliderValueText}>{sleepHours} Hours</Text>
+                </View>
+                <View 
+                  style={styles.sliderTrackContainer}
+                  onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={(event) => {
+                    setScrollEnabled(false);
+                    if (trackWidth <= 0) return;
+                    const touchX = event.nativeEvent.locationX;
+                    const pct = Math.max(0, Math.min(1, touchX / trackWidth));
+                    const hours = Math.round(pct * 12 * 2) / 2;
+                    setSleepHours(hours);
                   }}
-                />
-                {errors.sleepHours ? (
-                  <Text style={styles.errorText}>{errors.sleepHours}</Text>
+                  onResponderMove={(event) => {
+                    if (trackWidth <= 0) return;
+                    const touchX = event.nativeEvent.locationX;
+                    const pct = Math.max(0, Math.min(1, touchX / trackWidth));
+                    const hours = Math.round(pct * 12 * 2) / 2;
+                    setSleepHours(hours);
+                  }}
+                  onResponderRelease={() => {
+                    setScrollEnabled(true);
+                  }}
+                  onResponderTerminate={() => {
+                    setScrollEnabled(true);
+                  }}
+                >
+                  {/* Background Track */}
+                  <View style={styles.sliderTrack} pointerEvents="none" />
+                  {/* Active Fill Track */}
+                  <View style={[styles.sliderTrackFill, { width: `${(sleepHours / 12) * 100}%` }]} pointerEvents="none" />
+                  {/* Thumb */}
+                  <View style={[styles.sliderThumb, { left: `${(sleepHours / 12) * 100}%` }]} pointerEvents="none" />
+                </View>
+                {/* Scale markings */}
+                <View style={styles.sliderScaleMarkings}>
+                  <Text style={styles.scaleMarkText}>0 hrs</Text>
+                  <Text style={styles.scaleMarkText}>6 hrs</Text>
+                  <Text style={styles.scaleMarkText}>12 hrs</Text>
+                </View>
+              </View>
+
+              {/* How Rested Selection */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  How rested did you feel when you woke up this morning? *
+                </Text>
+                <View style={styles.restedOptionsColumn}>
+                  {[
+                    { value: 1, label: 'Not at all rested' },
+                    { value: 2, label: 'Slightly rested' },
+                    { value: 3, label: 'Moderately rested' },
+                    { value: 4, label: 'Very rested' },
+                    { value: 5, label: 'Completely rested' },
+                  ].map(item => {
+                    const isSelected = rested === item.value;
+                    return (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={[
+                          styles.restedOptionRow,
+                          isSelected && styles.restedOptionRowActive,
+                          errors.rested ? styles.borderError : null,
+                        ]}
+                        onPress={() => {
+                          setRested(item.value);
+                          if (errors.rested) {
+                            setErrors(prev => ({ ...prev, rested: undefined }));
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.radioButton, isSelected && styles.radioButtonActive]}>
+                          {isSelected && <View style={styles.radioButtonInner} />}
+                        </View>
+                        <Text style={[styles.restedOptionText, isSelected && styles.restedOptionTextActive]}>
+                          {item.value} - {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {errors.rested ? (
+                  <Text style={styles.errorText}>{errors.rested}</Text>
                 ) : null}
               </View>
 
@@ -204,56 +304,6 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
                 ) : null}
               </View>
 
-              {/* RPE Exertion */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  Rate of Perceived Exertion (RPE 1-10) *
-                </Text>
-                <View style={styles.rpeRow}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(val => {
-                    const isSelected = rpe === val;
-                    const colors = getRpeColorProps(val, isSelected);
-                    return (
-                      <TouchableOpacity
-                        key={val}
-                        style={[
-                          styles.rpeButton,
-                          {
-                            backgroundColor: colors.bg,
-                            borderColor: errors.rpe
-                              ? theme.colors.error
-                              : colors.border,
-                            borderWidth: errors.rpe || isSelected ? 2 : 1,
-                          },
-                        ]}
-                        onPress={() => {
-                          setRpe(val);
-                          if (errors.rpe) {
-                            setErrors(prev => ({ ...prev, rpe: undefined }));
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.rpeText,
-                            {
-                              color: colors.text,
-                              fontWeight: isSelected ? 'bold' : 'normal',
-                            },
-                          ]}
-                        >
-                          {val}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {errors.rpe ? (
-                  <Text style={styles.errorText}>{errors.rpe}</Text>
-                ) : null}
-              </View>
-
               {/* Notes */}
               <View style={[styles.inputGroup, { marginBottom: 0 }]}>
                 <Text style={styles.label}>Notes</Text>
@@ -287,6 +337,7 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
               />
             </View>
           </View>
+        )}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -407,23 +458,107 @@ const styles = StyleSheet.create({
     color: '#818cf8',
     fontWeight: 'bold',
   },
-  rpeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 4,
+  sliderLabelRow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    marginBottom: theme.spacing.xs,
   },
-  rpeButton: {
-    width: '18%',
-    height: 38,
-    borderRadius: 8,
+  sliderValueText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6366f1',
+    marginTop: 2,
+    alignSelf: 'flex-end',
+  },
+  sliderTrackContainer: {
+    height: 40,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  sliderTrack: {
+    height: 6,
+    backgroundColor: '#0F172A',
+    borderRadius: 3,
     borderWidth: 1,
+    borderColor: '#334155',
+  },
+  sliderTrackFill: {
+    position: 'absolute',
+    height: 6,
+    backgroundColor: '#6366f1',
+    borderRadius: 3,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    borderColor: '#6366f1',
+    marginLeft: -10,
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  sliderScaleMarkings: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    paddingHorizontal: 2,
+  },
+  scaleMarkText: {
+    fontSize: 10.5,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  restedOptionsColumn: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  restedOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: theme.spacing.borderRadiusMd,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  restedOptionRowActive: {
+    borderColor: '#6366f1',
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+  },
+  radioButton: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: '#475569',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  rpeText: {
-    fontSize: 14,
+  radioButtonActive: {
+    borderColor: '#6366f1',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#6366f1',
+  },
+  restedOptionText: {
+    fontSize: 13.5,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  restedOptionTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -435,5 +570,49 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  successContainer: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successGlowCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  successSubtitle: {
+    fontSize: 13.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 12,
+    marginBottom: 28,
+  },
+  successDoneButton: {
+    width: '100%',
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successDoneButtonText: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });

@@ -81,7 +81,7 @@ const DrawerNavigatorContent: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setWellnessModalVisible(true);
-    }, 300000); // 5 minutes (300,000 milliseconds)
+    }, 120000); // 2 minutes (120,000 milliseconds)
 
     return () => clearInterval(timer);
   }, []);

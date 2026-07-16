@@ -27,6 +27,7 @@ import { apiService } from '../../services/api';
 import { Activity, UserProfile } from '../../types';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { getDynamicDeviceId } from '../../utils/device';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
 import Svg, { Circle } from 'react-native-svg';
@@ -226,9 +227,10 @@ export const ActivityTrackingScreen: React.FC = () => {
       );
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
 
+      const deviceId = await getDynamicDeviceId();
       const savePayload = {
         uhid: targetUhid,
-        deviceId: '99kjkhgg',
+        deviceId: deviceId,
         type: activityType,
         value: value,
         metric: metric,
@@ -343,7 +345,6 @@ export const ActivityTrackingScreen: React.FC = () => {
     setHighIntensity(false);
     setStrengthRest(false);
     setActiveRecovery(false);
-    setErrors({});
   };
 
   const activityOptions = WELLNESS_ACTIVITIES_REGISTRY.map(act => ({

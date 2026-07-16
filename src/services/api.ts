@@ -10,6 +10,7 @@ import {
   TrendData,
   Insight,
 } from '../types';
+import { getDynamicDeviceId } from '../utils/device';
 
 // Future API Base URL (change in environment variables later)
 const BASE_URL = 'https://api.movehub.example.com/v1';
@@ -358,6 +359,18 @@ export const apiService = {
     }
   },
 
+  async getWorkoutLog(uhid: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `http://13.235.135.98:8081/backend/health-connect/getWorkoutLog?uhid=${uhid}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getWorkoutLog:', error);
+      throw error;
+    }
+  },
+
   async saveHealthConnectActivity(activityData: {
     uhid: string;
     deviceId: string;
@@ -380,21 +393,25 @@ export const apiService = {
     }
   },
 
-  async saveWellnessFeedback(feedbackData: {
+  async saveWorkoutFeedback(feedbackData: {
     uhid: string;
+    deviceId: string;
     sleepHours: number;
     mood: number;
-    rpe: number;
+    sleepQuality?: string;
+    rpe: number | null;
     notes?: string;
   }): Promise<any> {
     try {
+      console.log('[apiService] POST saveWorkoutFeedback Payload:', JSON.stringify(feedbackData, null, 2));
       const response = await axios.post(
-        'http://13.235.135.98:8082/backend/health-connect/saveWellnessFeedback',
+        'http://13.235.135.98:8082/backend/health-connect/saveWorkoutFeedback',
         feedbackData,
       );
+      console.log('[apiService] POST saveWorkoutFeedback Response:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('Error in saveWellnessFeedback:', error);
+      console.error('Error in saveWorkoutFeedback:', error);
       throw error;
     }
   },
@@ -414,9 +431,10 @@ export const apiService = {
       );
       const targetUhid = profileData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
 
+      const devId = profileData.deviceId || await getDynamicDeviceId();
       const payload = {
         uhid: targetUhid,
-        deviceId: profileData.deviceId || '99kjkhgg',
+        deviceId: devId,
         name: profileData.name,
         age: profileData.age,
         weight: profileData.weight,
@@ -450,9 +468,10 @@ export const apiService = {
       );
       const targetUhid = pacingData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
 
+      const devId = pacingData.deviceId || await getDynamicDeviceId();
       const payload = {
         uhid: targetUhid,
-        deviceId: pacingData.deviceId || '99kjkhgg',
+        deviceId: devId,
         selectedPacingModes: pacingData.selectedPacingModes,
         otherText: pacingData.otherText,
         selectedCardioSubModes: pacingData.selectedCardioSubModes,

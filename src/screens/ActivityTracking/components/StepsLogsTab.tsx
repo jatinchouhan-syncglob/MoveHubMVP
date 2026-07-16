@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
@@ -451,7 +452,15 @@ const ActivityCard: React.FC<{
 };
 
 const DailyQuestsCard: React.FC = () => {
-  const currentPhase = 'evening';
+  const getCurrentPhase = (): 'morning' | 'afternoon' | 'evening' | 'night' => {
+    const hrs = new Date().getHours();
+    if (hrs >= 6 && hrs < 12) return 'morning';
+    if (hrs >= 12 && hrs < 17) return 'afternoon';
+    if (hrs >= 17 && hrs < 21) return 'evening';
+    return 'night';
+  };
+
+  const currentPhase = getCurrentPhase();
   const theme = DailyQuestedCardThemes[currentPhase] ?? DailyQuestedCardThemes.night;
   const PHASES = ['morning', 'afternoon', 'evening', 'night'] as const;
   const currentIndex = PHASES.indexOf(currentPhase);
@@ -468,25 +477,24 @@ const DailyQuestsCard: React.FC = () => {
         style={questStyles.header}
       >
         <View style={questStyles.headerLeft}>
-          <View style={[questStyles.timeBadge, { backgroundColor: theme.dimColor, borderColor: theme.borderColor }]}>
-            <MiniIcon name={theme.icon} size={11} color={theme.accent} />
-            <Text style={[questStyles.timeBadgeText, { color: theme.accent }]}>
-              {currentPhase.toUpperCase()}
-            </Text>
+          <View style={[questStyles.circleIcon, { backgroundColor: theme.dimColor }]}>
+            <MiniIcon name={theme.icon} size={14} color={theme.accent} />
+          </View>
+          <View style={questStyles.titleContainer}>
+            <Text style={questStyles.sectionTitle}>{theme.label}</Text>
             <Text style={questStyles.timeBadgeRange}>{theme.timeRange}</Text>
           </View>
-          <Text style={questStyles.sectionTitle}>
-            {theme.label}
-          </Text>
         </View>
         
         <View style={questStyles.headerRight}>
           <View style={questStyles.goalBadge}>
             <Text style={[questStyles.goalBadgeText, { color: theme.accent }]}>
-              {currentIndex}/4
+              {currentIndex}/4 Done
             </Text>
           </View>
-          <MiniIcon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={theme.accent} />
+          <View style={[questStyles.chevronCircle, { borderColor: theme.borderColor }]}>
+            <MiniIcon name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={theme.accent} />
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -752,9 +760,12 @@ const FitnessActivityCard: React.FC<{
 export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
+  const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
   useEffect(() => {
     const fetchHealthActivities = async () => {
+      setLoadingLogs(true);
       try {
         const cachedProfile = await storageHelper.getItem<UserProfile>(
           STORAGE_KEYS.USER_PROFILE,
@@ -765,8 +776,18 @@ export const StepsLogsTab: React.FC = () => {
         console.log(`Fetching Health Connect activities for ${targetUhid}...`);
         const response = await apiService.getHealthConnectActivities(targetUhid);
         console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
+
+        console.log(`Fetching Workout Logs for ${targetUhid}...`);
+        const workoutLogResponse = await apiService.getWorkoutLog(targetUhid);
+        console.log('GET Workout Log Response in StepsLogsTab:', JSON.stringify(workoutLogResponse, null, 2));
+
+        if (workoutLogResponse && workoutLogResponse.status === 'Success' && Array.isArray(workoutLogResponse.data)) {
+          setWorkoutLogs(workoutLogResponse.data);
+        }
       } catch (error) {
-        console.error('Error fetching Health Connect activities in StepsLogsTab:', error);
+        console.error('Error fetching Health Connect / Workout logs in StepsLogsTab:', error);
+      } finally {
+        setLoadingLogs(false);
       }
     };
     fetchHealthActivities();
@@ -789,47 +810,57 @@ export const StepsLogsTab: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
       >
         <View>
-          {/* Static Activity Logs */}
-          <ActivityCard
-            time="Morning"
-            hp={45}
-            goal={50}
-            steps={4850}
-            km={3.2}
-            cal={280}
-            duration={35}
-            isActive={false}
-          />
-          <ActivityCard
-            time="Afternoon"
-            hp={30}
-            goal={50}
-            steps={2120}
-            km={1.5}
-            cal={150}
-            duration={20}
-            isActive={false}
-          />
-          <ActivityCard
-            time="Evening"
-            hp={65}
-            goal={50}
-            steps={5240}
-            km={3.8}
-            cal={320}
-            duration={40}
-            isActive={true}
-          />
-          <ActivityCard
-            time="Night"
-            hp={10}
-            goal={50}
-            steps={980}
-            km={0.7}
-            cal={80}
-            duration={15}
-            isActive={false}
-          />
+          {/* Dynamic Activity Logs */}
+          {loadingLogs ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color="#6366f1" />
+              <Text style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontWeight: '500' }}>
+                Fetching dynamic time blocks...
+              </Text>
+            </View>
+          ) : workoutLogs.length === 0 ? (
+            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+                No synced activities for today yet.
+              </Text>
+              <Text style={{ color: '#64748b', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                Ensure Google Fit integration is connected and active.
+              </Text>
+            </View>
+          ) : (
+            workoutLogs.map((item, index) => {
+              const formattedTime = item.title 
+                ? item.title.charAt(0).toUpperCase() + item.title.slice(1).toLowerCase() 
+                : 'Night';
+              
+              // Dynamic isActive determination based on system hour
+              const now = new Date();
+              const hrs = now.getHours();
+              const block = formattedTime.toLowerCase();
+              let isActive = false;
+              if (block === 'morning') isActive = hrs >= 6 && hrs < 12;
+              else if (block === 'afternoon') isActive = hrs >= 12 && hrs < 17;
+              else if (block === 'evening') isActive = hrs >= 17 && hrs < 21;
+              else if (block === 'night') isActive = hrs >= 21 || hrs < 6;
+
+              const durationVal = item.duration ? parseInt(item.duration) || 0 : 0;
+              const distanceVal = item.distance ? parseFloat(parseFloat(item.distance).toFixed(1)) || 0 : 0;
+
+              return (
+                <ActivityCard
+                  key={item.title || index}
+                  time={formattedTime}
+                  hp={item.heartPoint || 0}
+                  goal={item.targetHeartPoint || 50}
+                  steps={item.steps || 0}
+                  km={distanceVal}
+                  cal={item.energyExpended || 0}
+                  duration={durationVal}
+                  isActive={isActive}
+                />
+              );
+            })
+          )}
 
           {/* Daily Quests progression */}
           <DailyQuestsCard />
@@ -1118,48 +1149,54 @@ const questStyles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    flex: 1,
   },
-  timeBadge: {
-    flexDirection: 'row',
+  circleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
   },
-  timeBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+  titleContainer: {
+    flexDirection: 'column',
   },
   timeBadgeRange: {
     color: '#94A3B8',
-    fontSize: 9,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: 10.5,
+    fontWeight: '500',
+    marginTop: 2,
   },
   sectionTitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    marginLeft: 8,
   },
   goalBadge: {
     borderRadius: 8,
     backgroundColor: '#1E293B',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
   goalBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chevronCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   progressWrap: {
     marginVertical: 14,
