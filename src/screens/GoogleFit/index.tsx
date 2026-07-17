@@ -402,16 +402,13 @@ const StepsTrackingTab = () => {
         const syncTime = new Date().toISOString();
         setLastSyncedText(syncTime);
         setSyncStatus('success');
-        Alert.alert('Sync Successful', 'Your Health Connect data has been synced to the server!');
         await checkStatusAndData(true);
       } else {
         setSyncStatus('failure');
-        Alert.alert('Sync Failed', 'An error occurred during synchronization. Please check your network and try again.');
       }
     } catch (err) {
       console.error('Failed to save health data:', err);
       setSyncStatus('failure');
-      Alert.alert('Sync Failed', 'Failed to save health data.');
     } finally {
       setSyncing(false);
     }

@@ -10,7 +10,8 @@ class HealthConnectExactSyncBootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        Log.d(TAG, "System event received: $action. Rescheduling sync...")
-        HealthConnectExactSyncScheduler.scheduleNextHourlySync(context)
+        Log.d(TAG, "System event received: $action. Rescheduling periodic sync WorkManager request...")
+        HealthConnectWorkManagerScheduler.schedulePeriodicSync(context)
+        HealthConnectWorkManagerScheduler.triggerImmediateSync(context)
     }
 }

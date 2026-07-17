@@ -113,8 +113,8 @@ class HealthConnectWorkManagerModule(private val reactContext: ReactApplicationC
                 apply()
             }
 
-            // Trigger scheduler to schedule exact hourly alarms
-            HealthConnectExactSyncScheduler.scheduleNextHourlySync(reactContext)
+            // Schedule periodic sync (15-mins)
+            HealthConnectWorkManagerScheduler.schedulePeriodicSync(reactContext)
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("ERROR", e.message, e)
@@ -179,6 +179,39 @@ class HealthConnectWorkManagerModule(private val reactContext: ReactApplicationC
                 }
             }
             prefs.edit().putStringSet("synced_intervals", set).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getSyncedKeys(promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("HealthConnectSyncPrefs", Context.MODE_PRIVATE)
+            val set = prefs.getStringSet("synced_keys", emptySet()) ?: emptySet()
+            val arr = Arguments.createArray()
+            for (item in set) {
+                arr.pushString(item)
+            }
+            promise.resolve(arr)
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun saveSyncedKeys(keys: ReadableArray, promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("HealthConnectSyncPrefs", Context.MODE_PRIVATE)
+            val set = mutableSetOf<String>()
+            for (i in 0 until keys.size()) {
+                val item = keys.getString(i)
+                if (item != null) {
+                    set.add(item)
+                }
+            }
+            prefs.edit().putStringSet("synced_keys", set).apply()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("ERROR", e.message, e)
