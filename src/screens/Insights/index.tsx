@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -204,11 +205,89 @@ const BIOSYNC_INTEGRATED_STAMINA_CHARTS = { target: '82', actual: '85.7', perfor
 const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '106' };
 const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
 
+const parseFitnessTrendArray = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return null;
+  const values = arr.map(item => item.values ?? 0);
+  const labels = arr.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  return { values, labels };
+};
+
+const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
+  if (!weeklyTrend || weeklyTrend.length === 0) return null;
+  const labels = weeklyTrend.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  const cys = weeklyTrend.map(item => item.cys ?? 0);
+  const eeKm = weeklyTrend.map(item => item.eeKm ?? 0);
+  const is = weeklyTrend.map(item => item.isAvg ?? 0);
+  return { labels, cys, eeKm, is };
+};
+
+const parseCardioYieldData = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return [];
+  return arr.map(item => {
+    const dayLabel = item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) : `Day ${item.day}`;
+    return {
+      day: dayLabel,
+      trend: '',
+      stacks: [
+        item.morning ?? 0,
+        item.afternoon ?? 0,
+        item.evening ?? 0,
+        item.night ?? 0
+      ]
+    };
+  });
+};
+
+const formatChartSummary = (summaryObj?: any) => {
+  if (!summaryObj) {
+    return {
+      target: 'N/A',
+      actual: 'N/A',
+      performance: 'N/A'
+    };
+  }
+  let perf = summaryObj.performance != null ? String(summaryObj.performance) : 'N/A';
+  if (perf.endsWith('%')) {
+    perf = perf.slice(0, -1);
+  }
+  return {
+    target: summaryObj.target != null ? String(summaryObj.target) : 'N/A',
+    actual: summaryObj.actual != null ? String(summaryObj.actual) : 'N/A',
+    performance: perf
+  };
+};
+
+const getBioSyncStatus = (score?: number) => {
+  if (score === undefined || score === null) return 'green';
+  if (score >= 90) return 'green';
+  if (score >= 70) return 'amber';
+  return 'red';
+};
+
 export const InsightsScreen: React.FC = () => {
   const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [fitnessTrend, setFitnessTrend] = useState<any>(null);
+  const [bioSyncTrend, setBioSyncTrend] = useState<any>(null);
+  const [loadingTrends, setLoadingTrends] = useState<boolean>(true);
 
   // Interactive index for Activity Trends tooltip selection
   const [selectedTrendIdx, setSelectedTrendIdx] = useState<number>(2); // Default to index 2 (e.g. Wk 43)
@@ -278,16 +357,23 @@ export const InsightsScreen: React.FC = () => {
       console.log(`[Insights] Fetching Daily Fitness Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
       const fitnessTrendRes = await apiService.getDailyFitnessTrend(targetUhid, staticChallengeId);
       console.log('[Insights] getDailyFitnessTrend API Response:', JSON.stringify(fitnessTrendRes, null, 2));
+      if (fitnessTrendRes && fitnessTrendRes.status === 'Success' && fitnessTrendRes.data) {
+        setFitnessTrend(fitnessTrendRes.data);
+      }
 
       console.log(`[Insights] Fetching Daily Bio Sync Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
       const bioSyncTrendRes = await apiService.getDailyBioSyncTrend(targetUhid, staticChallengeId);
       console.log('[Insights] getDailyBioSyncTrend API Response:', JSON.stringify(bioSyncTrendRes, null, 2));
+      if (bioSyncTrendRes && bioSyncTrendRes.status === 'Success' && bioSyncTrendRes.data) {
+        setBioSyncTrend(bioSyncTrendRes.data);
+      }
     } catch (error) {
       console.error('[Insights] Error fetching daily trend APIs:', error);
     }
   };
 
   const loadData = async () => {
+    setLoadingTrends(true);
     try {
       const logs = await apiService.getActivities();
       setActivities(logs);
@@ -296,6 +382,7 @@ export const InsightsScreen: React.FC = () => {
       console.error('Failed to load insights trends activities:', error);
     } finally {
       setRefreshing(false);
+      setLoadingTrends(false);
     }
   };
 
@@ -899,37 +986,70 @@ export const InsightsScreen: React.FC = () => {
         }
       >
         {activeScreenTab === 'fitness' && (
-          <FitnessTab
-            chartWidth={CHART_WIDTH}
-            dailyStepsBreakdown={FITNESS_DAILY_STEPS}
-            dailyHeartPoints={FITNESS_DAILY_HEART_POINTS}
-            sdexActivity={FITNESS_SDEX_ACTIVITY}
-            energyExpended={FITNESS_ENERGY_EXPENDED}
-            totalHeartPoint={217}
-            totalDailySdex={57}
-            dailyHeartPointsCharts={FITNESS_HEART_POINTS_CHARTS}
-            dailySdexCharts={FITNESS_SDEX_CHARTS}
-            dailyStepsBreakdownCharts={FITNESS_STEPS_CHARTS}
-            energyExpandedCharts={FITNESS_ENERGY_EXPANDED_CHARTS}
-          />
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading fitness insights...
+              </Text>
+            </View>
+          ) : (
+            <FitnessTab
+              chartWidth={CHART_WIDTH}
+              dailyStepsBreakdown={parseFitnessTrendArray(fitnessTrend?.dailyStepsBreakdown)}
+              dailyHeartPoints={parseFitnessTrendArray(fitnessTrend?.dailyHeartPoints)}
+              sdexActivity={parseFitnessTrendArray(fitnessTrend?.dailySdex)}
+              energyExpended={parseFitnessTrendArray(fitnessTrend?.energyExpanded)}
+              totalHeartPoint={fitnessTrend?.totalHeartPoint ?? 0}
+              totalDailySdex={fitnessTrend?.totalDailySdex ?? 0}
+              dailyHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyHeartPointsCharts)}
+              dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
+              dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
+              energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
+            />
+          )
         )}
 
         {activeScreenTab === 'bio-sync' && (
-          <BioSyncTab
-            chartWidth={CHART_WIDTH}
-            energyEfficiency={BIOSYNC_ENERGY_EFFICIENCY}
-            integratedStamina={BIOSYNC_INTEGRATED_STAMINA}
-            weeklyPerformance={BIOSYNC_WEEKLY_PERFORMANCE}
-            weeklyPerformanceSummary={BIOSYNC_WEEKLY_PERFORMANCE_SUMMARY}
-            pillarHealthData={BIOSYNC_PILLAR_HEALTH_DATA}
-            cardioYieldData={BIOSYNC_CARDIO_YIELD_DATA}
-            weeklyBioSyncEfficiencyScore={88}
-            eePerKmCharts={BIOSYNC_EE_PER_KM_CHARTS}
-            integratedStaminaCharts={BIOSYNC_INTEGRATED_STAMINA_CHARTS}
-            weeklyTrendCharts={BIOSYNC_WEEKLY_TREND_CHARTS}
-            cardioYieldPerStepCharts={BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS}
-            status="green"
-          />
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading bio-sync data...
+              </Text>
+            </View>
+          ) : (
+            <BioSyncTab
+              chartWidth={CHART_WIDTH}
+              energyEfficiency={parseFitnessTrendArray(
+                bioSyncTrend?.weeklyTrend
+                  ? bioSyncTrend.weeklyTrend.map((item: any) => ({
+                      ...item,
+                      values: item.eeKm,
+                    }))
+                  : null
+              )}
+              integratedStamina={parseFitnessTrendArray(bioSyncTrend?.integratedStamina)}
+              weeklyPerformance={parseWeeklyPerformance(bioSyncTrend?.weeklyTrend)}
+              weeklyPerformanceSummary={{
+                eeKmAvg: bioSyncTrend?.eeKmAvg != null ? String(bioSyncTrend.eeKmAvg) : 'N/A',
+                isAvg: bioSyncTrend?.isAvg != null ? String(bioSyncTrend.isAvg) : 'N/A',
+                cysTotal: bioSyncTrend?.cysTotal != null ? String(bioSyncTrend.cysTotal) : 'N/A',
+              }}
+              pillarHealthData={[
+                { label: 'Stability', value: bioSyncTrend?.stability ?? 0, color: '#22C55E' },
+                { label: 'Intensity', value: bioSyncTrend?.intensity ?? 0, color: '#3B82F6' },
+                { label: 'Metabolic', value: bioSyncTrend?.metabolic ?? 0, color: '#F59E0B' },
+              ]}
+              cardioYieldData={parseCardioYieldData(bioSyncTrend?.cardioYieldPerStep)}
+              weeklyBioSyncEfficiencyScore={bioSyncTrend?.weeklyBioSyncEfficiencyScore ?? 0}
+              eePerKmCharts={formatChartSummary(bioSyncTrend?.eePerKmCharts)}
+              integratedStaminaCharts={formatChartSummary(bioSyncTrend?.integratedStaminaCharts)}
+              weeklyTrendCharts={formatChartSummary(bioSyncTrend?.weeklyTrendCharts)}
+              cardioYieldPerStepCharts={formatChartSummary(bioSyncTrend?.cardioYieldPerStepCharts)}
+              status={getBioSyncStatus(bioSyncTrend?.weeklyBioSyncEfficiencyScore)}
+            />
+          )
         )}
 
         {activeScreenTab === 'trends' && (
