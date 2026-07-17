@@ -586,22 +586,79 @@ const DailyQuestsCard: React.FC = () => {
 };
 
 const FitnessActivityCard: React.FC<{
-  date: string;
-  distance: number;
-  totalEnergy: number;
-  steps: number;
-  hp: number;
-  duration: number;
-}> = ({ date, distance, totalEnergy, steps, hp, duration }) => {
+  summary: any;
+}> = ({ summary }) => {
+  if (!summary) {
+    return (
+      <View style={[detailStyles.container, { padding: 24, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="small" color="#14B8A6" />
+        <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 8 }}>
+          Loading previous day details...
+        </Text>
+      </View>
+    );
+  }
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Yesterday';
+    try {
+      const d = new Date(dateStr);
+      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+      return `Yesterday, ${d.toLocaleDateString('en-US', options)}`;
+    } catch (e) {
+      return 'Yesterday';
+    }
+  };
+
+  const date = formatDate(summary.activityDate);
+  const steps = summary.totalSteps || 0;
+  const distance = summary.totalDistance || 0;
+  const totalEnergy = summary.totalEnergyExpended || 0;
+  const hp = summary.totalHeartPoint || 0;
+  const duration = summary.totalDuration ? parseInt(summary.totalDuration) || 0 : 0;
+  
   const hpGoal = 150;
   const goalReached = hp >= hpGoal;
 
-  const mockChartData = {
-    Morning: 45,
-    Afternoon: 30,
-    Evening: 65,
-    Night: 10,
+  const sessionList = summary.sessionList || [];
+  
+  // Calculate dynamic chartData map from sessionList
+  const chartData: Record<string, number> = {
+    Morning: 0,
+    Afternoon: 0,
+    Evening: 0,
+    Night: 0,
   };
+  
+  sessionList.forEach((s: any) => {
+    const key = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : '';
+    if (key in chartData) {
+      chartData[key] = s.heartPoint || 0;
+    }
+  });
+
+  // Calculate dynamic peak time block key based on highest heartPoint
+  let peakKey = 'Evening';
+  let maxHp = -1;
+  sessionList.forEach((s: any) => {
+    if (s.heartPoint > maxHp) {
+      maxHp = s.heartPoint;
+      peakKey = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : 'Evening';
+    }
+  });
+
+  // Dynamic max scale logic (min scale limit is 200, else round to nearest 50)
+  const maxSessionHp = Math.max(...sessionList.map((s: any) => s.heartPoint || 0), 200);
+  const maxScale = Math.ceil(maxSessionHp / 50) * 50;
+
+  // Let's divide Y labels based on maxScale
+  const yLabels = [
+    String(maxScale),
+    String(Math.round(maxScale * 0.75)),
+    String(Math.round(maxScale * 0.5)),
+    String(Math.round(maxScale * 0.25)),
+    '0'
+  ];
 
   return (
     <View style={detailStyles.container}>
@@ -657,13 +714,13 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.sectionRow}>
         <Text style={detailStyles.sectionLabel}>HEART POINTS BY TIME</Text>
-        <Text style={detailStyles.sectionSub}>MAX SCALE 200</Text>
+        <Text style={detailStyles.sectionSub}>MAX SCALE {maxScale}</Text>
       </View>
 
       {/* Bar Chart Representation */}
       <View style={detailStyles.chartWrapper}>
         <View style={detailStyles.yAxis}>
-          {['200', '150', '100', '50', '0'].map(v => (
+          {yLabels.map(v => (
             <Text key={v} style={detailStyles.yLabel}>{v}</Text>
           ))}
         </View>
@@ -674,9 +731,9 @@ const FitnessActivityCard: React.FC<{
           
           <View style={detailStyles.barsRow}>
             {FitnessActivityBlocks.map(block => {
-              const val = mockChartData[block.key];
-              const barPct = Math.min((val / 200) * 100, 100);
-              const isPeak = block.key === 'Evening';
+              const val = chartData[block.key] || 0;
+              const barPct = Math.min((val / maxScale) * 100, 100);
+              const isPeak = block.key === peakKey;
 
               return (
                 <View key={block.key} style={detailStyles.barCol}>
@@ -714,8 +771,17 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.detailList}>
         {FitnessActivityBlocks.map((block, idx) => {
-          const val = mockChartData[block.key];
-          const isPeak = block.key === 'Evening';
+          const val = chartData[block.key] || 0;
+          const isPeak = block.key === peakKey;
+
+          // Fetch dynamic stats for this block
+          const session = sessionList.find((s: any) => 
+            s.title?.toLowerCase() === block.key.toLowerCase()
+          );
+          const sSteps = session?.steps || 0;
+          const sDist = session?.distance || 0;
+          const sCal = session?.energyExpended || 0;
+
           return (
             <View
               key={block.key}
@@ -739,7 +805,9 @@ const FitnessActivityCard: React.FC<{
                     </View>
                   )}
                 </View>
-                <Text style={detailStyles.timeRange}>{block.timeRange}</Text>
+                <Text style={detailStyles.timeRange}>
+                  {block.timeRange} • {sSteps} steps • {sDist} km • {sCal} kcal
+                </Text>
               </View>
 
               <View style={detailStyles.detailStat}>
@@ -761,6 +829,7 @@ export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
+  const [previousDaySummary, setPreviousDaySummary] = useState<any>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
 
   useEffect(() => {
@@ -784,8 +853,16 @@ export const StepsLogsTab: React.FC = () => {
         if (workoutLogResponse && workoutLogResponse.status === 'Success' && Array.isArray(workoutLogResponse.data)) {
           setWorkoutLogs(workoutLogResponse.data);
         }
+
+        console.log(`Fetching Previous Day Summary for ${targetUhid}...`);
+        const previousDaySummaryResponse = await apiService.getPreviousDaySummary(targetUhid);
+        console.log('GET Previous Day Summary Response in StepsLogsTab:', JSON.stringify(previousDaySummaryResponse, null, 2));
+
+        if (previousDaySummaryResponse && previousDaySummaryResponse.status === 'Success' && previousDaySummaryResponse.data) {
+          setPreviousDaySummary(previousDaySummaryResponse.data);
+        }
       } catch (error) {
-        console.error('Error fetching Health Connect / Workout logs in StepsLogsTab:', error);
+        console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
       } finally {
         setLoadingLogs(false);
       }
@@ -882,12 +959,7 @@ export const StepsLogsTab: React.FC = () => {
 
           {showDetail && (
             <FitnessActivityCard
-              date="Yesterday, 18 Jun"
-              distance={9.2}
-              totalEnergy={830}
-              steps={13190}
-              hp={150}
-              duration={110}
+              summary={previousDaySummary}
             />
           )}
         </View>

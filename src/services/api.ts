@@ -371,6 +371,42 @@ export const apiService = {
     }
   },
 
+  async getPreviousDaySummary(uhid: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `http://13.235.135.98:8081/backend/health-connect/getPreviousDaySummary?uhid=${uhid}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getPreviousDaySummary:', error);
+      throw error;
+    }
+  },
+
+  async getDailyFitnessTrend(uhId: string, challengeId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `http://13.235.135.98:8081/backend/health-connect/getDailyFitnessTrend?uhId=${uhId}&challengeId=${challengeId}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getDailyFitnessTrend:', error);
+      throw error;
+    }
+  },
+
+  async getDailyBioSyncTrend(uhId: string, challengeId: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        `http://13.235.135.98:8081/backend/health-connect/getDailyBioSyncTrend?uhId=${uhId}&challengeId=${challengeId}`,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getDailyBioSyncTrend:', error);
+      throw error;
+    }
+  },
+
   async saveHealthConnectActivity(activityData: {
     uhid: string;
     deviceId: string;

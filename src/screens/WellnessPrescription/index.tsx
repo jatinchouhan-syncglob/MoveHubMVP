@@ -788,6 +788,14 @@ export const WellnessPrescriptionScreen: React.FC<
               : '📊 ADAPTIVE FOUNDATIONAL ROUTINE & CLINICAL PERFORMANCE TARGETS'}
           </Text>
 
+          {/* Timeline Meta Row */}
+          <View style={styles.timelineMetaRow}>
+            <Text style={styles.metaText}>
+              ⏱️ Duration: {payload.durationDays} days | 🕒 Start:{' '}
+              {payload.startDateString} | 🏁 End: {payload.endDateString}
+            </Text>
+          </View>
+
           {/* User Profile Header */}
           <View style={styles.profileHeaderBox}>
             <Text style={styles.profileHeaderTitle}>
@@ -919,15 +927,6 @@ export const WellnessPrescriptionScreen: React.FC<
               </Text>
             )}
           </View>
-
-          {/* Timeline Meta Row */}
-          <View style={styles.timelineMetaRow}>
-            <Text style={styles.metaText}>
-              ⏱️ Duration: {payload.durationDays} days | 🕒 Start:{' '}
-              {payload.startDateString} | 🏁 End: {payload.endDateString}
-            </Text>
-          </View>
-
           {/* Step Target progress */}
           <View style={styles.stepWheelContainer}>
             <View style={styles.stepLockedBadge}>

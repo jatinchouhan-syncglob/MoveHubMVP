@@ -267,10 +267,31 @@ export const InsightsScreen: React.FC = () => {
     }
   }, [activeScreenTab, selectedMonth]);
 
+  const loadTrendsLogs = async () => {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const staticChallengeId = 'CHALLENGE_TEST_1';
+
+      console.log(`[Insights] Fetching Daily Fitness Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
+      const fitnessTrendRes = await apiService.getDailyFitnessTrend(targetUhid, staticChallengeId);
+      console.log('[Insights] getDailyFitnessTrend API Response:', JSON.stringify(fitnessTrendRes, null, 2));
+
+      console.log(`[Insights] Fetching Daily Bio Sync Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
+      const bioSyncTrendRes = await apiService.getDailyBioSyncTrend(targetUhid, staticChallengeId);
+      console.log('[Insights] getDailyBioSyncTrend API Response:', JSON.stringify(bioSyncTrendRes, null, 2));
+    } catch (error) {
+      console.error('[Insights] Error fetching daily trend APIs:', error);
+    }
+  };
+
   const loadData = async () => {
     try {
       const logs = await apiService.getActivities();
       setActivities(logs);
+      await loadTrendsLogs();
     } catch (error) {
       console.error('Failed to load insights trends activities:', error);
     } finally {

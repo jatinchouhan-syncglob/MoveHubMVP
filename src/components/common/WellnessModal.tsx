@@ -28,7 +28,7 @@ interface WellnessModalProps {
 
 const moodRatings = [
   { value: 1, emoji: '😩', label: 'Tired' },
-  { value: 2, emoji: '😑', label: 'Meh' },
+  { value: 2, emoji: '😑', label: 'OK' },
   { value: 3, emoji: '🙂', label: 'Good' },
   { value: 4, emoji: '😀', label: 'Great' },
   { value: 5, emoji: '🤩', label: 'Energetic' },
