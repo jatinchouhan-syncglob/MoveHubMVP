@@ -259,8 +259,8 @@ const BioSyncTab = ({
 
         <Card>
           <View style={styles.pillarCardContent}>
-            {pillarHealthData.map(item => (
-              <View key={item.label}>
+            {pillarHealthData.map((item, idx) => (
+              <View key={`pillar-${item.label}-${idx}`}>
                 <View style={styles.pillarRowHeader}>
                   <Text style={styles.pillarLabel}>{item.label}</Text>
 
@@ -406,9 +406,9 @@ const BioSyncTab = ({
                         height: 200,
                       },
                     ]}>
-                    {cardioYieldData?.map(item => (
+                    {cardioYieldData?.map((item, idx) => (
                       <View
-                        key={item.day}
+                        key={`cy-${item.day}-${idx}`}
                         style={[
                           styles.dayColumn,
                           {width: Math.max(40, (chartWidth - 40) / 7)},

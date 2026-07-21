@@ -38,6 +38,7 @@ import {
 } from '../../components/charts/CustomSvgCharts';
 import { FitnessTab } from './FitnessTab';
 import { BioSyncTab } from './BioSyncTab';
+import { healthReportWebSocketService } from '../../services/websocketService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - scale(32); // margin horizontal (16 * 2)
@@ -354,16 +355,12 @@ export const InsightsScreen: React.FC = () => {
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       const staticChallengeId = 'CHALLENGE_TEST_1';
 
-      console.log(`[Insights] Fetching Daily Fitness Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
       const fitnessTrendRes = await apiService.getDailyFitnessTrend(targetUhid, staticChallengeId);
-      console.log('[Insights] getDailyFitnessTrend API Response:', JSON.stringify(fitnessTrendRes, null, 2));
       if (fitnessTrendRes && fitnessTrendRes.status === 'Success' && fitnessTrendRes.data) {
         setFitnessTrend(fitnessTrendRes.data);
       }
 
-      console.log(`[Insights] Fetching Daily Bio Sync Trend for uhId=${targetUhid}, challengeId=${staticChallengeId}...`);
       const bioSyncTrendRes = await apiService.getDailyBioSyncTrend(targetUhid, staticChallengeId);
-      console.log('[Insights] getDailyBioSyncTrend API Response:', JSON.stringify(bioSyncTrendRes, null, 2));
       if (bioSyncTrendRes && bioSyncTrendRes.status === 'Success' && bioSyncTrendRes.data) {
         setBioSyncTrend(bioSyncTrendRes.data);
       }
@@ -388,6 +385,22 @@ export const InsightsScreen: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    // Connect to backend WebSocket streaming service
+    healthReportWebSocketService.connect();
+
+    // Listen to real-time health report events
+    const unsubscribe = healthReportWebSocketService.subscribe((reportData) => {
+      console.log('[InsightsScreen] Real-time WebSocket report payload received:', reportData);
+      if (reportData) {
+        // Trigger smooth refresh of trend data upon receiving Kafka health report stream event
+        loadTrendsLogs();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleRefresh = () => {

@@ -53,7 +53,7 @@ const DrawerNavigatorContent: React.FC = () => {
   const [wellnessModalVisible, setWellnessModalVisible] = React.useState(false);
   const [pendingScreen, setPendingScreen] =
     React.useState<DrawerScreenType | null>(null);
-  const navTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const navTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     return () => {
@@ -81,7 +81,7 @@ const DrawerNavigatorContent: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setWellnessModalVisible(true);
-    }, 120000); // 2 minutes (120,000 milliseconds)
+    }, 30 * 60 * 60 * 1000); // 30 hours (108,000,000 milliseconds)
 
     return () => clearInterval(timer);
   }, []);

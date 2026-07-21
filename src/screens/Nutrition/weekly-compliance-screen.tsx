@@ -96,12 +96,12 @@ export const WeeklyComplianceScreen: React.FC = () => {
 
           <View style={styles.analysisSection}>
             <Text style={[styles.analysisTitle, { marginBottom: 12 }]}>Daily breakdown</Text>
-            {weeklyData.map((item: any) => {
+            {weeklyData.map((item: any, idx: number) => {
               const value = item.value;
               const color = value >= 80 ? C.green : value >= 60 ? C.teal : C.coral;
 
               return (
-                <View key={item.day} style={{ marginVertical: 6 }}>
+                <View key={`wday-${item.day}-${idx}`} style={{ marginVertical: 6 }}>
                   <View style={styles.analysisRow}>
                     <Text style={{ color: C.black, fontWeight: '700' }}>{item.day}</Text>
                     <Text style={{ color: color, fontWeight: '700' }}>{value}%</Text>
