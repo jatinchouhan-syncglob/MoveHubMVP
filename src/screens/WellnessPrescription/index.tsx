@@ -133,7 +133,8 @@ export const WellnessPrescriptionScreen: React.FC<
           console.error('[WellnessPrescription] Error fetching Pacing Profile:', err);
         }
 
-        // Fetch prescription from client-provided endpoint
+        // Commented out old prescription API
+        /*
         try {
           const prescriptionRes = await fetch(`http://13.235.135.98:8081/backend/health-connect/prescription?uhid=${targetUhid}`);
           const prescriptionJson = await prescriptionRes.json();
@@ -143,6 +144,31 @@ export const WellnessPrescriptionScreen: React.FC<
           }
         } catch (err) {
           console.error('[WellnessPrescription] Error fetching Prescription API:', err);
+        }
+        */
+
+        // NEW Prescription API (POST Form-Data)
+        try {
+          console.log(`[WellnessPrescription] Calling NEW Prescription API for UHID: ${targetUhid}...`);
+          const formData = new FormData();
+          formData.append('uhid', targetUhid);
+
+          const newPrescriptionRes = await fetch('http://13.203.227.217:8000/api/v1/prescription-build/kafka', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const newPrescriptionJson = await newPrescriptionRes.json();
+          console.log('[WellnessPrescription] NEW API Full Response JSON:', JSON.stringify(newPrescriptionJson, null, 2));
+          
+          if (newPrescriptionJson && newPrescriptionJson.status === 'success') {
+            const payloadData = newPrescriptionJson.data || newPrescriptionJson.prescriptionPayload;
+            if (payloadData) {
+              setApiPrescription(payloadData);
+            }
+          }
+        } catch (err) {
+          console.error('[WellnessPrescription] Error fetching NEW Prescription API:', err);
         }
         const name = cachedProfile?.name || 'Robert D.';
         const age = cachedProfile?.age || 55;
