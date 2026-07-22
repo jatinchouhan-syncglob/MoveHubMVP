@@ -331,9 +331,10 @@ export const ActivityTrackingScreen: React.FC = () => {
       setStrengthRest(false);
       setSyncWearable(false);
       setBenefitsVisible(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to log workout details:', error);
-      Alert.alert('Error', 'Failed to save workout details. Please try again.');
+      const errMsg = error.response?.data?.message || error.message || 'Unknown error';
+      Alert.alert('Error', `Failed to save workout details. Reason: ${errMsg}`);
     } finally {
       setSaving(false);
     }

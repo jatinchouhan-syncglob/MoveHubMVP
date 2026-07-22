@@ -1110,7 +1110,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     const uhid = cachedProfile?.uhid || 'SAUSHA9775';
     const deviceId = await getDynamicDeviceId();
 
-    const API_BASE_URL = 'http://13.235.135.98:8082/backend';
+    const API_BASE_URL = 'http://13.127.122.202:8082/backend';
     const syncedIntervalsSet = new Set(await getHealthConnectSyncedIntervals());
 
     // 2a. Fetch synced keys cache from SharedPreferences

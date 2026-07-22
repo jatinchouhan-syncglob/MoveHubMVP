@@ -4,7 +4,7 @@ export const fetchPrescriptionApi = async (uhid: string) => {
   const formData = new FormData();
   formData.append('uhid', uhid);
 
-  const res = await fetch('http://13.203.227.217:8000/api/v1/prescription-build/kafka', {
+  const res = await fetch('http://13.204.123.149:8000/api/v1/prescription-build/kafka', {
     method: 'POST',
     body: formData,
   });

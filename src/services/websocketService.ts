@@ -2,7 +2,7 @@ import { storageHelper } from '../storage/storageHelper';
 import { STORAGE_KEYS } from '../storage/storageKeys';
 import { UserProfile } from '../types';
 
-const WS_BASE_URL = 'ws://13.235.135.98:8081/backend/ws-health-report';
+const WS_BASE_URL = 'ws://13.127.122.202:8081/backend/ws-health-report';
 
 export type HealthReportSocketCallback = (data: any) => void;
 

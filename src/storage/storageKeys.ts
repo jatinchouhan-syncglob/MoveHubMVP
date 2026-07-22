@@ -8,6 +8,8 @@ export const STORAGE_KEYS = {
   PACING_METABOLIC_SUBS: '@movehub_pacing_metabolic_subs',
   LEADERBOARD_LAST_RANKS: '@movehub_leaderboard_last_ranks',
   LAST_GOOGLE_FIT_SYNC: '@movehub_last_google_fit_sync',
+  BIOMETRICS_ENABLED: '@movehub_biometrics_enabled',
+  BIOMETRICS_CREDENTIALS: '@movehub_biometrics_credentials',
 } as const;
 
 export type StorageKeyType = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
