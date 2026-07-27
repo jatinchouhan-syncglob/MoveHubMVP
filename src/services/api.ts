@@ -15,8 +15,10 @@ import { getDynamicDeviceId } from '../utils/device';
 // Future API Base URL (change in environment variables later)
 const BASE_URL = 'https://api.movehub.example.com/v1';
 
-export const BACKEND_8081_URL = 'http://13.127.122.202:8081';
-export const BACKEND_8082_URL = 'http://13.127.122.202:8082';
+export const BACKEND_8081_URL =
+  'https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com';
+export const BACKEND_8082_URL =
+  'https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com';
 
 // Create Axios Instance
 export const axiosInstance = axios.create({
@@ -167,7 +169,7 @@ export const apiService = {
       const response = await axios.get(
         `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${targetUhid}`,
       );
-      
+
       if (
         response &&
         response.data &&
@@ -181,7 +183,8 @@ export const apiService = {
           age: apiData.age || cachedProfile?.age || 55,
           weight: apiData.weight || cachedProfile?.weight || 75.0,
           height: apiData.height || cachedProfile?.height || 178,
-          calorieGoal: apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
+          calorieGoal:
+            apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
           isSetupComplete: cachedProfile?.isSetupComplete || false,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
@@ -189,7 +192,10 @@ export const apiService = {
       }
       return cachedProfile || MOCK_PROFILE;
     } catch (err) {
-      console.error('Error fetching live profile in apiService.getProfile:', err);
+      console.error(
+        'Error fetching live profile in apiService.getProfile:',
+        err,
+      );
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
@@ -311,9 +317,12 @@ export const apiService = {
       );
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       const url = `${BACKEND_8081_URL}/backend/health-connect/getWeeklyTrends?uhid=${targetUhid}`;
-      
+
       const response = await axios.get(url);
-      console.log('[apiService] GET Calorie Trends Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] GET Calorie Trends Response:',
+        JSON.stringify(response.data, null, 2),
+      );
 
       if (
         response &&
@@ -323,7 +332,15 @@ export const apiService = {
       ) {
         const trend = response.data.data;
         return {
-          labels: trend.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          labels: trend.labels || [
+            'Mon',
+            'Tue',
+            'Wed',
+            'Thu',
+            'Fri',
+            'Sat',
+            'Sun',
+          ],
           data: trend.data || [0, 0, 0, 0, 0, 0, 0],
           legendLabel: trend.legendLabel || 'Calories Burned (kcal)',
         };
@@ -422,7 +439,7 @@ export const apiService = {
   }): Promise<any> {
     try {
       const response = await axios.post(
-        `${BACKEND_8082_URL}/backend/health-connect/saveUserActivity`,
+        `http://13.127.122.202:8082/backend/health-connect/saveUserActivity`,
         activityData,
       );
       return response.data;
@@ -442,12 +459,18 @@ export const apiService = {
     notes?: string;
   }): Promise<any> {
     try {
-      console.log('[apiService] POST saveWorkoutFeedback Payload:', JSON.stringify(feedbackData, null, 2));
+      console.log(
+        '[apiService] POST saveWorkoutFeedback Payload:',
+        JSON.stringify(feedbackData, null, 2),
+      );
       const response = await axios.post(
         `${BACKEND_8082_URL}/backend/health-connect/saveWorkoutFeedback`,
         feedbackData,
       );
-      console.log('[apiService] POST saveWorkoutFeedback Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] POST saveWorkoutFeedback Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in saveWorkoutFeedback:', error);
@@ -468,9 +491,10 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = profileData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid =
+        profileData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
 
-      const devId = profileData.deviceId || await getDynamicDeviceId();
+      const devId = profileData.deviceId || (await getDynamicDeviceId());
       const payload = {
         uhid: targetUhid,
         deviceId: devId,
@@ -500,14 +524,13 @@ export const apiService = {
     selectedCardioSubModes?: string[];
     selectedMetabolicSubModes?: string[];
   }): Promise<any> {
-
     try {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = pacingData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
 
-      const devId = pacingData.deviceId || await getDynamicDeviceId();
+      const devId = pacingData.deviceId || (await getDynamicDeviceId());
       const payload = {
         uhid: targetUhid,
         deviceId: devId,
@@ -535,16 +558,16 @@ export const apiService = {
     }
   },
 
-  async signin(credentials: {
-    email: string;
-    password: string;
-  }): Promise<any> {
+  async signin(credentials: { email: string; password: string }): Promise<any> {
     try {
       const response = await axios.post(
         `${BACKEND_8081_URL}/backend/health-connect/auth/signin`,
         credentials,
       );
-      console.log('[apiService] POST Signin Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] POST Signin Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in signin:', error);
@@ -567,7 +590,10 @@ export const apiService = {
         `${BACKEND_8081_URL}/backend/health-connect/auth/signup`,
         userData,
       );
-      console.log('[apiService] POST Signup Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] POST Signup Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in signup:', error);
@@ -582,11 +608,16 @@ export const apiService = {
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'SAUSHA9775';
       const targetMonth = month || 'July 2026';
-      
-      const url = `${BACKEND_8081_URL}/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(targetMonth)}`;
-      
+
+      const url = `${BACKEND_8081_URL}/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(
+        targetMonth,
+      )}`;
+
       const response = await axios.get(url);
-      console.log('[apiService] GET Health Transformation Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] GET Health Transformation Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in getHealthTransformation:', error);
@@ -596,9 +627,14 @@ export const apiService = {
 
   async logout(email: string): Promise<any> {
     try {
-      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/logout?email=${encodeURIComponent(email)}`;
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/logout?email=${encodeURIComponent(
+        email,
+      )}`;
       const response = await axios.post(url, '');
-      console.log('[apiService] POST Logout Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] POST Logout Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in logout:', error);
@@ -608,9 +644,14 @@ export const apiService = {
 
   async deleteUser(email: string): Promise<any> {
     try {
-      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/delete?email=${encodeURIComponent(email)}`;
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/delete?email=${encodeURIComponent(
+        email,
+      )}`;
       const response = await axios.delete(url);
-      console.log('[apiService] DELETE User Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] DELETE User Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in deleteUser:', error);
