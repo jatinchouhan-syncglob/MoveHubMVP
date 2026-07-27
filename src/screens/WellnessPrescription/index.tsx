@@ -115,7 +115,7 @@ export const WellnessPrescriptionScreen: React.FC<
         // Fetch User Profile and Pacing Profile APIs (for verification logging)
         const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
         try {
-          const userProfileRes = await fetch(`http://13.127.122.202:8081/backend/health-connect/userProfile?uhid=${targetUhid}`);
+          const userProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/userProfile?uhid=${targetUhid}`);
           const userProfileJson = await userProfileRes.json();
           console.log('[WellnessPrescription] GET User Profile Response:', JSON.stringify(userProfileJson, null, 2));
           if (userProfileJson && userProfileJson.status === 'Success' && userProfileJson.data) {
@@ -126,7 +126,7 @@ export const WellnessPrescriptionScreen: React.FC<
         }
 
         try {
-          const pacingProfileRes = await fetch(`http://13.127.122.202:8081/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
+          const pacingProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
           const pacingProfileJson = await pacingProfileRes.json();
           console.log('[WellnessPrescription] GET Pacing Profile Response:', JSON.stringify(pacingProfileJson, null, 2));
           if (pacingProfileJson && pacingProfileJson.status === 'Success' && pacingProfileJson.data) {
@@ -182,7 +182,7 @@ export const WellnessPrescriptionScreen: React.FC<
         // 1. Attempt to fetch unified payload from Redis Gateway REST endpoint
         try {
           const response = await fetch(
-            `http://localhost:8080/api/v1/insights/user/${userId}`,
+            `https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/api/v1/insights/user/${userId}`,
             {
               headers: { Accept: 'application/json' },
             },
