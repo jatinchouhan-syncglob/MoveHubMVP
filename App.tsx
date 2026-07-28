@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, useColorScheme, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,36 +10,39 @@ import { syncHealthConnectAnalytics } from './src/services/healthConnect';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import { storageHelper } from './src/storage/storageHelper';
 import { STORAGE_KEYS } from './src/storage/storageKeys';
+import { AppLockOverlay } from './src/components/common/AppLockOverlay';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const appState = useRef(AppState.currentState);
   const biometricsRequiredRef = useRef(false);
-
-  const authenticate = async () => {
-    try {
-      const rnBiometrics = new ReactNativeBiometrics();
-      await rnBiometrics.simplePrompt({
-        promptMessage: 'Unlock MoveHub',
-        cancelButtonText: 'Cancel'
-      });
-    } catch (err) {
-      console.warn('[App] Biometric auth error:', err);
-    }
-  };
+  
+  const [isAppLocked, setIsAppLocked] = useState(false);
+  const [biometricsTypeLabel, setBiometricsTypeLabel] = useState('Biometrics');
+  const [lockKey, setLockKey] = useState(0);
 
   useEffect(() => {
     const initBiometrics = async () => {
       try {
         const rnBiometrics = new ReactNativeBiometrics();
-        const { available } = await rnBiometrics.isSensorAvailable();
+        const { available, biometryType } = await rnBiometrics.isSensorAvailable();
+        
+        let label = 'Biometrics';
+        if (biometryType === 'TouchID') {
+          label = 'Touch ID';
+        } else if (biometryType === 'FaceID') {
+          label = 'Face ID';
+        } else {
+          label = 'Fingerprint / Face ID';
+        }
+        setBiometricsTypeLabel(label);
+
         const isEnabled = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);
         
         if (available && isEnabled) {
           biometricsRequiredRef.current = true;
-          setTimeout(() => {
-            authenticate();
-          }, 600);
+          setIsAppLocked(true);
+          setLockKey(Date.now());
         }
       } catch (err) {
         console.warn('Biometric init error', err);
@@ -52,7 +55,11 @@ function App(): React.JSX.Element {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         if (biometricsRequiredRef.current) {
-          setTimeout(() => authenticate(), 300);
+          setLockKey(Date.now());
+        }
+      } else if (nextAppState.match(/inactive|background/)) {
+        if (biometricsRequiredRef.current) {
+          setIsAppLocked(true);
         }
       }
       appState.current = nextAppState;
@@ -81,7 +88,15 @@ function App(): React.JSX.Element {
         <SafeAreaProvider>
           <NavigationContainer>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-            <RootNavigator />
+            {isAppLocked ? (
+              <AppLockOverlay
+                key={lockKey}
+                onUnlock={() => setIsAppLocked(false)}
+                biometricsTypeLabel={biometricsTypeLabel}
+              />
+            ) : (
+              <RootNavigator />
+            )}
           </NavigationContainer>
         </SafeAreaProvider>
       </GestureHandlerRootView>

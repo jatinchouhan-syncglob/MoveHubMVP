@@ -318,7 +318,7 @@ const DrawerNavigatorContent: React.FC = () => {
               })}
 
               {/* Nutrition Hub Accordion Trigger */}
-              {/* {(() => {
+               {(() => {
                 const isNutritionActive = pendingScreen !== null
                   ? ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(pendingScreen)
                   : ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen);
@@ -346,7 +346,7 @@ const DrawerNavigatorContent: React.FC = () => {
                     </Text>
                   </TouchableOpacity>
                 );
-              })()} */}
+              })()} 
 
               {/* Expanded Nutrition Sub-Menus */}
               {isNutritionExpanded && (

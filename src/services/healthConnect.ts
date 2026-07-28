@@ -1110,14 +1110,12 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     const uhid = cachedProfile?.uhid || 'SAUSHA9775';
     const deviceId = await getDynamicDeviceId();
 
-    const API_BASE_URL = 'https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend';
+    const API_BASE_URL = 'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/backend';
     const syncedIntervalsSet = new Set(await getHealthConnectSyncedIntervals());
 
     // 2a. Fetch synced keys cache from SharedPreferences
     const syncedKeysArray = await getHealthConnectSyncedKeys();
     const syncedKeysSet = new Set(syncedKeysArray);
-    const isCacheEmpty = syncedKeysSet.size === 0;
-
     const sessions = ['morning', 'afternoon', 'evening', 'night'];
     const now = dayjs();
 

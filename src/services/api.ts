@@ -18,7 +18,7 @@ const BASE_URL = 'https://api.movehub.example.com/v1';
 export const BACKEND_8081_URL =
   'https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com';
 export const BACKEND_8082_URL =
-  'https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com';
+  'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com';
 
 // Create Axios Instance
 export const axiosInstance = axios.create({
@@ -439,7 +439,7 @@ export const apiService = {
   }): Promise<any> {
     try {
       const response = await axios.post(
-        `http://13.127.122.202:8082/backend/health-connect/saveUserActivity`,
+        `${BACKEND_8082_URL}/backend/health-connect/saveUserActivity`,
         activityData,
       );
       return response.data;
