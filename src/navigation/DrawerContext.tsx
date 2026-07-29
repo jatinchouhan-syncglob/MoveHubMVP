@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type DrawerScreenType = 'FitnessPrescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance';
+export type DrawerScreenType = 'FitnessPrescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'OngoingQuest' | 'CommunityFeed' | 'Training' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations';
 
 interface DrawerContextProps {
   isOpen: boolean;

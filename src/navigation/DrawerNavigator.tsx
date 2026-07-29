@@ -37,6 +37,13 @@ import MealPlannerScreen from '../screens/Nutrition/meal-planner-screen';
 import DailyComplianceScreen from '../screens/Nutrition/daily-compliance-screen';
 import WeeklyComplianceScreen from '../screens/Nutrition/weekly-compliance-screen';
 import { WellnessModal } from '../components/common/WellnessModal';
+import DailyQuestScreen from '../screens/HomeHub/DailyQuest';
+import OngoingQuestScreen from '../screens/HomeHub/OngoingQuest';
+import CommunityFeedScreen from '../screens/HomeHub/CommunityFeed';
+import TrainingScreen from '../screens/HomeHub/Training';
+import { UploadReportsScreen, DigitalWalletScreen, CaseHistoryScreen, HealthPassportScreen } from '../screens/VaultHub';
+import { DailyLogScreen, WellnessScreen, HealthReportCardScreen, MindsetHubScreen } from '../screens/VitalityHub';
+import { RiskAssessmentScreen, PreventiveCareScreen, RiskTrackerScreen, RiskToolsScreen, MyConsultationsScreen } from '../screens/ShieldHub';
 
 const DRAWER_WIDTH = 290;
 
@@ -50,10 +57,24 @@ const DrawerNavigatorContent: React.FC = () => {
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
   const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
+  const [isMoveHubExpanded, setIsMoveHubExpanded] = React.useState(false);
+  const [isHomeHubExpanded, setIsHomeHubExpanded] = React.useState(false);
+  const [isVaultHubExpanded, setIsVaultHubExpanded] = React.useState(false);
+  const [isVitalityHubExpanded, setIsVitalityHubExpanded] = React.useState(false);
+  const [isShieldHubExpanded, setIsShieldHubExpanded] = React.useState(false);
   const [wellnessModalVisible, setWellnessModalVisible] = React.useState(false);
   const [pendingScreen, setPendingScreen] =
     React.useState<DrawerScreenType | null>(null);
   const navTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const collapseAllHubsExcept = (activeHub: 'nutrition' | 'move' | 'home' | 'vault' | 'vitality' | 'shield' | 'none') => {
+    setIsNutritionExpanded(activeHub === 'nutrition');
+    setIsMoveHubExpanded(activeHub === 'move');
+    setIsHomeHubExpanded(activeHub === 'home');
+    setIsVaultHubExpanded(activeHub === 'vault');
+    setIsVitalityHubExpanded(activeHub === 'vitality');
+    setIsShieldHubExpanded(activeHub === 'shield');
+  };
 
   React.useEffect(() => {
     return () => {
@@ -87,24 +108,93 @@ const DrawerNavigatorContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (
-      [
-        'MealLog',
-        'MealAnalysis',
-        'MealPlanner',
-        'DailyCompliance',
-        'WeeklyCompliance',
-      ].includes(activeScreen) ||
-      (pendingScreen &&
-        [
-          'MealLog',
-          'MealAnalysis',
-          'MealPlanner',
-          'DailyCompliance',
-          'WeeklyCompliance',
-        ].includes(pendingScreen))
-    ) {
+    const currentScreen = pendingScreen || activeScreen;
+    
+    const nutritionScreens = [
+      'MealLog',
+      'MealAnalysis',
+      'MealPlanner',
+      'DailyCompliance',
+      'WeeklyCompliance',
+    ];
+    const moveHubScreens = [
+      'FitnessPrescription',
+      'ActivityTracking',
+      'FitnessChallenges',
+      'Leaderboard',
+      'Dashboard',
+      'Insights',
+      'Awards',
+      'FitnessTraining',
+    ];
+    const homeHubScreens = [
+      'DailyQuest',
+      'OngoingQuest',
+      'CommunityFeed',
+      'Training',
+    ];
+    const vaultHubScreens = [
+      'UploadReports',
+      'DigitalWallet',
+      'CaseHistory',
+      'HealthPassport',
+    ];
+    const vitalityHubScreens = [
+      'DailyLog',
+      'Wellness',
+      'HealthReportCard',
+      'MindsetHub',
+    ];
+    const shieldHubScreens = [
+      'RiskAssessment',
+      'PreventiveCare',
+      'RiskTracker',
+      'RiskTools',
+      'MyConsultations',
+    ];
+
+    if (nutritionScreens.includes(currentScreen)) {
       setIsNutritionExpanded(true);
+      setIsMoveHubExpanded(false);
+      setIsHomeHubExpanded(false);
+      setIsVaultHubExpanded(false);
+      setIsVitalityHubExpanded(false);
+      setIsShieldHubExpanded(false);
+    } else if (moveHubScreens.includes(currentScreen)) {
+      setIsMoveHubExpanded(true);
+      setIsNutritionExpanded(false);
+      setIsHomeHubExpanded(false);
+      setIsVaultHubExpanded(false);
+      setIsVitalityHubExpanded(false);
+      setIsShieldHubExpanded(false);
+    } else if (homeHubScreens.includes(currentScreen)) {
+      setIsHomeHubExpanded(true);
+      setIsNutritionExpanded(false);
+      setIsMoveHubExpanded(false);
+      setIsVaultHubExpanded(false);
+      setIsVitalityHubExpanded(false);
+      setIsShieldHubExpanded(false);
+    } else if (vaultHubScreens.includes(currentScreen)) {
+      setIsVaultHubExpanded(true);
+      setIsNutritionExpanded(false);
+      setIsMoveHubExpanded(false);
+      setIsHomeHubExpanded(false);
+      setIsVitalityHubExpanded(false);
+      setIsShieldHubExpanded(false);
+    } else if (vitalityHubScreens.includes(currentScreen)) {
+      setIsVitalityHubExpanded(true);
+      setIsNutritionExpanded(false);
+      setIsMoveHubExpanded(false);
+      setIsHomeHubExpanded(false);
+      setIsVaultHubExpanded(false);
+      setIsShieldHubExpanded(false);
+    } else if (shieldHubScreens.includes(currentScreen)) {
+      setIsShieldHubExpanded(true);
+      setIsNutritionExpanded(false);
+      setIsMoveHubExpanded(false);
+      setIsHomeHubExpanded(false);
+      setIsVaultHubExpanded(false);
+      setIsVitalityHubExpanded(false);
     }
   }, [activeScreen, pendingScreen]);
 
@@ -203,6 +293,40 @@ const DrawerNavigatorContent: React.FC = () => {
         return <InsightsScreen />;
       case 'Profile':
         return <ProfileScreen />;
+      case 'DailyQuest':
+        return <DailyQuestScreen />;
+      case 'OngoingQuest':
+        return <OngoingQuestScreen />;
+      case 'CommunityFeed':
+        return <CommunityFeedScreen />;
+      case 'Training':
+        return <TrainingScreen />;
+      case 'UploadReports':
+        return <UploadReportsScreen />;
+      case 'DigitalWallet':
+        return <DigitalWalletScreen />;
+      case 'CaseHistory':
+        return <CaseHistoryScreen />;
+      case 'HealthPassport':
+        return <HealthPassportScreen />;
+      case 'DailyLog':
+        return <DailyLogScreen />;
+      case 'Wellness':
+        return <WellnessScreen />;
+      case 'HealthReportCard':
+        return <HealthReportCardScreen />;
+      case 'MindsetHub':
+        return <MindsetHubScreen />;
+      case 'RiskAssessment':
+        return <RiskAssessmentScreen />;
+      case 'PreventiveCare':
+        return <PreventiveCareScreen />;
+      case 'RiskTracker':
+        return <RiskTrackerScreen />;
+      case 'RiskTools':
+        return <RiskToolsScreen />;
+      case 'MyConsultations':
+        return <MyConsultationsScreen />;
       case 'Dashboard':
       default:
         return <DashboardScreen />;
@@ -282,42 +406,268 @@ const DrawerNavigatorContent: React.FC = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.menuContainer}>
-              {menuItems.map(item => {
-                const isActive =
-                  pendingScreen !== null
-                    ? pendingScreen === item.screen
-                    : activeScreen === item.screen;
+              {/* Home Hub Accordion Trigger */}
+              {(() => {
+                const isHomeHubActive = pendingScreen !== null
+                  ? ['DailyQuest', 'OngoingQuest', 'CommunityFeed', 'Training'].includes(pendingScreen)
+                  : ['DailyQuest', 'OngoingQuest', 'CommunityFeed', 'Training'].includes(activeScreen);
                 return (
                   <TouchableOpacity
-                    key={item.screen}
-                    style={[styles.menuItem, isActive && styles.activeMenuItem]}
+                    style={[
+                      styles.menuItem,
+                      isHomeHubActive && styles.activeMenuItem
+                    ]}
                     activeOpacity={0.7}
-                    onPress={() => handleDelayedNavigation(item.screen)}
+                    onPress={() => collapseAllHubsExcept(isHomeHubExpanded ? 'none' : 'home')}
                   >
-                    {/* Active vertical left accent line */}
-                    {isActive && <View style={styles.activeIndicator} />}
-
-                    <Text
-                      style={[
-                        styles.menuIcon,
-                        isActive && styles.activeMenuIcon,
-                      ]}
-                    >
-                      {item.icon}
-                    </Text>
+                    <Text style={styles.menuIcon}>🏠</Text>
                     <Text
                       style={[
                         styles.menuLabel,
-                        isActive && styles.activeMenuLabel,
+                        isHomeHubActive && styles.activeMenuLabel,
+                        { flex: 1 }
                       ]}
                     >
-                      {item.label}
+                      Home Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isHomeHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
                 );
-              })}
+              })()}
 
-              {/* Nutrition Hub Accordion Trigger */}
+              {/* Expanded Home Hub Sub-Menus */}
+              {isHomeHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    {
+                      screen: 'DailyQuest' as const,
+                      label: 'Daily Quest',
+                      icon: '📅',
+                    },
+                    {
+                      screen: 'CommunityFeed' as const,
+                      label: 'Community Feed',
+                      icon: '💬',
+                    },
+                    {
+                      screen: 'OngoingQuest' as const,
+                      label: 'Ongoing Quest',
+                      icon: '⚡',
+                    },
+                    {
+                      screen: 'Training' as const,
+                      label: 'Training',
+                      icon: '🎓',
+                    },
+                  ].map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Vault Hub Accordion Trigger */}
+              {(() => {
+                const isVaultHubActive = pendingScreen !== null
+                  ? ['UploadReports', 'DigitalWallet', 'CaseHistory', 'HealthPassport'].includes(pendingScreen)
+                  : ['UploadReports', 'DigitalWallet', 'CaseHistory', 'HealthPassport'].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isVaultHubActive && styles.activeMenuItem
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => collapseAllHubsExcept(isVaultHubExpanded ? 'none' : 'vault')}
+                  >
+                    <Text style={styles.menuIcon}>📁</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isVaultHubActive && styles.activeMenuLabel,
+                        { flex: 1 }
+                      ]}
+                    >
+                      Vault Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isVaultHubExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {/* Expanded Vault Hub Sub-Menus */}
+              {isVaultHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    {
+                      screen: 'UploadReports' as const,
+                      label: 'Upload Reports',
+                      icon: '📤',
+                    },
+                    {
+                      screen: 'DigitalWallet' as const,
+                      label: 'MR-Digital Wallet',
+                      icon: '💳',
+                    },
+                    {
+                      screen: 'CaseHistory' as const,
+                      label: 'Case History',
+                      icon: '📜',
+                    },
+                    {
+                      screen: 'HealthPassport' as const,
+                      label: 'Health Passport',
+                      icon: '✈️',
+                    },
+                  ].map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Move Hub Accordion Trigger */}
+              {(() => {
+                const isMoveHubActive = pendingScreen !== null
+                  ? [
+                      'FitnessPrescription',
+                      'ActivityTracking',
+                      'FitnessChallenges',
+                      'Leaderboard',
+                      'Dashboard',
+                      'Insights',
+                      'Awards',
+                      'FitnessTraining',
+                    ].includes(pendingScreen)
+                  : [
+                      'FitnessPrescription',
+                      'ActivityTracking',
+                      'FitnessChallenges',
+                      'Leaderboard',
+                      'Dashboard',
+                      'Insights',
+                      'Awards',
+                      'FitnessTraining',
+                    ].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isMoveHubActive && styles.activeMenuItem
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => collapseAllHubsExcept(isMoveHubExpanded ? 'none' : 'move')}
+                  >
+                    <Text style={styles.menuIcon}>🏃‍♂️</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isMoveHubActive && styles.activeMenuLabel,
+                        { flex: 1 }
+                      ]}
+                    >
+                      Move Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isMoveHubExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {/* Expanded Move Hub Sub-Menus */}
+              {isMoveHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {menuItems.map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Nourish Hub Accordion Trigger */}
                {(() => {
                 const isNutritionActive = pendingScreen !== null
                   ? ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(pendingScreen)
@@ -329,7 +679,7 @@ const DrawerNavigatorContent: React.FC = () => {
                       isNutritionActive && styles.activeMenuItem
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => setIsNutritionExpanded(prev => !prev)}
+                    onPress={() => collapseAllHubsExcept(isNutritionExpanded ? 'none' : 'nutrition')}
                   >
                     <Text style={styles.menuIcon}>🥑</Text>
                     <Text
@@ -339,7 +689,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         { flex: 1 }
                       ]}
                     >
-                      Nutrition Hub
+                      Nourish Hub
                     </Text>
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
                       {isNutritionExpanded ? '▼' : '▶'}
@@ -376,6 +726,187 @@ const DrawerNavigatorContent: React.FC = () => {
                       screen: 'WeeklyCompliance' as const,
                       label: 'Weekly Compliance',
                       icon: '📈',
+                    },
+                  ].map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Vitality Hub Accordion Trigger */}
+              {(() => {
+                const isVitalityHubActive = pendingScreen !== null
+                  ? ['DailyLog', 'Wellness', 'HealthReportCard', 'MindsetHub'].includes(pendingScreen)
+                  : ['DailyLog', 'Wellness', 'HealthReportCard', 'MindsetHub'].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isVitalityHubActive && styles.activeMenuItem
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => collapseAllHubsExcept(isVitalityHubExpanded ? 'none' : 'vitality')}
+                  >
+                    <Text style={styles.menuIcon}>⚡</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isVitalityHubActive && styles.activeMenuLabel,
+                        { flex: 1 }
+                      ]}
+                    >
+                      Vitality Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isVitalityHubExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {/* Expanded Vitality Hub Sub-Menus */}
+              {isVitalityHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    {
+                      screen: 'DailyLog' as const,
+                      label: 'Daily Log',
+                      icon: '📝',
+                    },
+                    {
+                      screen: 'Wellness' as const,
+                      label: 'Wellness',
+                      icon: '❤️',
+                    },
+                    {
+                      screen: 'HealthReportCard' as const,
+                      label: 'Health Report Card',
+                      icon: '📊',
+                    },
+                    {
+                      screen: 'MindsetHub' as const,
+                      label: 'Mindset Hub',
+                      icon: '🧠',
+                    },
+                  ].map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Shield Hub Accordion Trigger */}
+              {(() => {
+                const isShieldHubActive = pendingScreen !== null
+                  ? ['RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(pendingScreen)
+                  : ['RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isShieldHubActive && styles.activeMenuItem
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => collapseAllHubsExcept(isShieldHubExpanded ? 'none' : 'shield')}
+                  >
+                    <Text style={styles.menuIcon}>🛡️</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isShieldHubActive && styles.activeMenuLabel,
+                        { flex: 1 }
+                      ]}
+                    >
+                      Shield Hub
+                    </Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                      {isShieldHubExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {/* Expanded Shield Hub Sub-Menus */}
+              {isShieldHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    {
+                      screen: 'RiskAssessment' as const,
+                      label: 'Risk Assessment',
+                      icon: '📋',
+                    },
+                    {
+                      screen: 'PreventiveCare' as const,
+                      label: 'Preventive Care',
+                      icon: '🛡️',
+                    },
+                    {
+                      screen: 'RiskTracker' as const,
+                      label: 'Risk Tracker',
+                      icon: '📈',
+                    },
+                    {
+                      screen: 'RiskTools' as const,
+                      label: 'Risk Tools',
+                      icon: '🔧',
+                    },
+                    {
+                      screen: 'MyConsultations' as const,
+                      label: 'My Consultations',
+                      icon: '🤝',
                     },
                   ].map(subItem => {
                     const isSubActive =
