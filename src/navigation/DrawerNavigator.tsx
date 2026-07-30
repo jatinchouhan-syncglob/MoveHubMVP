@@ -443,7 +443,7 @@ const DrawerNavigatorContent: React.FC = () => {
                   {[
                     {
                       screen: 'DailyQuest' as const,
-                      label: 'Daily Quest',
+                      label: 'My Quest',
                       icon: '📅',
                     },
                     {

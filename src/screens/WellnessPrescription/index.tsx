@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -96,302 +96,134 @@ export const WellnessPrescriptionScreen: React.FC<
 
 
   const fetchPrescriptionMutation = useFetchPrescriptionMutation();
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const initializeDualCardData = useCallback(async () => {
+    setFetchError(null);
+    setLoading(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const name = cachedProfile?.name || 'Robert D.';
+      const rawUserId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const userId = `usr_${rawUserId || 'rob_55'}`;
+
+      // Fetch User Profile and Pacing Profile APIs (for verification logging)
+      try {
+        const userProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/userProfile?uhid=${targetUhid}`);
+        const userProfileJson = await userProfileRes.json();
+        console.log('[WellnessPrescription] GET User Profile Response:', JSON.stringify(userProfileJson, null, 2));
+        if (userProfileJson && userProfileJson.status === 'Success' && userProfileJson.data) {
+          setApiUserProfile(userProfileJson.data);
+        }
+      } catch (err) {
+        console.error('[WellnessPrescription] Error fetching User Profile:', err);
+      }
+
+      try {
+        const pacingProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
+        const pacingProfileJson = await pacingProfileRes.json();
+        console.log('[WellnessPrescription] GET Pacing Profile Response:', JSON.stringify(pacingProfileJson, null, 2));
+        if (pacingProfileJson && pacingProfileJson.status === 'Success' && pacingProfileJson.data) {
+          setApiPacingProfile(pacingProfileJson.data);
+        }
+      } catch (err) {
+        console.error('[WellnessPrescription] Error fetching Pacing Profile:', err);
+      }
+
+      // 1. TanStack Query Prescription API (POST Form-Data) - MUST succeed
+      console.log(`[WellnessPrescription] Calling TanStack Query Prescription API for UHID: ${targetUhid}...`);
+      const payloadData = await fetchPrescriptionMutation.mutateAsync(targetUhid);
+      console.log('[WellnessPrescription] TanStack Query Full Response Payload:', JSON.stringify(payloadData, null, 2));
+      
+      if (!payloadData) {
+        throw new Error('Server returned empty prescription data.');
+      }
+      setApiPrescription(payloadData);
+
+      // 2. Fetch unified payload from Redis Gateway REST endpoint
+      let redisData: any = null;
+      try {
+        const response = await fetch(
+          `https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/api/v1/insights/user/${userId}`,
+          {
+            headers: { Accept: 'application/json' },
+          },
+        );
+        if (response.ok) {
+          redisData = await response.json();
+        }
+      } catch (err) {
+        console.warn('[WellnessPrescription] Redis fetch failed:', err);
+      }
+
+      if (redisData && redisData.engineVerificationSignature) {
+        setRawPayload(redisData);
+        if (redisData.overloadForecastText?.toLowerCase().includes('week 2') || redisData.overloadForecastText?.toLowerCase().includes('intercept')) {
+          setSelectedWeek('week2');
+        } else {
+          setSelectedWeek('week1');
+        }
+      } else {
+        // Safe base skeleton to allow apiPrescription overrides without client-side metric generation
+        const basePayload: DualCardPayload = {
+          userId: targetUhid,
+          userName: name,
+          age: cachedProfile?.age || 35,
+          weightKg: cachedProfile?.weight || 70,
+          heightCm: cachedProfile?.height || 170,
+          bmi: 24.2,
+          pacingModeLabel: 'GENERAL PACING',
+          durationDays: 30,
+          startDateString: '2026-07-28',
+          endDateString: '2026-08-28',
+          dailyTargetSteps: 6000,
+          quadrants: [
+            { label: 'Cardio Health (V1)', points: 0, percentage: 0, color: '#06b6d4' },
+            { label: 'Balance & Agility (A3)', points: 0, percentage: 0, color: '#8b5cf6' },
+            { label: 'Metabolic Fluidity (M2)', points: 0, percentage: 0, color: '#f97316' },
+            { label: 'Structural Density (D4)', points: 0, percentage: 0, color: '#10b981' }
+          ],
+          dailyActiveBurnKcal: 0,
+          dailyTdeeKcal: 0,
+          dailyGainPoints: 0,
+          monthlyActiveBurnKcal: 0,
+          monthlyTdeeKcal: 0,
+          monthlyGainPoints: 0,
+          weeklyHeartPointsRange: '0-0',
+          foundationalChecklist: [],
+          heartRateLimitBpm: 120,
+          absoluteMetCeiling: 10.0,
+          minSleepThresholdHours: 7.0,
+          physiologicalRationale: 'Standard pacing boundaries loaded.',
+          medicalLiteratureCitation: 'Clinical prescription details verified from server.',
+          overloadForecastText: 'Safe limits active.',
+          biometricTargets: {
+            hppsTargetValue: 0,
+            insulinSensitivityIndicator: 'Baseline',
+            eePerKmTarget: 0,
+            bseTargetValue: 0,
+            sDexTargetValue: 0,
+          },
+          engineVerificationSignature: 'RAW_FALLBACK_BASE',
+        };
+        setRawPayload(basePayload);
+      }
+
+      setLoading(false);
+    } catch (error: any) {
+      console.error('[WellnessPrescription] Execution failed:', error);
+      setFetchError(error?.message || 'Failed to fetch prescription from backend server.');
+      setLoading(false);
+    }
+  }, [selectedWeek]);
 
   useEffect(() => {
-    const initializeDualCardData = async () => {
-      try {
-        const cachedProfile = await storageHelper.getItem<UserProfile>(
-          STORAGE_KEYS.USER_PROFILE,
-        );
-        const cachedPacing =
-          (await storageHelper.getItem<string[]>(
-            STORAGE_KEYS.PACING_PROFILE,
-          )) || [];
-        const customOtherText =
-          (await storageHelper.getItem<string>(
-            STORAGE_KEYS.PACING_OTHER_TEXT,
-          )) || '';
-
-        // Fetch User Profile and Pacing Profile APIs (for verification logging)
-        const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-        try {
-          const userProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/userProfile?uhid=${targetUhid}`);
-          const userProfileJson = await userProfileRes.json();
-          console.log('[WellnessPrescription] GET User Profile Response:', JSON.stringify(userProfileJson, null, 2));
-          if (userProfileJson && userProfileJson.status === 'Success' && userProfileJson.data) {
-            setApiUserProfile(userProfileJson.data);
-          }
-        } catch (err) {
-          console.error('[WellnessPrescription] Error fetching User Profile:', err);
-        }
-
-        try {
-          const pacingProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
-          const pacingProfileJson = await pacingProfileRes.json();
-          console.log('[WellnessPrescription] GET Pacing Profile Response:', JSON.stringify(pacingProfileJson, null, 2));
-          if (pacingProfileJson && pacingProfileJson.status === 'Success' && pacingProfileJson.data) {
-            setApiPacingProfile(pacingProfileJson.data);
-          }
-        } catch (err) {
-          console.error('[WellnessPrescription] Error fetching Pacing Profile:', err);
-        }
-
-        // TanStack Query Prescription API (POST Form-Data)
-        try {
-          console.log(`[WellnessPrescription] Calling TanStack Query Prescription API for UHID: ${targetUhid}...`);
-          const payloadData = await fetchPrescriptionMutation.mutateAsync(targetUhid);
-          console.log('[WellnessPrescription] TanStack Query Full Response Payload:', JSON.stringify(payloadData, null, 2));
-          
-          if (payloadData) {
-            setApiPrescription(payloadData);
-          }
-        } catch (err) {
-          console.error('[WellnessPrescription] Error fetching TanStack Query Prescription API:', err);
-        }
-        const name = cachedProfile?.name || 'Robert D.';
-        const age = cachedProfile?.age || 55;
-        const weight = cachedProfile?.weight || 75.0;
-        const height = cachedProfile?.height || 178;
-
-        const pacingLabelsMap: Record<string, string> = {
-          cardio_pacing: '🫀 Cardiovascular',
-          metabolic_buffer: '🧪 Metabolic',
-          joint_focus: '🦾 Joint & Muscle',
-          pulmonary_balancing: '🫁 Pulmonary',
-          vascular_stabilization: '🩸 Vascular',
-          systemic_restoration: '🧘 Systemic',
-          none: '🛡️ None',
-          other: customOtherText ? `🌀 Other (${customOtherText})` : '🌀 Other',
-        };  
-
-        const activePacingLabels = cachedPacing.map(
-          id => pacingLabelsMap[id] || id,
-        );
-        const pacingModeLabelString =
-          activePacingLabels.length > 0
-            ? activePacingLabels.join(', ')
-            : '🫀 Cardiovascular';
-
-        const pacingMode = cachedPacing[0] || 'cardio_pacing';
-        const isCardio = cachedPacing.includes('cardio_pacing') || cachedPacing.length === 0;
-        const isNoneSelected = cachedPacing.includes('none');
-        const isOtherSelected = cachedPacing.includes('other');
-
-        const rawUserId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        const userId = `usr_${rawUserId || 'rob_55'}`;
-        // 1. Attempt to fetch unified payload from Redis Gateway REST endpoint
-        try {
-          const response = await fetch(
-            `https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/api/v1/insights/user/${userId}`,
-            {
-              headers: { Accept: 'application/json' },
-            },
-          );
-          const data = await response.json();
-          if (data && data.engineVerificationSignature) {
-            setRawPayload(data);
-            if (data.overloadForecastText?.toLowerCase().includes('week 2') || data.overloadForecastText?.toLowerCase().includes('intercept')) {
-              setSelectedWeek('week2');
-            } else {
-              setSelectedWeek('week1');
-            }
-            setLoading(false);
-            return;
-          }
-        } catch {
-          // Silent catch: Failover to local bio-computation client engine
-          console.log(
-            'API fetch failover: generating local bio-computational payload.',
-          );
-        }
-
-        // 2. Client-Side Failover Engine (Self-Healing Local Calculations)
-        const startDateStr = selectedWeek === 'week1' ? '18-06-2026' : '29-06-2026';
-        const endDateStr = selectedWeek === 'week1' ? '18-07-2026' : '29-07-2026';
-
-        // Step target calculation
-        const baseSteps =
-          pacingMode === 'active'
-            ? 8500
-            : pacingMode === 'sedentary'
-            ? 4500
-            : 6500;
-        const stepTarget = Math.round(baseSteps * (weight / 70.0));
-
-        // MET and BMR calculations
-        const bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-        const restingDaily = bmr * 1.1;
-
-        const finalMet = isCardio ? 3.5 : 4.0;
-        const eeKcal = Math.round(((finalMet * 3.5 * weight) / 200.0) * 30); // 30 minutes active
-        const dailyTdee = Math.round(restingDaily + eeKcal);
-        const dailyGain = Math.round(eeKcal * 0.15); // RECOVERY_GAIN_COEFFICIENT = 0.15
-
-        // Non-clinical pacing mode inversion mappings
-        let pacingLabel = pacingModeLabelString.toUpperCase();
-        let litCitation =
-          'Standard Wellness Guidance: Consistent physical activity pacing above the 3.0 MET boundary maintains skeletal muscle insulin sensitivity and clears carbohydrate loading loops. (Diabetes Care, 2025).';
-        let cardioP = 25,
-          agilityP = 25,
-          metabolicP = 25,
-          structuralP = 25;
-        let cColor = '#06b6d4',
-          aColor = '#8b5cf6',
-          mColor = '#f97316',
-          sColor = '#10b981'; // curated light modes colors (cyan, purple, orange, green)
-        let routines: Routine[] = [
-          {
-            id: 'c1',
-            title: '1. 🚶 Low-Impact Brisk Walking',
-            schedule: '5x Weekly  •  30 mins  •  Target: Moderate',
-            deepDiveText:
-              'Promotes general cardiorespiratory volume expansion and fat-oxidation.',
-          },
-          {
-            id: 'c2',
-            title: '2. 💪 Postural Core Activation',
-            schedule: '2x Weekly  •  20 mins  •  Target: RPE 4',
-            deepDiveText:
-              'Strengthens baseline stability networks to optimize tracking metrics.',
-          },
-          {
-            id: 'c3',
-            title: '3. 🧘 Mobilization Stretching',
-            schedule: '3x Weekly  •  15 mins  •  Target: Light',
-            deepDiveText:
-              'Lowers autonomic resting stress values and balances nervous tone.',
-          },
-        ];
-
-        if (isCardio) {
-          pacingLabel = pacingModeLabelString.toUpperCase();
-          cardioP = 45;
-          agilityP = 30;
-          metabolicP = 15;
-          structuralP = 10;
-          litCitation =
-            'Aligned with the American Heart Association (AHA) consensus statements, establishing low-impact, steady aerobic pacing below high-intensity cardiac thresholds prevents the decay of arterial compliance, directly protecting endothelial health and optimizing stroke volume efficiency across aging profiles. (Circulation, 2024).';
-          routines = [
-            {
-              id: 'rc_walk',
-              title: '1. Low-Impact Brisk Walking',
-              schedule: selectedWeek === 'week1' ? '4x Weekly • 30 mins • Target Zone: 75-95 BPM (RPE 10-11)' : '4x Weekly • 30 mins • Target Zone: 75-95 BPM',
-              deepDiveText:
-                'Cadence Strategy: Target 100 steps/min. Promotes optimal stroke volume and clears glucose loops safely.',
-            },
-            {
-              id: 'rc_core',
-              title: '2. Seated Core Alignment',
-              schedule: '2x Weekly • 20 mins • Target Zone: RPE 3 (Very Light)',
-              deepDiveText:
-                'Postural Alignment Strategy: Engages stability muscles around the spinal matrix.',
-            },
-            {
-              id: 'rc_yoga',
-              title: '3. Assisted Chair Yoga',
-              schedule: '3x Weekly • 30 mins • Target Zone: Restricted Rest Pace',
-              deepDiveText:
-                'Vascular Fluidity Strategy: Deep breathing triggers the parasympathetic system.',
-            },
-          ];
-        } else if (isNoneSelected) {
-          litCitation =
-            'General Wellness Targets: Physical activity pacing maintains baseline cardiorespiratory capacity, insulin sensitivity, and joint mobility in healthy populations. (WHO Physical Activity Guidelines, 2024).';
-        } else if (isOtherSelected) {
-          litCitation = `Custom Wellness Pacing: Moderated exercise routines are calibrated to prevent muscle strains, control blood pressure spikes, and support recovery targets from custom limitations (${
-            customOtherText || 'Other'
-          }).`;
-        }
-
-        const heartPoints = finalMet >= 6.0 ? 60 : 30;
-
-        const dynamicPayload: DualCardPayload = {
-          userId,
-          userName: name,
-          age,
-          weightKg: weight,
-          heightCm: height,
-          bmi: 23.0,
-          pacingModeLabel: isCardio ? 'CARDIOVASCULAR PACING PROFILE (HYPERTENSION ACTIVE)' : pacingLabel,
-          durationDays: 30,
-          startDateString: startDateStr,
-          endDateString: endDateStr,
-          dailyTargetSteps: isCardio ? 6000 : stepTarget,
-          quadrants: isCardio ? [
-            { label: 'Cardio Health (V1)', points: 40, percentage: 100, color: '#06b6d4' },
-            { label: 'Balance & Agility (A3)', points: 40, percentage: 100, color: '#8b5cf6' },
-            { label: 'Metabolic Fluidity (M2)', points: 40, percentage: 100, color: '#f97316' },
-            { label: 'Structural Density (D4)', points: 30, percentage: 100, color: '#10b981' }
-          ] : [
-            {
-              label: '🫁 Cardio Health (V1)',
-              points: Math.round(dailyGain * 30 * (cardioP / 100)),
-              percentage: cardioP,
-              color: cColor,
-            },
-            {
-              label: '⚡ Balance & Agility (A3)',
-              points: Math.round(dailyGain * 30 * (agilityP / 100)),
-              percentage: agilityP,
-              color: aColor,
-            },
-            {
-              label: '🧪 Metabolic Fluidity (M2)',
-              points: Math.round(dailyGain * 30 * (metabolicP / 100)),
-              percentage: metabolicP,
-              color: mColor,
-            },
-            {
-              label: '🦴 Structural Density (D4)',
-              points: Math.round(dailyGain * 30 * (structuralP / 100)),
-              percentage: structuralP,
-              color: sColor,
-            },
-          ],
-          dailyActiveBurnKcal: isCardio ? 300 : eeKcal,
-          dailyTdeeKcal: isCardio ? 1850 : dailyTdee,
-          dailyGainPoints: isCardio ? 150 : dailyGain,
-          monthlyActiveBurnKcal: isCardio ? 9000 : eeKcal * 30,
-          monthlyTdeeKcal: isCardio ? 55500 : dailyTdee * 30,
-          monthlyGainPoints: isCardio ? 4500 : dailyGain * 30,
-          weeklyHeartPointsRange: isCardio ? '35-50' : `${heartPoints * 4}-${heartPoints * 5}`,
-          foundationalChecklist: routines,
-          heartRateLimitBpm: isCardio ? 125 : 150,
-          absoluteMetCeiling: isCardio ? 12.0 : 23.0,
-          minSleepThresholdHours: isCardio ? 7.5 : 6.0,
-          physiologicalRationale: isCardio ? 'Sustained steady-state movement between 3.0 and 5.5 METs promotes regular endothelial nitric oxide release, optimizing peripheral vascular resistance to safely manage systemic blood pressure while protecting pacing loops from rate-responsive over-acceleration.' : `Sustained steady-state movement between 3.0 and 5.5 METs (${Math.round(
-            dailyGain * 0.8,
-          )}-${Math.round(
-            dailyGain * 1.5,
-          )} Daily Points) promotes regular endothelial nitric oxide release, improving vascular elasticity and lowering peripheral resistance safely.`,
-          medicalLiteratureCitation: litCitation,
-          overloadForecastText: isCardio
-            ? (selectedWeek === 'week1'
-              ? 'Safety boundaries locked permanently. Step metrics increment tracking remains disabled to protect systemic baseline thresholds.'
-              : '[Overload Forecast - Week 2 Safety Intercept] Baseline execution targets successfully met. Safety boundaries are locked permanently. Numerical parameters remain fixed at Phase 1 thresholds to isolate arterial shear stress.')
-            : 'Overload Forecast: Maintaining a weekly consistency score >= 80% automatically upgrades your baseline step boundaries by 10% next Saturday.',
-          biometricTargets: {
-            hppsTargetValue: isCardio ? 5.0 : 45,
-            insulinSensitivityIndicator: isCardio
-              ? (selectedWeek === 'week1' ? 'Baseline Stability Verified' : 'OPTIMIZED: Week 1 compliance confirms stable circadian routine synchronization.')
-              : '+12% Glucose Clearance Optimization Buffer',
-            eePerKmTarget: 46.9,
-            bseTargetValue: 85.0,
-            sDexTargetValue: isCardio ? 8.5 : 7.0,
-          },
-          engineVerificationSignature: 'PYTHON_MASTER_DUAL_CARD_VERIFIED_V1',
-        };
-
-        setRawPayload(dynamicPayload);
-        setLoading(false);
-      } catch (error) {
-        console.error('Core local setup error in prescription screen:', error);
-        setLoading(false);
-      }
-    };
-
     initializeDualCardData();
-  }, [selectedWeek]);
+  }, [initializeDualCardData]);
 
   const selectedWeekNum = activeTab === 'baseline'
     ? 1
@@ -579,6 +411,39 @@ export const WellnessPrescriptionScreen: React.FC<
   const toggleDrawer = (id: string) => {
     setActiveDrawerId(prev => (prev === id ? null : id));
   };
+
+  if (fetchError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <CustomHeader
+          title={showDrawer ? 'Fitness Prescription' : 'Initial Prescription'}
+          showDrawerButton={showDrawer}
+        />
+        <View style={[styles.centered, { padding: 24, gap: 16 }]}>
+          <Text style={{ fontSize: 48 }}>⚠️</Text>
+          <Text style={[styles.loadingText, { color: theme.colors.text, fontWeight: 'bold', fontSize: 18, textAlign: 'center' }]}>
+            Prescription Load Error
+          </Text>
+          <Text style={{ color: theme.colors.textSecondary, textAlign: 'center', fontSize: 14, marginHorizontal: 20 }}>
+            {fetchError}
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={{
+              marginTop: 16,
+              backgroundColor: theme.colors.primary,
+              paddingVertical: 12,
+              paddingHorizontal: 24,
+              borderRadius: 8,
+            }}
+            onPress={() => initializeDualCardData()}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Retry Fetch</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (loading || !payload) {
     return (
