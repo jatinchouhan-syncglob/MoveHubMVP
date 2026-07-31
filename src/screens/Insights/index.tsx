@@ -207,7 +207,7 @@ const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '
 const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
 
 const parseFitnessTrendArray = (arr?: any[]) => {
-  if (!arr || arr.length === 0) return null;
+  if (!arr || arr.length === 0) return undefined;
   const values = arr.map(item => item.values ?? 0);
   const labels = arr.map(item => {
     if (!item.date) return '';
@@ -222,7 +222,7 @@ const parseFitnessTrendArray = (arr?: any[]) => {
 };
 
 const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
-  if (!weeklyTrend || weeklyTrend.length === 0) return null;
+  if (!weeklyTrend || weeklyTrend.length === 0) return undefined;
   const labels = weeklyTrend.map(item => {
     if (!item.date) return '';
     try {
@@ -1040,7 +1040,7 @@ export const InsightsScreen: React.FC = () => {
                       ...item,
                       values: item.eeKm,
                     }))
-                  : null
+                  : undefined
               )}
               integratedStamina={parseFitnessTrendArray(bioSyncTrend?.integratedStamina)}
               weeklyPerformance={parseWeeklyPerformance(bioSyncTrend?.weeklyTrend)}

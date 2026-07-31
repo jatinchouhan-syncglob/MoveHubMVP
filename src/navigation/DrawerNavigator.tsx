@@ -43,7 +43,7 @@ import CommunityFeedScreen from '../screens/HomeHub/CommunityFeed';
 import TrainingScreen from '../screens/HomeHub/Training';
 import { UploadReportsScreen, DigitalWalletScreen, CaseHistoryScreen, HealthPassportScreen } from '../screens/VaultHub';
 import { DailyLogScreen, WellnessScreen, HealthReportCardScreen, MindsetHubScreen } from '../screens/VitalityHub';
-import { RiskAssessmentScreen, PreventiveCareScreen, RiskTrackerScreen, RiskToolsScreen, MyConsultationsScreen } from '../screens/ShieldHub';
+import { RiskAssessmentScreen, PreventiveCareScreen, RiskTrackerScreen, RiskToolsScreen, MyConsultationsScreen, OccupationalSafetyScreen } from '../screens/ShieldHub';
 
 const DRAWER_WIDTH = 290;
 
@@ -146,6 +146,7 @@ const DrawerNavigatorContent: React.FC = () => {
       'MindsetHub',
     ];
     const shieldHubScreens = [
+      'OccupationalSafety',
       'RiskAssessment',
       'PreventiveCare',
       'RiskTracker',
@@ -317,6 +318,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <HealthReportCardScreen />;
       case 'MindsetHub':
         return <MindsetHubScreen />;
+      case 'OccupationalSafety':
+        return <OccupationalSafetyScreen />;
       case 'RiskAssessment':
         return <RiskAssessmentScreen />;
       case 'PreventiveCare':
@@ -851,8 +854,8 @@ const DrawerNavigatorContent: React.FC = () => {
               {/* Shield Hub Accordion Trigger */}
               {(() => {
                 const isShieldHubActive = pendingScreen !== null
-                  ? ['RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(pendingScreen)
-                  : ['RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(activeScreen);
+                  ? ['OccupationalSafety', 'RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(pendingScreen)
+                  : ['OccupationalSafety', 'RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
@@ -883,6 +886,11 @@ const DrawerNavigatorContent: React.FC = () => {
               {isShieldHubExpanded && (
                 <View style={styles.subMenuContainer}>
                   {[
+                    {
+                      screen: 'OccupationalSafety' as const,
+                      label: 'Occupational Safety',
+                      icon: '🦺',
+                    },
                     {
                       screen: 'RiskAssessment' as const,
                       label: 'Risk Assessment',

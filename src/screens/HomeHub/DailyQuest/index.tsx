@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -36,6 +37,22 @@ export const MyQuestScreen: React.FC = () => {
   
   // Animation value for breathing circle expansion
   const [scaleAnim] = useState(new Animated.Value(1));
+
+  // 7:30 AM Inception Survey States
+  const [surveyQ1Val, setSurveyQ1Val] = useState<'A' | 'B' | 'C' | null>(null);
+  const [surveyQ2Val, setSurveyQ2Val] = useState<'A' | 'B' | 'C' | null>(null);
+  const [surveyQ3Val, setSurveyQ3Val] = useState<'A' | 'B' | null>(null);
+  const [surveySubmitted, setSurveySubmitted] = useState(false);
+
+  // 11:00 AM Mid-Shift Workload States
+  const [workloadSelection, setWorkloadSelection] = useState<number | null>(null);
+  const [workloadSubmitted, setWorkloadSubmitted] = useState(false);
+
+  // 02:01 PM Scenario Switcher State (1: Scenario 1 - Safe Buffer, 2: Scenario 2 - Lockout)
+  const [scenarioSelected, setScenarioSelected] = useState<1 | 2>(1);
+
+  // 05:30 PM Recovery Pathways Selection State
+  const [recoveryOption, setRecoveryOption] = useState<1 | 2 | 3>(1);
 
   // Load translations dynamically
   const t = osiTranslations[selectedLanguage] || osiTranslations['en'];
@@ -218,102 +235,135 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Section 1: Assigned Task Profile */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 16 }]}
+              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+            >
+              <Text style={styles.hubLinkEmoji}>🦺</Text>
+              <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+              <Text style={styles.hubLinkArrow}>➔</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 📋 BLOCK 1.5: 7:30 AM Shift Inception Survey */}
+        <View style={styles.cardContainer}>
+          <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
+            <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>📋 SURVEY | {t.surveyHeaderTag}</Text>
+          </View>
+          <View style={styles.card}>
+            {/* Header Badge */}
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.titleBadge, { backgroundColor: theme.colors.warningLight }]}>
+                <View style={[styles.statusDot, { backgroundColor: theme.colors.warning }]} />
+                <Text style={[styles.badgeText, { color: theme.colors.warning }]}>{t.surveyHeaderTag}</Text>
+              </View>
+            </View>
+
+            {/* Meta Badges */}
+            <View style={styles.metaBadgeContainer}>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>📅 {t.surveyDate}</Text>
+              </View>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>⏱️ {t.surveyTime}</Text>
+              </View>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+              </View>
+            </View>
+
+            {/* Welcome msg */}
+            <View style={[styles.introBox, { borderLeftColor: theme.colors.warning }]}>
+              <Text style={styles.introText}>{t.surveyWelcome}</Text>
+            </View>
+
+            {/* Survey Qs */}
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>{t.taskProfileTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>⚙️</Text>
-                <Text style={styles.bulletContentBold}>{t.taskOperator}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>⚠️</Text>
-                <Text style={styles.bulletContent}>{t.taskHazards}</Text>
-              </View>
+              <Text style={[styles.sectionHeader, { color: theme.colors.warning }]}>📋 SLEEP QUALITY & REST ACCUMULATOR</Text>
+              
+              {/* Q1 */}
+              <Text style={[styles.bulletContentBold, { marginTop: 10, marginBottom: 8 }]}>{t.surveyQ1}</Text>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ1Val('A')}>
+                <View style={[styles.checkbox, surveyQ1Val === 'A' && styles.checkboxChecked]}>
+                  {surveyQ1Val === 'A' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ1Val === 'A' && styles.surveyOptionTextActive]}>{t.surveyQ1OptA}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ1Val('B')}>
+                <View style={[styles.checkbox, surveyQ1Val === 'B' && styles.checkboxChecked]}>
+                  {surveyQ1Val === 'B' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ1Val === 'B' && styles.surveyOptionTextActive]}>{t.surveyQ1OptB}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ1Val('C')}>
+                <View style={[styles.checkbox, surveyQ1Val === 'C' && styles.checkboxChecked]}>
+                  {surveyQ1Val === 'C' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ1Val === 'C' && styles.surveyOptionTextActive]}>{t.surveyQ1OptC}</Text>
+              </TouchableOpacity>
 
-              <Text style={styles.nestedHeader}>{t.insightsTitle}</Text>
-              <View style={styles.sopInsightCard}>
-                <Text style={styles.sopTitle}>🧠 ERGONOMIC posturing:</Text>
-                <Text style={styles.sopDesc}>{t.insightsErgonomic}</Text>
-              </View>
-              <View style={styles.sopInsightCard}>
-                <Text style={styles.sopTitle}>🦾 MANUAL HANDLING:</Text>
-                <Text style={styles.sopDesc}>{t.insightsManual}</Text>
-              </View>
-              <View style={styles.sopInsightCard}>
-                <Text style={styles.sopTitle}>💨 BAY ENVIRONMENT:</Text>
-                <Text style={styles.sopDesc}>{t.insightsEnvironment}</Text>
-              </View>
+              {/* Q2 */}
+              <Text style={[styles.bulletContentBold, { marginTop: 16, marginBottom: 8 }]}>{t.surveyQ2}</Text>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ2Val('A')}>
+                <View style={[styles.checkbox, surveyQ2Val === 'A' && styles.checkboxChecked]}>
+                  {surveyQ2Val === 'A' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ2Val === 'A' && styles.surveyOptionTextActive]}>{t.surveyQ2OptA}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ2Val('B')}>
+                <View style={[styles.checkbox, surveyQ2Val === 'B' && styles.checkboxChecked]}>
+                  {surveyQ2Val === 'B' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ2Val === 'B' && styles.surveyOptionTextActive]}>{t.surveyQ2OptB}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ2Val('C')}>
+                <View style={[styles.checkbox, surveyQ2Val === 'C' && styles.checkboxChecked]}>
+                  {surveyQ2Val === 'C' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ2Val === 'C' && styles.surveyOptionTextActive]}>{t.surveyQ2OptC}</Text>
+              </TouchableOpacity>
+
+              {/* Q3 */}
+              <Text style={[styles.bulletContentBold, { marginTop: 16, marginBottom: 8 }]}>{t.surveyQ3}</Text>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ3Val('A')}>
+                <View style={[styles.checkbox, surveyQ3Val === 'A' && styles.checkboxChecked]}>
+                  {surveyQ3Val === 'A' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ3Val === 'A' && styles.surveyOptionTextActive]}>{t.surveyQ3OptA}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.surveyOptionRow} onPress={() => !surveySubmitted && setSurveyQ3Val('B')}>
+                <View style={[styles.checkbox, surveyQ3Val === 'B' && styles.checkboxChecked]}>
+                  {surveyQ3Val === 'B' && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={[styles.surveyOptionText, surveyQ3Val === 'B' && styles.surveyOptionTextActive]}>{t.surveyQ3OptB}</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Section 2: Active Health Vault Parsed */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>{t.healthVaultTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>🩹</Text>
-                <Text style={styles.bulletContent}>{t.healthPastRecords}</Text>
+            {/* Submit button / success state */}
+            {surveySubmitted ? (
+              <View style={[styles.successInsightBox, { marginTop: 12 }]}>
+                <Text style={styles.successTitle}>✔️ Survey Ingested Successfully</Text>
+                <Text style={styles.successDesc}>Turnstile unlocked. Amit's active shift parameters are now configured.</Text>
               </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>🧪</Text>
-                <Text style={styles.bulletContent}>{t.healthIndicators}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>✔️</Text>
-                <Text style={styles.bulletContent}>{t.healthBufferMsg}</Text>
-              </View>
-
-              {/* Redirect Hub Cards - Stacked Vertically to prevent wrapping and look premium */}
-              <View style={styles.hubLinksContainer}>
+            ) : (
+              <View style={styles.questSubmitRow}>
                 <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary }]}
-                  onPress={() => navigateToHub('ActivityTracking')}
+                  activeOpacity={0.85}
+                  style={[styles.submitQuestBtn, { backgroundColor: theme.colors.warning }]}
+                  onPress={() => {
+                    if (surveyQ1Val && surveyQ2Val && surveyQ3Val) {
+                      setSurveySubmitted(true);
+                    } else {
+                      Alert.alert("Notice", "Please answer all questions first / कृपया सभी प्रश्नों का उत्तर दें।");
+                    }
+                  }}
                 >
-                  <View style={styles.hubLinkLeft}>
-                    <Text style={styles.hubLinkEmoji}>🏃</Text>
-                    <Text style={styles.hubLinkLabel}>MOVE HUB</Text>
-                  </View>
-                  <Text style={styles.hubLinkArrow}>➔</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.secondary }]}
-                  onPress={() => navigateToHub('MealLog')}
-                >
-                  <View style={styles.hubLinkLeft}>
-                    <Text style={styles.hubLinkEmoji}>🥗</Text>
-                    <Text style={styles.hubLinkLabel}>NOURISH HUB</Text>
-                  </View>
-                  <Text style={styles.hubLinkArrow}>➔</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary }]}
-                  onPress={() => navigateToHub('RiskAssessment')}
-                >
-                  <View style={styles.hubLinkLeft}>
-                    <Text style={styles.hubLinkEmoji}>🛡️</Text>
-                    <Text style={styles.hubLinkLabel}>SHIELD HUB</Text>
-                  </View>
-                  <Text style={styles.hubLinkArrow}>➔</Text>
+                  <Text style={styles.submitQuestBtnText}>{t.surveySubmitBtn}</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-
-            {/* Section 3: Scheduled Safety Protocol */}
-            <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-              <Text style={styles.sectionHeader}>{t.protocolTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>🔔</Text>
-                <Text style={styles.bulletContent}>{t.protocolQuest}</Text>
-              </View>
-            </View>
-
-            {/* Swipe Action Info */}
-            <View style={styles.swipeHintContainer}>
-              <Text style={styles.swipeText}>▲ {t.swipeAction}</Text>
-            </View>
+            )}
           </View>
         </View>
 
@@ -356,127 +406,29 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Personalized Safety Insights */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>🛡️ {t.clockinInsightsTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>⚠️</Text>
-                <Text style={styles.bulletContent}>{t.clockinInsightSleep}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>🦾</Text>
-                <Text style={styles.bulletContent}>{t.clockinInsightSpine}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>💧</Text>
-                <Text style={styles.bulletContent}>{t.clockinInsightHydration}</Text>
-              </View>
-            </View>
-
-            {/* Overnight Inputs Ingested */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>🩹 {t.clockinDriftTitle}</Text>
-              <View style={styles.driftMetricsRow}>
-                <View style={styles.driftCard}>
-                  <Text style={styles.driftLabel}>{t.clockinSleepDuration}</Text>
-                  <Text style={[styles.driftVal, { color: theme.colors.error }]}>{t.clockinSleepDurationVal}</Text>
-                  <Text style={styles.driftSub}>{t.clockinSleepDurationSub}</Text>
-                </View>
-                <View style={styles.driftCard}>
-                  <Text style={styles.driftLabel}>{t.clockinSleepQuality}</Text>
-                  <Text style={[styles.driftVal, { color: theme.colors.warning }]}>{t.clockinSleepQualityVal}</Text>
-                  <Text style={styles.driftSub}>{t.clockinSleepQualitySub}</Text>
-                </View>
-                <View style={styles.driftCard}>
-                  <Text style={styles.driftLabel}>{t.clockinMorningMood}</Text>
-                  <Text style={[styles.driftVal, { color: theme.colors.warning }]}>{t.clockinMorningMoodVal}</Text>
-                  <Text style={styles.driftSub}>{t.clockinMorningMoodSub}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Safety Quest Interactive Breathing Guide (Always visible text context) */}
-            <View style={[styles.sectionBlock, styles.questBorderCard, { borderBottomWidth: 0, paddingBottom: 16, marginBottom: 12 }]}>
-              <Text style={styles.questHeader}>🫁 {t.clockinGuideHeader}</Text>
-              
-              {/* Count / Steps Context - ALWAYS VISIBLE */}
-              <View style={styles.questGuideBox}>
-                <Text style={styles.guideTextDesc}>{t.clockinGuideDesc}</Text>
-                <Text style={styles.guideText}>⏱️ {t.clockinStep1}</Text>
-                <Text style={styles.guideText}>⏱️ {t.clockinStep2}</Text>
-                <Text style={styles.guideText}>⏱️ {t.clockinStep3}</Text>
-                <Text style={styles.guideText}>⏱️ {t.clockinStep4}</Text>
-                <Text style={styles.guideTextSub}>🔁 {t.clockinRepeat}</Text>
-              </View>
-
-              <View style={styles.rationaleBox}>
-                <Text style={styles.rationaleTitle}>{t.clockinRationaleHeader}</Text>
-                <Text style={styles.rationaleDesc}>{t.clockinRationaleDesc}</Text>
-              </View>
-
-              {/* Interactive Breathing visualizer - Overlay inside card when active */}
-              {breathingActive ? (
-                <View style={styles.visualizerContainer}>
-                  <View style={styles.circleWrapper}>
-                    <Animated.View style={[
-                      styles.breathingCircleBg,
-                      { transform: [{ scale: scaleAnim }] }
-                    ]} />
-                    <View style={styles.circleTextOverlay}>
-                      <Text style={styles.visualizerStepVal}>{timerSeconds}s</Text>
-                      <Text style={styles.visualizerInnerAction}>{getStepAction()}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.visualizerStepTitle}>{getStepText()}</Text>
-                  <View style={styles.repTracker}>
-                    <Text style={styles.visualizerReps}>Completed Loops: {completedRepetitions} / 4</Text>
-                  </View>
-                </View>
-              ) : (
-                !questCompleted && (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={styles.startQuestBtn}
-                    onPress={startBreathing}
-                  >
-                    <Text style={styles.startQuestBtnText}>🚀 Start Breathing Quest</Text>
-                  </TouchableOpacity>
-                )
-              )}
-
-              {/* Submit Buttons */}
-              {!questCompleted && (
-                <View style={styles.questSubmitRow}>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={styles.submitQuestBtn}
-                    onPress={forceSubmitQuest}
-                  >
-                    <Text style={styles.submitQuestBtnText}>📤 {t.clockinSubmitBtn}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              {questCompleted && (
-                <View style={[styles.successInsightBox, { marginTop: 12 }]}>
-                  <Text style={styles.successTitle}>{t.clockinQuestSuccessTitle}</Text>
-                  <Text style={styles.successDesc}>{t.clockinQuestSuccessDesc}</Text>
-                </View>
-              )}
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
+              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+            >
+              <Text style={styles.hubLinkEmoji}>🦺</Text>
+              <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+              <Text style={styles.hubLinkArrow}>➔</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ✅ BLOCK 3: Post-Quest Verified Update */}
+        {/* 🟨 BLOCK 3: Post-Quest Verified Update */}
         <View style={styles.cardContainer}>
-          <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.successLight, borderColor: theme.colors.success }]}>
-            <Text style={[styles.cardHeaderTagText, { color: theme.colors.success }]}>✅ CLEARED STATUS | 07:46 AM Update</Text>
+          <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
+            <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>🟨 CLEARED STATUS | 07:46 AM Update</Text>
           </View>
           <View style={styles.card}>
             {/* Header Badge */}
             <View style={styles.cardHeaderRow}>
-              <View style={[styles.titleBadge, { backgroundColor: theme.colors.successLight }]}>
-                <View style={[styles.statusDot, { backgroundColor: theme.colors.success }]} />
-                <Text style={[styles.badgeText, { color: theme.colors.success }]}>{t.clearedTitle}</Text>
+              <View style={[styles.titleBadge, { backgroundColor: theme.colors.warningLight }]}>
+                <View style={[styles.statusDot, { backgroundColor: theme.colors.warning }]} />
+                <Text style={[styles.badgeText, { color: theme.colors.warning }]}>{t.clearedTitle}</Text>
               </View>
             </View>
 
@@ -494,59 +446,476 @@ export const MyQuestScreen: React.FC = () => {
             <View style={styles.scoreBox}>
               <Text style={styles.scoreLabel}>{t.clearedOsiLabel}</Text>
               <View style={styles.scoreNumberContainer}>
-                <Text style={[styles.scoreValue, { color: theme.colors.success }]}>{questCompleted ? '77.8' : '80.2'}</Text>
+                <Text style={[styles.scoreValue, { color: theme.colors.warning }]}>{questCompleted ? '77.8' : '80.2'}</Text>
                 <Text style={styles.scoreScale}>/ 100</Text>
               </View>
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBar, { width: questCompleted ? '77.8%' : '80.2%', backgroundColor: theme.colors.success }]} />
+                <View style={[styles.progressBar, { width: questCompleted ? '77.8%' : '80.2%', backgroundColor: theme.colors.warning }]} />
               </View>
-              <View style={[styles.statusBanner, { backgroundColor: theme.colors.successLight }]}>
-                <Text style={[styles.statusLabel, { color: theme.colors.success }]}>
+              <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
+                <Text style={[styles.statusLabel, { color: theme.colors.warning }]}>
                   {questCompleted ? t.clearedStatusVerified : t.clearedStatusPending}
                 </Text>
               </View>
             </View>
 
-            {/* SOP Assigned Task */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>{t.taskProfileTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>✔️</Text>
-                <Text style={styles.bulletContentBold}>{t.taskOperator}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>⚠️</Text>
-                <Text style={styles.bulletContent}>{t.taskHazards}</Text>
-              </View>
-            </View>
-
-            {/* Live Buffer Intervention */}
-            <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-              <Text style={styles.sectionHeader}>{t.clearedTrackingTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>✔️</Text>
-                <Text style={styles.bulletContent}>{t.clearedSurveyIngested}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>{questCompleted ? '✔️' : '⏳'}</Text>
-                <Text style={styles.bulletContent}>{questCompleted ? t.clearedQuestVerified : t.clearedQuestPending}</Text>
-              </View>
-
-              {questCompleted && (
-                <View style={styles.successInsightBox}>
-                  <Text style={styles.successTitle}>{t.clearedSuccessTitle}</Text>
-                  <Text style={styles.successDesc}>{t.clearedSuccessDesc}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Locked advisory */}
-            <View style={styles.lockedBox}>
-              <Text style={styles.lockedText}>⏳ {t.clearedLockedTitle}</Text>
-              <Text style={styles.lockedSub}>{t.clearedLockedSub}</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
+              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+            >
+              <Text style={styles.hubLinkEmoji}>🦺</Text>
+              <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+              <Text style={styles.hubLinkArrow}>➔</Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* 🟨 BLOCK 3.2: 11:00 AM Input Gate */}
+        <View style={styles.cardContainer}>
+          <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
+            <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>⏱️ 11:00 AM | MID-SHIFT WORKLOAD GATE</Text>
+          </View>
+          <View style={styles.card}>
+            {/* Header Badge */}
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.titleBadge, { backgroundColor: theme.colors.warningLight }]}>
+                <View style={[styles.statusDot, { backgroundColor: theme.colors.warning }]} />
+                <Text style={[styles.badgeText, { color: theme.colors.warning }]}>🟨 AMBER ZONE | MID-SHIFT WORKLOAD GATE</Text>
+              </View>
+            </View>
+
+            {/* Meta Badges */}
+            <View style={styles.metaBadgeContainer}>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+              </View>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+              </View>
+            </View>
+
+            {/* Score & Gauge */}
+            <View style={styles.scoreBox}>
+              <Text style={styles.scoreLabel}>CURRENT ACTIVE OSI: 77.8 / 100</Text>
+              <View style={styles.progressContainer}>
+                <View style={[styles.progressBar, { width: '77.8%', backgroundColor: theme.colors.warning }]} />
+              </View>
+              <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
+                <Text style={[styles.statusLabel, { color: theme.colors.warning, fontWeight: 'bold' }]}>Status: Stable Amber — Ingesting Load</Text>
+              </View>
+            </View>
+
+            {/* Workload Survey */}
+            <View style={styles.sectionBlock}>
+              <Text style={[styles.sectionHeader, { color: theme.colors.warning }]}>📝 MID-DAY PRODUCTION SURGE INPUT</Text>
+              <Text style={[styles.bulletContentBold, { marginTop: 10, marginBottom: 12 }]}>
+                How has your physical workload on the welding line been so far today?
+              </Text>
+
+              {[
+                { val: 1, label: '1 – Normal / As usual' },
+                { val: 2, label: '2 – 10% to 20% more than usual' },
+                { val: 3, label: '3 – 30% to 50% more than usual' },
+                { val: 4, label: '4 – Almost double workload today (🚨 Critical Surge)' },
+                { val: 5, label: '5 – Less than usual workload' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.val}
+                  style={styles.surveyOptionRow}
+                  onPress={() => !workloadSubmitted && setWorkloadSelection(opt.val)}
+                >
+                  <View style={[styles.checkbox, workloadSelection === opt.val && styles.checkboxChecked]}>
+                    {workloadSelection === opt.val && <Text style={styles.checkboxTick}>✓</Text>}
+                  </View>
+                  <Text style={[styles.surveyOptionText, workloadSelection === opt.val && styles.surveyOptionTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Submit btn */}
+            {workloadSubmitted ? (
+              <View style={[styles.successInsightBox, { marginTop: 12 }]}>
+                <Text style={styles.successTitle}>✔️ Workload Data Logged</Text>
+                <Text style={styles.successDesc}>Shift parameters recalculated. Afternoon safety paths configured.</Text>
+              </View>
+            ) : (
+              <View style={styles.questSubmitRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.submitQuestBtn, { backgroundColor: theme.colors.warning }]}
+                  onPress={() => {
+                    if (workloadSelection !== null) {
+                      setWorkloadSubmitted(true);
+                    } else {
+                      Alert.alert("Notice", "Please select a workload option / कृपया वर्कलोड विकल्प चुनें।");
+                    }
+                  }}
+                >
+                  <Text style={styles.submitQuestBtnText}>📤 SUBMIT WORKLOAD</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+
+            {/* 🟨 BLOCK 3.3: 11:01 AM Post-Submission Screen */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>⏱️ 11:01 AM | SHIFT UPDATE</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.warningLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.warning }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.warning }]}>🟨 HIGH AMBER ZONE | DRIVE ACTIVE CAUTION</Text>
+                  </View>
+                </View>
+
+                {/* Meta Badges */}
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 11:01 AM</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                  </View>
+                </View>
+
+                {/* Score */}
+                <View style={styles.scoreBox}>
+                  <Text style={styles.scoreLabel}>RE-CALCULATED SHIFT OSI: 84.4 / 100</Text>
+                  <View style={styles.progressContainer}>
+                    <View style={[styles.progressBar, { width: '84.4%', backgroundColor: theme.colors.warning }]} />
+                  </View>
+                  <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
+                    <Text style={[styles.statusLabel, { color: theme.colors.warning, fontWeight: 'bold' }]}>Status: Clear for Line with Tracking</Text>
+                  </View>
+                </View>
+
+                {/* Latest Alert */}
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionHeader}>⚙️ 1. LATEST SHIFT STRAIN ALERT</Text>
+                  <View style={styles.bulletItem}>
+                    <Text style={styles.bulletIcon}>⚠️</Text>
+                    <Text style={styles.bulletContentBold}>Registered: Almost Double Workload</Text>
+                  </View>
+                  <Text style={[styles.bulletContent, { marginTop: 8, fontStyle: 'italic', color: theme.colors.textSecondary }]}>
+                    YOUR ACTIVE RISK: This heavy surge compounds your morning fatigue, placing intense physical stress on your L4/L5 lumbar vertebrae and weak left wrist joint [health].
+                  </Text>
+                </View>
+
+                {/* History */}
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionHeader}>🩹 2. SHIFT TIMELINE HISTORY (LATEST)</Text>
+                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>11:01 AM: Workload Update : Banked</Text></View>
+                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>07:46 AM: Pre-Work Quest : Verified</Text></View>
+                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>07:45 AM: Clock-In Survey : Ingested</Text></View>
+                </View>
+
+                {/* Upcoming */}
+                <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
+                  <Text style={styles.sectionHeader}>🔔 3. UPCOMING DYNAMIC SAFETY QUESTS</Text>
+                  <View style={styles.bulletItem}>
+                    <Text style={styles.bulletIcon}>🚶</Text>
+                    <Text style={styles.bulletContentBold}>TRACK A (01:15 PM): 5-Min Post-Meal Metabolic Walk</Text>
+                  </View>
+                  <Text style={[styles.bulletContent, { marginLeft: 16, fontSize: 12, color: theme.colors.textSecondary }]}>
+                    (Location: Canteen / Shared Lanes)
+                  </Text>
+                  <View style={[styles.bulletItem, { marginTop: 10 }]}>
+                    <Text style={styles.bulletIcon}>⚙️</Text>
+                    <Text style={styles.bulletContentBold}>TRACK B (02:00 PM): 4-Min Peripheral Circulation Pumps</Text>
+                  </View>
+                  <Text style={[styles.bulletContent, { marginLeft: 16, fontSize: 12, color: theme.colors.textSecondary }]}>
+                    (Location: MANDATORY AT BAY 2 BOOTH)
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 🍱 BLOCK 3.3.5: Post-Lunch Risk Mitigation Guide */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 LUNCH MITIGATION | POST-LUNCH RISK MITIGATION GUIDE</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🍱 POST-LUNCH RISK MITIGATION GUIDE</Text>
+                  </View>
+                </View>
+
+                <View style={styles.introBox}>
+                  <Text style={styles.introText}>
+                    Because your line is running at near double workload today, you must execute this two-part safety loop to protect your body and stay clear of Red Zone turnstile lockouts [health]:
+                  </Text>
+                </View>
+
+                {/* Stage A */}
+                <View style={styles.sectionBlock}>
+                  <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>🚶 STAGE A: THE 5-MINUTE LUNCH STROLL</Text>
+                  <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 01:15 PM (RIGHT AFTER MEAL)</Text>
+                  <Text style={styles.recoveryDetailText}>📍 LOCATION: CANTEEN AREA / OUTSIDE LANES</Text>
+                  <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
+                    • 🚨 WHY YOU FACE RISK NOW: Prolonged standing under a heavy shift workload strains muscles and slows focus [health].
+                  </Text>
+                  <Text style={styles.recoveryDetailText}>
+                    • 🛡️ HOW THIS HELPS YOU: Moving at an easy pace right after your break balances energy levels and prevents afternoon sluggishness [health].
+                  </Text>
+                </View>
+
+                {/* Stage B */}
+                <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
+                  <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>⚙️ STAGE B: PERIPHERAL CIRCULATION PUMPS</Text>
+                  <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 02:00 PM (45 MINS LATER)</Text>
+                  <Text style={styles.recoveryDetailText}>📍 LOCATION: MANDATORY AT YOUR BAY 2 BOOTH</Text>
+                  <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
+                    • 🚨 WHY YOU FACE RISK NOW: Standing statically causes blood pooling in lower legs, cutting brain oxygen and causing dizziness/strain under heavy welding weights [health].
+                  </Text>
+                  <Text style={styles.recoveryDetailText}>
+                    • 🛡️ HOW THIS HELPS YOU: Completing these 3 movements activates muscle pumps, forcing blood back to the heart, shielding L4/L5 spine from fatigue [health].
+                  </Text>
+
+                  {/* 3 Exercises loops simulated beautifully */}
+                  <Text style={[styles.bulletContentBold, { marginTop: 16, marginBottom: 12 }]}>[📖 EXERCISE GUIDE - 3 BOOTH MOVEMENTS]</Text>
+
+                  {/* Ex 1 */}
+                  <View style={styles.exerciseBox}>
+                    <Text style={styles.exerciseTitle}>1. WORKBENCH CALF RAISES (90 Secs)</Text>
+                    {/* Simulated loop animation */}
+                    <View style={styles.mediaPlaceholder}>
+                      <Text style={styles.mediaEmoji}>🏃‍♂️</Text>
+                      <Text style={styles.mediaText}>🎥 Loop: standing_calf_raise (Active 3s Loop)</Text>
+                    </View>
+                    <Text style={styles.exerciseDesc}>• Brace hands firmly on your welding table.</Text>
+                    <Text style={styles.exerciseDesc}>• Lift your heels high, hold for 2 secs, and lower down slowly under control.</Text>
+                  </View>
+
+                  {/* Ex 2 */}
+                  <View style={styles.exerciseBox}>
+                    <Text style={styles.exerciseTitle}>2. BEAM TOE LIFTS (90 Secs)</Text>
+                    <View style={styles.mediaPlaceholder}>
+                      <Text style={styles.mediaEmoji}>🦶</Text>
+                      <Text style={styles.mediaText}>🎥 Loop: standing_toe_raise (Active 3s Loop)</Text>
+                    </View>
+                    <Text style={styles.exerciseDesc}>• Lean your back straight against the steel beam.</Text>
+                    <Text style={styles.exerciseDesc}>• Keep your heels flat on the concrete floor and pull your toes up high.</Text>
+                  </View>
+
+                  {/* Ex 3 */}
+                  <View style={styles.exerciseBox}>
+                    <Text style={styles.exerciseTitle}>3. ISOMETRIC THIGH SQUEEZES (60 Secs)</Text>
+                    <View style={styles.mediaPlaceholder}>
+                      <Text style={styles.mediaEmoji}>💪</Text>
+                      <Text style={styles.mediaText}>🎥 Loop: standing_quad_clamp (Active 3s Loop)</Text>
+                    </View>
+                    <Text style={styles.exerciseDesc}>• Stand straight right inside your cell.</Text>
+                    <Text style={styles.exerciseDesc}>• Squeeze your quadriceps and glutes hard for 5 seconds, release, and repeat.</Text>
+                  </View>
+
+                </View>
+              </View>
+            </View>
+
+            {/* 🍱 BLOCK 3.4: 11:45 Meal Plan (Metabolic Shield) */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 LUNCH METABOLIC SHIELD | Generated at 11:30 AM</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🍱 QUEST: PRE-LUNCH METABOLIC SHIELD</Text>
+                  </View>
+                </View>
+
+                {/* Meta Badges */}
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 11:30 AM</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                  </View>
+                </View>
+
+                {/* Targets block */}
+                <View style={[styles.pointBalanceContainer, { backgroundColor: theme.colors.primaryLight, borderColor: 'rgba(99, 102, 241, 0.2)', marginBottom: 16 }]}>
+                  <Text style={[styles.bulletContentBold, { color: theme.colors.primaryDark, marginBottom: 8 }]}>🎯 TARGET MATRICES FOR LUNCH SHIELD</Text>
+                  <Text style={styles.pointText}>• 🌾 CARBS  : Max 60g (Complex, Low-GI)</Text>
+                  <Text style={styles.pointText}>• 🍗 PROTEIN: Target 35g (Spine Asset)</Text>
+                  <Text style={styles.pointText}>• 🥦 FIBER  : Min 12g (Sugar Blocker)</Text>
+                  <Text style={styles.pointText}>• 💛 FATS   : Max 20g (Lipid Restrictor)</Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 8 }]}
+                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                >
+                  <Text style={styles.hubLinkEmoji}>🦺</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 📊 BLOCK 3.5: 1:20 PM Lunch Compliance */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.error }]}>📊 RESOLUTION | LUNCH COMPLIANCE REPORT</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.errorLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.error }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.error }]}>📊 QUEST RESOLUTION: LUNCH COMPLIANCE</Text>
+                  </View>
+                </View>
+
+                {/* Meta Badges */}
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 01:20 PM</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                  </View>
+                </View>
+
+                {/* Score */}
+                <View style={styles.scoreBox}>
+                  <Text style={styles.scoreLabel}>TOTAL LUNCH COMPLIANCE: 31.3% (🚨 LOW)</Text>
+                  <View style={styles.progressContainer}>
+                    <View style={[styles.progressBar, { width: '31.3%', backgroundColor: theme.colors.error }]} />
+                  </View>
+                  <View style={[styles.statusBanner, { backgroundColor: theme.colors.errorLight }]}>
+                    <Text style={[styles.statusLabel, { color: theme.colors.error, fontWeight: 'bold' }]}>Status: Metabolic Shield Compromised</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.error, marginTop: 16 }]}
+                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                >
+                  <Text style={styles.hubLinkEmoji}>🦺</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+                        {/* 🟨 PREDICTIVE SHIELD (02:01 PM) */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>🟨 PREDICTIVE SHIELD | 02:01 PM Update</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.warningLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.warning }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.warning }]}>🟨 HIGH AMBER ZONE │ PREDICTIVE SHIELD</Text>
+                  </View>
+                </View>
+
+                {/* Meta Badges */}
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 02:01 PM</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                  </View>
+                </View>
+
+                {/* Score */}
+                <View style={styles.scoreBox}>
+                  <Text style={styles.scoreLabel}>CURRENT ACTIVE OSI SCORE: 89.9 / 100</Text>
+                  <View style={styles.progressContainer}>
+                    <View style={[styles.progressBar, { width: '89.9%', backgroundColor: theme.colors.warning }]} />
+                  </View>
+                  <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
+                    <Text style={[styles.statusLabel, { color: theme.colors.warning, fontWeight: 'bold' }]}>Status: Stable Amber — Shield Active</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
+                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                >
+                  <Text style={styles.hubLinkEmoji}>🦺</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 🎛️ BLOCK 3.7: 05:30 PM End-of-Shift Reconciliation Pathways */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🎛️ RECOVERY | CHOOSE YOUR RECOVERY PATHWAYS</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🎛️ QUEST: CHOOSE YOUR RECOVERY PATHWAYS</Text>
+                  </View>
+                </View>
+
+                {/* Meta Badges */}
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 05:30 PM</Text>
+                  </View>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.introBox}>
+                  <Text style={styles.introText}>
+                    Amit, today's near-double workload has strained your L4/L5 lower back and left wrist [health]. Select an evening care path below to protect your health and secure your turnstile entry tomorrow [health]:
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 8 }]}
+                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                >
+                  <Text style={styles.hubLinkEmoji}>🎛️</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
+
+
+              </View>
+            </View>
+
 
         {/* 🌙 BLOCK 4: Reconciled Baseline / Night Summary */}
         <View style={styles.cardContainer}>
@@ -588,41 +957,15 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Overnight Compliance */}
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>🩹 {t.nightComplianceTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>✔️</Text>
-                <Text style={styles.bulletContent}>{t.nightComplianceStretch}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>✔️</Text>
-                <Text style={styles.bulletContent}>{t.nightComplianceDinner}</Text>
-              </View>
-
-              <View style={styles.successInsightBox}>
-                <Text style={styles.successTitle}>{t.nightSuccessTitle}</Text>
-                <Text style={styles.successDesc}>{t.nightSuccessDesc}</Text>
-              </View>
-            </View>
-
-            {/* Tomorrow Deployment */}
-            <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-              <Text style={styles.sectionHeader}>⚙️ {t.nightDeploymentTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>⏱️</Text>
-                <Text style={styles.bulletContentBold}>{t.nightDeploymentGate}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>📢</Text>
-                <Text style={styles.bulletContent}>{t.nightDeploymentRequired}</Text>
-              </View>
-            </View>
-
-            {/* Sleep note */}
-            <View style={styles.nightDecompressionBox}>
-              <Text style={styles.nightText}>🛌 {t.nightRestWell}</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
+              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+            >
+              <Text style={styles.hubLinkEmoji}>🦺</Text>
+              <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+              <Text style={styles.hubLinkArrow}>➔</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -951,18 +1294,20 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   hubLinkLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    display: 'none',
   },
   hubLinkEmoji: {
     fontSize: 20,
+    marginRight: 10,
   },
   hubLinkLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
     color: theme.colors.text,
     letterSpacing: 0.5,
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 16,
   },
   hubLinkArrow: {
     fontSize: 16,
@@ -1220,6 +1565,236 @@ const styles = StyleSheet.create({
     color: theme.colors.success,
     fontWeight: '900',
     fontSize: 14,
+  },
+  introBox: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary,
+  },
+  introText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  subBoxContainer: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  subBoxHeader: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  subBoxTier: {
+    fontWeight: '600',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  pointBalanceContainer: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  pointRow: {
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.03)',
+  },
+  pointText: {
+    color: theme.colors.text,
+    fontSize: 12.5,
+    fontFamily: 'monospace',
+  },
+  recoverySubSection: {
+    marginBottom: 16,
+  },
+  recoveryDetailText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 12,
+  },
+  surveyOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.03)',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: theme.colors.borderDark,
+    borderRadius: 4,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  checkboxTick: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  surveyOptionText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  surveyOptionTextActive: {
+    color: theme.colors.text,
+    fontWeight: '700',
+  },
+  exerciseBox: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  exerciseTitle: {
+    color: theme.colors.text,
+    fontSize: 13.5,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  mediaPlaceholder: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  mediaEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  mediaText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  exerciseDesc: {
+    color: theme.colors.textSecondary,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  scenarioToggleHeader: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  scenarioToggleTitle: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  scenarioToggleButtons: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  scenarioTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  scenarioTabActive: {
+    backgroundColor: theme.colors.primaryLight,
+  },
+  scenarioTabText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  scenarioTabTextActive: {
+    color: theme.colors.primaryDark,
+  },
+  recoveryOptionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  recoveryOptionCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.02)',
+  },
+  optionCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  optionCardTitle: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    flex: 1,
+  },
+  radioDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.borderDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDotActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
+  },
+  optionCardDesc: {
+    color: theme.colors.text,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  optionCardForecast: {
+    color: theme.colors.textSecondary,
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  optionCardBenefit: {
+    color: '#16a34a',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    lineHeight: 16,
   },
 });
 
