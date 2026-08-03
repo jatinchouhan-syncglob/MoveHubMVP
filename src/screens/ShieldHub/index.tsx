@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -75,6 +76,125 @@ export const OccupationalSafetyScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const drawer = useContext(DrawerContext);
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageKey>('en');
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState('');
+
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const [cardLayouts, setCardLayouts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (drawer?.targetCardTime && cardLayouts[drawer.targetCardTime] !== undefined) {
+      scrollViewRef.current?.scrollTo({
+        y: cardLayouts[drawer.targetCardTime],
+        animated: true,
+      });
+      drawer.setTargetCardTime(null);
+    }
+  }, [drawer?.targetCardTime, cardLayouts]);
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      const options: Intl.DateTimeFormatOptions = {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      };
+      setCurrentDateTime(now.toLocaleString('en-US', options));
+    };
+    updateDateTime();
+    const timer = setInterval(updateDateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Box Breathing Quest States
+  const [breathingActive, setBreathingActive] = useState(false);
+  const [breathingStep, setBreathingStep] = useState<'idle' | 'inhale' | 'hold' | 'exhale' | 'holdEmpty'>('idle');
+  const [timerSeconds, setTimerSeconds] = useState(4);
+  const [completedRepetitions, setCompletedRepetitions] = useState(0);
+  const [questCompleted, setQuestCompleted] = useState(false);
+  const [scaleAnim] = useState(new Animated.Value(1));
+
+  // Handle Breathing Animation Loop
+  useEffect(() => {
+    let interval: any;
+    if (breathingActive && !questCompleted) {
+      interval = setInterval(() => {
+        setTimerSeconds(prev => {
+          if (prev <= 1) {
+            // Transition to next breathing step
+            setBreathingStep(curr => {
+              if (curr === 'inhale') {
+                Animated.timing(scaleAnim, { toValue: 1.5, duration: 4000, useNativeDriver: true }).start();
+                return 'hold';
+              } else if (curr === 'hold') {
+                Animated.timing(scaleAnim, { toValue: 1.0, duration: 4000, useNativeDriver: true }).start();
+                return 'exhale';
+              } else if (curr === 'exhale') {
+                return 'holdEmpty';
+              } else {
+                // Return to inhale and increment loop counter
+                setCompletedRepetitions(reps => {
+                  const nextReps = reps + 1;
+                  if (nextReps >= 4) {
+                    setBreathingActive(false);
+                    setQuestCompleted(true);
+                    return 4;
+                  }
+                  return nextReps;
+                });
+                Animated.timing(scaleAnim, { toValue: 1.5, duration: 4000, useNativeDriver: true }).start();
+                return 'inhale';
+              }
+            });
+            return 4;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [breathingActive, questCompleted]);
+
+  const startBreathing = () => {
+    setBreathingActive(true);
+    setBreathingStep('inhale');
+    setTimerSeconds(4);
+    setCompletedRepetitions(0);
+    Animated.timing(scaleAnim, { toValue: 1.5, duration: 4000, useNativeDriver: true }).start();
+  };
+
+  const stopBreathing = () => {
+    setBreathingActive(false);
+    setBreathingStep('idle');
+    setTimerSeconds(4);
+    scaleAnim.setValue(1);
+  };
+
+  const getStepText = () => {
+    switch (breathingStep) {
+      case 'inhale': return '💨 INHALE DEEP THROUGH NOSE';
+      case 'hold': return '🧘 HOLD BREATH COMFORTABLY';
+      case 'exhale': return '🌬️ EXHALE SLOWLY THROUGH MOUTH';
+      case 'holdEmpty': return '🛡️ HOLD EMPTY BEFORE NEXT BREATH';
+      default: return 'Press Start to Begin';
+    }
+  };
+
+  const getStepAction = () => {
+    switch (breathingStep) {
+      case 'inhale': return 'Breathe In...';
+      case 'hold': return 'Hold...';
+      case 'exhale': return 'Breathe Out...';
+      case 'holdEmpty': return 'Rest empty...';
+      default: return 'Ready?';
+    }
+  };
 
   const t = osiTranslations[selectedLanguage] || osiTranslations['en'];
 
@@ -85,12 +205,64 @@ export const OccupationalSafetyScreen: React.FC = () => {
         showDrawerButton={true}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Language Switcher */}
-        <LanguageSelector
-          selectedLanguage={selectedLanguage}
-          setSelectedLanguage={setSelectedLanguage}
-        />
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Global Language Dropdown Bar at the Top */}
+        <View style={[styles.topSelectorRow, langDropdownOpen && { zIndex: 10000, elevation: 10 }]}>
+          <Text style={styles.topSelectorLabel}>Select Language / भाषा चुनें:</Text>
+          <View style={styles.dropdownWrapper}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.dropdownTrigger}
+              onPress={() => setLangDropdownOpen(!langDropdownOpen)}
+            >
+              <Text style={styles.dropdownTriggerText}>
+                {selectedLanguage === 'en' && '🇬🇧 English (EN)'}
+                {selectedLanguage === 'hi' && '🇮🇳 Hindi (HI)'}
+                {selectedLanguage === 'gu' && '🇮🇳 Gujarati (GU)'}
+                {selectedLanguage === 'mr' && '🇮🇳 Marathi (MR)'}
+              </Text>
+              <Text style={styles.dropdownChevron}>{langDropdownOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            {langDropdownOpen && (
+              <View style={styles.dropdownMenu}>
+                {[
+                  { key: 'en', label: '🇬🇧 English' },
+                  { key: 'hi', label: '🇮🇳 Hindi' },
+                  { key: 'gu', label: '🇮🇳 Gujarati' },
+                  { key: 'mr', label: '🇮🇳 Marathi' },
+                ].map(item => (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.dropdownItem,
+                      selectedLanguage === item.key && styles.dropdownItemActive
+                    ]}
+                    onPress={() => {
+                      setSelectedLanguage(item.key as LanguageKey);
+                      setLangDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      selectedLanguage === item.key && styles.dropdownItemTextActive
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Dynamic System Date & Time Header */}
+        <View style={{ backgroundColor: theme.colors.background, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: theme.colors.textSecondary }}>
+            📅 DATE & TIME: <Text style={{ color: theme.colors.primary, fontWeight: '900' }}>{currentDateTime}</Text>
+          </Text>
+        </View>
 
         {/* 🟢 BLOCK 1: Baseline OSI Card (Full Details) */}
         <View style={styles.cardContainer}>
@@ -107,10 +279,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
 
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.date}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 07:30 AM</Text>
               </View>
             </View>
 
@@ -183,7 +352,13 @@ export const OccupationalSafetyScreen: React.FC = () => {
         </View>
 
         {/* 🟨 BLOCK 2: Clock-In Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '07:45 AM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>{t.clockinTitle}</Text>
           </View>
@@ -197,10 +372,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
 
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.clockinDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 07:45 AM</Text>
               </View>
             </View>
 
@@ -215,17 +387,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
             </View>
 
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>{t.taskProfileTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>•</Text>
-                <Text style={styles.bulletContentBold}>{t.taskOperator}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>•</Text>
-                <Text style={styles.bulletContent}>{t.taskHazards}</Text>
-              </View>
-
-              <Text style={[styles.bulletContentBold, { marginTop: 12, marginBottom: 4 }]}>{t.clockinInsightsTitle}</Text>
+              <Text style={styles.sectionHeader}>{t.clockinInsightsTitle}</Text>
               <View style={styles.bulletItem}>
                 <Text style={styles.bulletIcon}>•</Text>
                 <Text style={styles.bulletContent}>{t.clockinInsightSleep}</Text>
@@ -265,18 +427,119 @@ export const OccupationalSafetyScreen: React.FC = () => {
               <View style={[styles.successInsightBox, { marginTop: 12 }]}>
                 <Text style={styles.successTitle}>{t.clockinGuideHeader}</Text>
                 <Text style={styles.successDesc}>{t.clockinGuideDesc}</Text>
-                <Text style={styles.exerciseDesc}>• {t.clockinStep1}</Text>
-                <Text style={styles.exerciseDesc}>• {t.clockinStep2}</Text>
-                <Text style={styles.exerciseDesc}>• {t.clockinStep3}</Text>
-                <Text style={styles.exerciseDesc}>• {t.clockinStep4}</Text>
-                <Text style={[styles.successDesc, { marginTop: 6, fontWeight: 'bold' }]}>{t.clockinRepeat}</Text>
               </View>
+
+              {/* Steps Container */}
+              <View style={{ marginTop: 16 }}>
+                <View style={styles.stepRow}>
+                  <Text style={styles.stepTitle}>⏱️ STEP 1: INHALE DEEP THROUGH NOSE</Text>
+                  <View style={styles.stepBoxes}>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'inhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'inhale' && styles.stepBoxTextActive]}>1</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'inhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'inhale' && styles.stepBoxTextActive]}>2</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'inhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'inhale' && styles.stepBoxTextActive]}>3</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'inhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'inhale' && styles.stepBoxTextActive]}>4</Text></View>
+                  </View>
+                </View>
+
+                <View style={styles.stepRow}>
+                  <Text style={styles.stepTitle}>⏱️ STEP 2: HOLD BREATH COMFORTABLY</Text>
+                  <View style={styles.stepBoxes}>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'hold' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'hold' && styles.stepBoxTextActive]}>1</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'hold' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'hold' && styles.stepBoxTextActive]}>2</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'hold' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'hold' && styles.stepBoxTextActive]}>3</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'hold' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'hold' && styles.stepBoxTextActive]}>4</Text></View>
+                  </View>
+                </View>
+
+                <View style={styles.stepRow}>
+                  <Text style={styles.stepTitle}>⏱️ STEP 3: EXHALE SLOWLY THROUGH MOUTH</Text>
+                  <View style={styles.stepBoxes}>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'exhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'exhale' && styles.stepBoxTextActive]}>1</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'exhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'exhale' && styles.stepBoxTextActive]}>2</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'exhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'exhale' && styles.stepBoxTextActive]}>3</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'exhale' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'exhale' && styles.stepBoxTextActive]}>4</Text></View>
+                  </View>
+                </View>
+
+                <View style={styles.stepRow}>
+                  <Text style={styles.stepTitle}>⏱️ STEP 4: HOLD EMPTY BEFORE NEXT BREATH</Text>
+                  <View style={styles.stepBoxes}>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxTextActive]}>1</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxTextActive]}>2</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxTextActive]}>3</Text></View>
+                    <View style={[styles.stepBox, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxActive]}><Text style={[styles.stepBoxText, breathingActive && breathingStep === 'holdEmpty' && styles.stepBoxTextActive]}>4</Text></View>
+                  </View>
+                </View>
+
+              </View>
+
+              {/* Animated visualizer */}
+              <View style={styles.visualizerContainer}>
+                <Text style={styles.visualizerStepTitle}>
+                  {breathingActive ? getStepText() : 'Ready to Start Focus Reset?'}
+                </Text>
+                <View style={styles.circleWrapper}>
+                  <Animated.View style={[styles.breathingCircleBg, { transform: [{ scale: scaleAnim }] }]} />
+                  <View style={styles.circleTextOverlay}>
+                    <Text style={styles.visualizerStepVal}>
+                      {breathingActive ? timerSeconds : '0'}
+                    </Text>
+                    <Text style={styles.visualizerInnerAction}>
+                      {breathingActive ? getStepAction() : 'SEC'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.repTracker}>
+                  <Text style={styles.visualizerReps}>
+                    Completed Reps: {completedRepetitions} / 4
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.submitQuestBtn, { backgroundColor: breathingActive ? theme.colors.error : theme.colors.primary, paddingHorizontal: 20, marginTop: 12, borderRadius: 20, paddingVertical: 8 }]}
+                  onPress={breathingActive ? stopBreathing : startBreathing}
+                >
+                  <Text style={[styles.submitQuestBtnText, { fontSize: 12 }]}>
+                    {breathingActive ? '⏹️ STOP RESET' : '▶️ START FOCUS RESET'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Scientific rationale */}
+              <View style={[styles.successInsightBox, { marginTop: 12, backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', borderWidth: 1 }]}>
+                <Text style={[styles.successTitle, { color: '#166534' }]}>🔬 CLINICAL RESEARCH RATIONALE:</Text>
+                <Text style={[styles.successDesc, { color: '#166534' }]}>
+                  This specific breathing rhythm actively stimulates your vagus nerve, forcing oxygen to your prefrontal cortex to completely restore focus speeds [health].
+                </Text>
+              </View>
+
+              {/* Submit done button in BIG letters */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.submitQuestBtn, { backgroundColor: theme.colors.success, marginTop: 16, paddingVertical: 18 }]}
+                onPress={() => {
+                  setQuestCompleted(true);
+                  Alert.alert("Success", "Quest completed! Vagus nerve credit applied.");
+                }}
+              >
+                <Text style={[styles.submitQuestBtnText, { fontSize: 16, letterSpacing: 1.5 }]}>
+                  📤 SUBMIT DONE
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
 
         {/* 🟨 BLOCK 3: Cleared Status Card (Full Details, Amber Style) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '07:46 AM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>{t.clearedTitle}</Text>
           </View>
@@ -290,13 +553,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
 
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.clearedDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.clearedTime}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 07:46 AM</Text>
               </View>
             </View>
 
@@ -307,18 +564,6 @@ export const OccupationalSafetyScreen: React.FC = () => {
               </View>
               <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
                 <Text style={[styles.statusLabel, { color: theme.colors.warning, fontWeight: 'bold' }]}>{t.clearedStatusVerified}</Text>
-              </View>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>{t.taskProfileTitle}</Text>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>•</Text>
-                <Text style={styles.bulletContentBold}>{t.taskOperator}</Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Text style={styles.bulletIcon}>•</Text>
-                <Text style={styles.bulletContent}>{t.taskHazards}</Text>
               </View>
             </View>
 
@@ -347,7 +592,13 @@ export const OccupationalSafetyScreen: React.FC = () => {
         </View>
 
         {/* 🟨 BLOCK 3.3: 11:01 AM Shift Update Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '11:01 AM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>⏱️ 11:01 AM | SHIFT UPDATE</Text>
           </View>
@@ -359,16 +610,9 @@ export const OccupationalSafetyScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ TIME: 11:01 AM</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -420,7 +664,13 @@ export const OccupationalSafetyScreen: React.FC = () => {
         </View>
 
         {/* 🍱 BLOCK 3.4: 11:30 AM Pre-Lunch Metabolic Shield Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '11:30 AM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 METABOLIC | 11:30 AM Pre-Lunch Plan</Text>
           </View>
@@ -432,16 +682,9 @@ export const OccupationalSafetyScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ TIME: 11:30 AM</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -511,8 +754,109 @@ export const OccupationalSafetyScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* 🍱 BLOCK 3.3.5: 01:00 PM Post-Lunch Risk Mitigation Guide Card (Full Details) */}
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '01:00 PM': layout.y }));
+          }}
+        >
+          <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
+            <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 LUNCH MITIGATION | 01:00 PM Post-Lunch Plan</Text>
+          </View>
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
+                <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🍱 POST-LUNCH RISK MITIGATION GUIDE</Text>
+              </View>
+            </View>
+
+            <View style={styles.metaBadgeContainer}>
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 01:00 PM</Text>
+              </View>
+            </View>
+
+            <View style={styles.introBox}>
+              <Text style={styles.introText}>
+                With near-double workload today, execute this two-part safety loop to protect your body and stay clear of Red Zone turnstile lockouts [health]:
+              </Text>
+            </View>
+
+            {/* Stage A */}
+            <View style={styles.sectionBlock}>
+              <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>🚶 STAGE A: THE 5-MINUTE LUNCH STROLL</Text>
+              <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 01:15 PM (RIGHT AFTER MEAL)</Text>
+              <Text style={styles.recoveryDetailText}>📍 LOCATION: CANTEEN AREA / OUTSIDE LANES</Text>
+              <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
+                • 🚨 WHY YOU FACE RISK: Standing under heavy workload strains muscles and slows focus [health].
+              </Text>
+              <Text style={styles.recoveryDetailText}>
+                • 🛡️ HOW THIS HELPS YOU: Moving after break balances energy levels and prevents sluggishness [health].
+              </Text>
+            </View>
+
+            {/* Stage B */}
+            <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
+              <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>⚙️ STAGE B: PERIPHERAL CIRCULATION PUMPS</Text>
+              <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 02:00 PM (45 MINS LATER)</Text>
+              <Text style={styles.recoveryDetailText}>📍 LOCATION: MANDATORY AT YOUR BAY 2 BOOTH</Text>
+              <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
+                • 🚨 WHY YOU FACE RISK: Static standing causes blood pooling in lower legs, reducing brain oxygen under welding weights [health].
+              </Text>
+              <Text style={styles.recoveryDetailText}>
+                • 🛡️ HOW THIS HELPS YOU: Activates muscle pumps to force blood back to the heart, shielding your L4/L5 spine [health].
+              </Text>
+
+              {/* 3 Exercises loops simulated */}
+              <Text style={[styles.bulletContentBold, { marginTop: 16, marginBottom: 12 }]}>[📖 EXERCISE GUIDE - 3 BOOTH MOVEMENTS]</Text>
+
+              {/* Ex 1 */}
+              <View style={styles.exerciseBox}>
+                <Text style={styles.exerciseTitle}>1. WORKBENCH CALF RAISES (90 Secs)</Text>
+                <View style={styles.mediaPlaceholder}>
+                  <Text style={styles.mediaEmoji}>🏃‍♂️</Text>
+                  <Text style={styles.mediaText}>🎥 Loop: standing_calf_raise (Active 3s Loop)</Text>
+                </View>
+                <Text style={styles.exerciseDesc}>• Brace hands firmly on your welding table.</Text>
+                <Text style={styles.exerciseDesc}>• Lift your heels high, hold for 2 secs, and lower down slowly under control.</Text>
+              </View>
+
+              {/* Ex 2 */}
+              <View style={styles.exerciseBox}>
+                <Text style={styles.exerciseTitle}>2. BEAM TOE LIFTS (90 Secs)</Text>
+                <View style={styles.mediaPlaceholder}>
+                  <Text style={styles.mediaEmoji}>🦶</Text>
+                  <Text style={styles.mediaText}>🎥 Loop: standing_toe_raise (Active 3s Loop)</Text>
+                </View>
+                <Text style={styles.exerciseDesc}>• Lean your back straight against the steel beam.</Text>
+                <Text style={styles.exerciseDesc}>• Keep your heels flat on the concrete floor and pull your toes up high.</Text>
+              </View>
+
+              {/* Ex 3 */}
+              <View style={styles.exerciseBox}>
+                <Text style={styles.exerciseTitle}>3. ISOMETRIC THIGH SQUEEZES (60 Secs)</Text>
+                <View style={styles.mediaPlaceholder}>
+                  <Text style={styles.mediaEmoji}>💪</Text>
+                  <Text style={styles.mediaText}>🎥 Loop: standing_quad_clamp (Active 3s Loop)</Text>
+                </View>
+                <Text style={styles.exerciseDesc}>• Stand straight right inside your cell.</Text>
+                <Text style={styles.exerciseDesc}>• Squeeze your quadriceps and glutes hard for 5 seconds, release, and repeat.</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* 📊 BLOCK 3.5: 01:20 PM Lunch Compliance Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '01:20 PM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.errorLight, borderColor: theme.colors.error }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.error }]}>🍱 METABOLIC | 01:20 PM Lunch Compliance</Text>
           </View>
@@ -524,16 +868,9 @@ export const OccupationalSafetyScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ TIME: 01:20 PM</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -598,8 +935,14 @@ export const OccupationalSafetyScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* 🟨 BLOCK 3.6: 02:01 PM Predictive Shield Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        {/* 🟨 BLOCK 3.6: 02:01 PM Predictive Shield Update */}
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '02:01 PM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>🟨 PREDICTIVE SHIELD | 02:01 PM Update</Text>
           </View>
@@ -614,13 +957,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
             {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ TIME: 02:01 PM</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -687,7 +1024,13 @@ export const OccupationalSafetyScreen: React.FC = () => {
         </View>
 
         {/* 🎛️ BLOCK 3.7: 05:30 PM End-of-Shift Reconciliation Pathways */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '05:30 PM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🎛️ RECOVERY | CHOOSE YOUR RECOVERY PATHWAYS</Text>
           </View>
@@ -699,16 +1042,9 @@ export const OccupationalSafetyScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ TIME: 05:30 PM</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -757,7 +1093,13 @@ export const OccupationalSafetyScreen: React.FC = () => {
         </View>
 
         {/* 🟨 BLOCK 4: Night Wrap Card (Full Details) */}
-        <View style={styles.cardContainer}>
+        <View
+          style={styles.cardContainer}
+          onLayout={(event) => {
+            const layout = event.nativeEvent.layout;
+            setCardLayouts(prev => ({ ...prev, '11:30 PM': layout.y }));
+          }}
+        >
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>{t.nightTitle}</Text>
           </View>
@@ -771,13 +1113,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
 
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.nightDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>⏱️ {t.nightTime}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>{t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 11:30 PM</Text>
               </View>
             </View>
 
@@ -866,17 +1202,9 @@ export const PreventiveCareScreen: React.FC = () => {
                 <Text style={[styles.badgeText, { color: theme.colors.error }]}>{t.pphiTitle}</Text>
               </View>
             </View>
-
-            {/* Meta Badges stacked to prevent overflow on small screens */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.pphiDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ {t.pphiTime}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.pphiUhid}</Text>
               </View>
             </View>
 
@@ -1104,7 +1432,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cardContainer: {
-    marginBottom: 20,
+    marginBottom: 68,
   },
   cardHeaderTag: {
     borderTopLeftRadius: 16,
@@ -1180,13 +1508,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   scoreLabel: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: 6,
   },
   scoreLabelSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     marginBottom: 6,
   },
   progressContainer: {
@@ -1207,7 +1535,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusLabel: {
-    fontSize: 12.5,
+    fontSize: 13.5,
   },
   introBox: {
     backgroundColor: theme.colors.background,
@@ -1219,8 +1547,8 @@ const styles = StyleSheet.create({
   },
   introText: {
     color: theme.colors.text,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
   sectionBlock: {
     borderBottomWidth: 1,
@@ -1229,7 +1557,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionHeader: {
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: 10,
@@ -1241,21 +1569,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   bulletIcon: {
-    fontSize: 14,
+    fontSize: 15,
     marginRight: 8,
     lineHeight: 18,
   },
   bulletContent: {
-    fontSize: 12.5,
+    fontSize: 14,
     color: theme.colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
     flex: 1,
   },
   bulletContentBold: {
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.colors.text,
-    lineHeight: 18,
+    lineHeight: 19,
     flex: 1,
   },
   subBoxContainer: {
@@ -1264,11 +1592,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subBoxHeader: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   subBoxTier: {
-    fontSize: 11,
+    fontSize: 12.5,
     marginTop: 2,
   },
   pointBalanceContainer: {
@@ -1282,9 +1610,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   pointText: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: theme.colors.textSecondary,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   rationaleBox: {
     backgroundColor: '#fff8f6',
@@ -1294,23 +1622,23 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   rationaleTitle: {
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: '800',
     color: theme.colors.error,
     marginBottom: 6,
   },
   rationaleDesc: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: theme.colors.textSecondary,
-    lineHeight: 17,
+    lineHeight: 18,
   },
   recoverySubSection: {
     marginTop: 6,
   },
   recoveryDetailText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     color: theme.colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
     marginTop: 4,
   },
   hubLinkRow: {
@@ -1334,13 +1662,13 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   hubLinkLabel: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '900',
     color: theme.colors.text,
     letterSpacing: 0.5,
     flex: 1,
     marginRight: 10,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   hubLinkArrow: {
     fontSize: 16,
@@ -1362,20 +1690,87 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     color: '#16a34a',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     marginBottom: 4,
   },
   successDesc: {
     color: '#166534',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
   exerciseDesc: {
     color: '#166534',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13.5,
+    lineHeight: 18,
     marginTop: 2.5,
+  },
+  exerciseBox: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  exerciseTitle: {
+    color: theme.colors.text,
+    fontSize: 14.5,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  mediaPlaceholder: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  mediaEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  mediaText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  scenarioToggleHeader: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  scenarioToggleTitle: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  scenarioToggleButtons: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  scenarioTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  scenarioTabText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
   },
   driftRow: {
     flexDirection: 'row',
@@ -1476,5 +1871,202 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 13,
     fontWeight: '800',
+  },
+  visualizerContainer: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  circleWrapper: {
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  breathingCircleBg: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: theme.colors.warningLight,
+    borderWidth: 4,
+    borderColor: theme.colors.warning,
+    position: 'absolute',
+  },
+  circleTextOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  visualizerStepVal: {
+    color: theme.colors.text,
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  visualizerInnerAction: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  visualizerStepTitle: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  repTracker: {
+    backgroundColor: theme.colors.background,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+  },
+  visualizerReps: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  stepRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stepTitle: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  stepBoxes: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  stepBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  stepBoxActive: {
+    backgroundColor: theme.colors.successLight,
+    borderColor: theme.colors.success,
+  },
+  stepBoxText: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
+  },
+  stepBoxTextActive: {
+    color: theme.colors.success,
+  },
+  questSubmitRow: {
+    alignItems: 'stretch',
+    marginTop: 12,
+  },
+  submitQuestBtn: {
+    backgroundColor: theme.colors.success,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  submitQuestBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  topSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 10000,
+  },
+  topSelectorLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.textSecondary,
+  },
+  dropdownWrapper: {
+    position: 'relative',
+    zIndex: 9999,
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  dropdownTriggerText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: theme.colors.text,
+  },
+  dropdownChevron: {
+    fontSize: 10,
+    color: theme.colors.primary,
+    fontWeight: '900',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 36,
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderRadius: 12,
+    width: 110,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownItemActive: {
+    backgroundColor: theme.colors.primaryLight,
+  },
+  dropdownItemText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  dropdownItemTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '900',
   },
 });

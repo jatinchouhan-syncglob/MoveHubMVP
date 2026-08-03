@@ -146,8 +146,8 @@ const DrawerNavigatorContent: React.FC = () => {
       'MindsetHub',
     ];
     const shieldHubScreens = [
-      'OccupationalSafety',
       'RiskAssessment',
+      'OccupationalSafety',
       'PreventiveCare',
       'RiskTracker',
       'RiskTools',
@@ -887,14 +887,14 @@ const DrawerNavigatorContent: React.FC = () => {
                 <View style={styles.subMenuContainer}>
                   {[
                     {
-                      screen: 'OccupationalSafety' as const,
-                      label: 'Occupational Safety',
-                      icon: '🦺',
-                    },
-                    {
                       screen: 'RiskAssessment' as const,
                       label: 'Risk Assessment',
                       icon: '📋',
+                    },
+                    {
+                      screen: 'OccupationalSafety' as const,
+                      label: 'Occupational Safety',
+                      icon: '🦺',
                     },
                     {
                       screen: 'PreventiveCare' as const,

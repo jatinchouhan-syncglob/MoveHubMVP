@@ -34,6 +34,27 @@ export const MyQuestScreen: React.FC = () => {
   const [timerSeconds, setTimerSeconds] = useState(4);
   const [completedRepetitions, setCompletedRepetitions] = useState(0);
   const [questCompleted, setQuestCompleted] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState('');
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      const options: Intl.DateTimeFormatOptions = {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      };
+      setCurrentDateTime(now.toLocaleString('en-US', options));
+    };
+    updateDateTime();
+    const timer = setInterval(updateDateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Animation value for breathing circle expansion
   const [scaleAnim] = useState(new Animated.Value(1));
@@ -48,8 +69,7 @@ export const MyQuestScreen: React.FC = () => {
   const [workloadSelection, setWorkloadSelection] = useState<number | null>(null);
   const [workloadSubmitted, setWorkloadSubmitted] = useState(false);
 
-  // 02:01 PM Scenario Switcher State (1: Scenario 1 - Safe Buffer, 2: Scenario 2 - Lockout)
-  const [scenarioSelected, setScenarioSelected] = useState<1 | 2>(1);
+
 
   // 05:30 PM Recovery Pathways Selection State
   const [recoveryOption, setRecoveryOption] = useState<1 | 2 | 3>(1);
@@ -104,6 +124,13 @@ export const MyQuestScreen: React.FC = () => {
     setTimerSeconds(4);
     setCompletedRepetitions(0);
     Animated.timing(scaleAnim, { toValue: 1.5, duration: 4000, useNativeDriver: true }).start();
+  };
+
+  const stopBreathing = () => {
+    setBreathingActive(false);
+    setBreathingStep('idle');
+    setTimerSeconds(4);
+    scaleAnim.setValue(1);
   };
 
   const forceSubmitQuest = () => {
@@ -195,6 +222,13 @@ export const MyQuestScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Dynamic System Date & Time Header */}
+        <View style={{ backgroundColor: theme.colors.background, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: theme.colors.textSecondary }}>
+            📅 DATE & TIME: <Text style={{ color: theme.colors.primary, fontWeight: '900' }}>{currentDateTime}</Text>
+          </Text>
+        </View>
+
         {/* 📊 BLOCK 1: Baseline OSI Card */}
         <View style={styles.cardContainer}>
           <View style={styles.cardHeaderTag}>
@@ -209,13 +243,9 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges stacked to prevent overflow on small screens */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.date}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 07:30 AM</Text>
               </View>
             </View>
 
@@ -238,7 +268,10 @@ export const MyQuestScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 16 }]}
-              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+              onPress={() => {
+                drawer?.setTargetCardTime('07:45 AM');
+                drawer?.setActiveScreen('OccupationalSafety');
+              }}
             >
               <Text style={styles.hubLinkEmoji}>🦺</Text>
               <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -261,16 +294,9 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.surveyDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ {t.surveyTime}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
               </View>
             </View>
 
@@ -381,13 +407,9 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges stacked to prevent overflow on small screens */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.clockinDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 07:45 AM</Text>
               </View>
             </View>
 
@@ -409,7 +431,10 @@ export const MyQuestScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
-              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+              onPress={() => {
+                drawer?.setTargetCardTime('07:45 AM');
+                drawer?.setActiveScreen('OccupationalSafety');
+              }}
             >
               <Text style={styles.hubLinkEmoji}>🦺</Text>
               <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -418,7 +443,7 @@ export const MyQuestScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* 🟨 BLOCK 3: Post-Quest Verified Update */}
+        {/* 🟨 BLOCK 3: Cleared Status Card (Full Details, Amber Style) */}
         <View style={styles.cardContainer}>
           <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
             <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>🟨 CLEARED STATUS | 07:46 AM Update</Text>
@@ -432,11 +457,7 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges stacked to prevent overflow on small screens */}
             <View style={styles.metaBadgeContainer}>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.clearedDate}</Text>
-              </View>
               <View style={styles.metaBadge}>
                 <Text style={styles.metaBadgeText}>⏱️ {t.clearedTime}</Text>
               </View>
@@ -446,15 +467,15 @@ export const MyQuestScreen: React.FC = () => {
             <View style={styles.scoreBox}>
               <Text style={styles.scoreLabel}>{t.clearedOsiLabel}</Text>
               <View style={styles.scoreNumberContainer}>
-                <Text style={[styles.scoreValue, { color: theme.colors.warning }]}>{questCompleted ? '77.8' : '80.2'}</Text>
+                <Text style={[styles.scoreValue, { color: theme.colors.warning }]}>77.8</Text>
                 <Text style={styles.scoreScale}>/ 100</Text>
               </View>
               <View style={styles.progressContainer}>
-                <View style={[styles.progressBar, { width: questCompleted ? '77.8%' : '80.2%', backgroundColor: theme.colors.warning }]} />
+                <View style={[styles.progressBar, { width: '77.8%', backgroundColor: theme.colors.warning }]} />
               </View>
               <View style={[styles.statusBanner, { backgroundColor: theme.colors.warningLight }]}>
                 <Text style={[styles.statusLabel, { color: theme.colors.warning }]}>
-                  {questCompleted ? t.clearedStatusVerified : t.clearedStatusPending}
+                  {t.clearedStatusVerified}
                 </Text>
               </View>
             </View>
@@ -462,7 +483,10 @@ export const MyQuestScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
-              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+              onPress={() => {
+                drawer?.setTargetCardTime('07:46 AM');
+                drawer?.setActiveScreen('OccupationalSafety');
+              }}
             >
               <Text style={styles.hubLinkEmoji}>🦺</Text>
               <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -485,13 +509,9 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Meta Badges */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 11:00 AM</Text>
               </View>
             </View>
 
@@ -574,16 +594,9 @@ export const MyQuestScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Meta Badges */}
                 <View style={styles.metaBadgeContainer}>
                   <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
                     <Text style={styles.metaBadgeText}>⏱️ TIME: 11:01 AM</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
                   </View>
                 </View>
 
@@ -598,131 +611,22 @@ export const MyQuestScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Latest Alert */}
-                <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionHeader}>⚙️ 1. LATEST SHIFT STRAIN ALERT</Text>
-                  <View style={styles.bulletItem}>
-                    <Text style={styles.bulletIcon}>⚠️</Text>
-                    <Text style={styles.bulletContentBold}>Registered: Almost Double Workload</Text>
-                  </View>
-                  <Text style={[styles.bulletContent, { marginTop: 8, fontStyle: 'italic', color: theme.colors.textSecondary }]}>
-                    YOUR ACTIVE RISK: This heavy surge compounds your morning fatigue, placing intense physical stress on your L4/L5 lumbar vertebrae and weak left wrist joint [health].
-                  </Text>
-                </View>
-
-                {/* History */}
-                <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionHeader}>🩹 2. SHIFT TIMELINE HISTORY (LATEST)</Text>
-                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>11:01 AM: Workload Update : Banked</Text></View>
-                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>07:46 AM: Pre-Work Quest : Verified</Text></View>
-                  <View style={styles.bulletItem}><Text style={styles.bulletIcon}>⏱️</Text><Text style={styles.bulletContent}>07:45 AM: Clock-In Survey : Ingested</Text></View>
-                </View>
-
-                {/* Upcoming */}
-                <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-                  <Text style={styles.sectionHeader}>🔔 3. UPCOMING DYNAMIC SAFETY QUESTS</Text>
-                  <View style={styles.bulletItem}>
-                    <Text style={styles.bulletIcon}>🚶</Text>
-                    <Text style={styles.bulletContentBold}>TRACK A (01:15 PM): 5-Min Post-Meal Metabolic Walk</Text>
-                  </View>
-                  <Text style={[styles.bulletContent, { marginLeft: 16, fontSize: 12, color: theme.colors.textSecondary }]}>
-                    (Location: Canteen / Shared Lanes)
-                  </Text>
-                  <View style={[styles.bulletItem, { marginTop: 10 }]}>
-                    <Text style={styles.bulletIcon}>⚙️</Text>
-                    <Text style={styles.bulletContentBold}>TRACK B (02:00 PM): 4-Min Peripheral Circulation Pumps</Text>
-                  </View>
-                  <Text style={[styles.bulletContent, { marginLeft: 16, fontSize: 12, color: theme.colors.textSecondary }]}>
-                    (Location: MANDATORY AT BAY 2 BOOTH)
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('11:01 AM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
+                >
+                  <Text style={styles.hubLinkEmoji}>🦺</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            {/* 🍱 BLOCK 3.3.5: Post-Lunch Risk Mitigation Guide */}
-            <View style={styles.cardContainer}>
-              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
-                <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 LUNCH MITIGATION | POST-LUNCH RISK MITIGATION GUIDE</Text>
-              </View>
-              <View style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
-                    <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
-                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🍱 POST-LUNCH RISK MITIGATION GUIDE</Text>
-                  </View>
-                </View>
 
-                <View style={styles.introBox}>
-                  <Text style={styles.introText}>
-                    Because your line is running at near double workload today, you must execute this two-part safety loop to protect your body and stay clear of Red Zone turnstile lockouts [health]:
-                  </Text>
-                </View>
-
-                {/* Stage A */}
-                <View style={styles.sectionBlock}>
-                  <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>🚶 STAGE A: THE 5-MINUTE LUNCH STROLL</Text>
-                  <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 01:15 PM (RIGHT AFTER MEAL)</Text>
-                  <Text style={styles.recoveryDetailText}>📍 LOCATION: CANTEEN AREA / OUTSIDE LANES</Text>
-                  <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
-                    • 🚨 WHY YOU FACE RISK NOW: Prolonged standing under a heavy shift workload strains muscles and slows focus [health].
-                  </Text>
-                  <Text style={styles.recoveryDetailText}>
-                    • 🛡️ HOW THIS HELPS YOU: Moving at an easy pace right after your break balances energy levels and prevents afternoon sluggishness [health].
-                  </Text>
-                </View>
-
-                {/* Stage B */}
-                <View style={[styles.sectionBlock, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
-                  <Text style={[styles.bulletContentBold, { fontSize: 14 }]}>⚙️ STAGE B: PERIPHERAL CIRCULATION PUMPS</Text>
-                  <Text style={styles.recoveryDetailText}>⏱️ TIMELINE: 02:00 PM (45 MINS LATER)</Text>
-                  <Text style={styles.recoveryDetailText}>📍 LOCATION: MANDATORY AT YOUR BAY 2 BOOTH</Text>
-                  <Text style={[styles.recoveryDetailText, { color: theme.colors.error }]}>
-                    • 🚨 WHY YOU FACE RISK NOW: Standing statically causes blood pooling in lower legs, cutting brain oxygen and causing dizziness/strain under heavy welding weights [health].
-                  </Text>
-                  <Text style={styles.recoveryDetailText}>
-                    • 🛡️ HOW THIS HELPS YOU: Completing these 3 movements activates muscle pumps, forcing blood back to the heart, shielding L4/L5 spine from fatigue [health].
-                  </Text>
-
-                  {/* 3 Exercises loops simulated beautifully */}
-                  <Text style={[styles.bulletContentBold, { marginTop: 16, marginBottom: 12 }]}>[📖 EXERCISE GUIDE - 3 BOOTH MOVEMENTS]</Text>
-
-                  {/* Ex 1 */}
-                  <View style={styles.exerciseBox}>
-                    <Text style={styles.exerciseTitle}>1. WORKBENCH CALF RAISES (90 Secs)</Text>
-                    {/* Simulated loop animation */}
-                    <View style={styles.mediaPlaceholder}>
-                      <Text style={styles.mediaEmoji}>🏃‍♂️</Text>
-                      <Text style={styles.mediaText}>🎥 Loop: standing_calf_raise (Active 3s Loop)</Text>
-                    </View>
-                    <Text style={styles.exerciseDesc}>• Brace hands firmly on your welding table.</Text>
-                    <Text style={styles.exerciseDesc}>• Lift your heels high, hold for 2 secs, and lower down slowly under control.</Text>
-                  </View>
-
-                  {/* Ex 2 */}
-                  <View style={styles.exerciseBox}>
-                    <Text style={styles.exerciseTitle}>2. BEAM TOE LIFTS (90 Secs)</Text>
-                    <View style={styles.mediaPlaceholder}>
-                      <Text style={styles.mediaEmoji}>🦶</Text>
-                      <Text style={styles.mediaText}>🎥 Loop: standing_toe_raise (Active 3s Loop)</Text>
-                    </View>
-                    <Text style={styles.exerciseDesc}>• Lean your back straight against the steel beam.</Text>
-                    <Text style={styles.exerciseDesc}>• Keep your heels flat on the concrete floor and pull your toes up high.</Text>
-                  </View>
-
-                  {/* Ex 3 */}
-                  <View style={styles.exerciseBox}>
-                    <Text style={styles.exerciseTitle}>3. ISOMETRIC THIGH SQUEEZES (60 Secs)</Text>
-                    <View style={styles.mediaPlaceholder}>
-                      <Text style={styles.mediaEmoji}>💪</Text>
-                      <Text style={styles.mediaText}>🎥 Loop: standing_quad_clamp (Active 3s Loop)</Text>
-                    </View>
-                    <Text style={styles.exerciseDesc}>• Stand straight right inside your cell.</Text>
-                    <Text style={styles.exerciseDesc}>• Squeeze your quadriceps and glutes hard for 5 seconds, release, and repeat.</Text>
-                  </View>
-
-                </View>
-              </View>
-            </View>
 
             {/* 🍱 BLOCK 3.4: 11:45 Meal Plan (Metabolic Shield) */}
             <View style={styles.cardContainer}>
@@ -737,16 +641,9 @@ export const MyQuestScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Meta Badges */}
                 <View style={styles.metaBadgeContainer}>
                   <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
                     <Text style={styles.metaBadgeText}>⏱️ TIME: 11:30 AM</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
                   </View>
                 </View>
 
@@ -762,7 +659,50 @@ export const MyQuestScreen: React.FC = () => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 8 }]}
-                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('11:30 AM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
+                >
+                  <Text style={styles.hubLinkEmoji}>🦺</Text>
+                  <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
+                  <Text style={styles.hubLinkArrow}>➔</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 🍱 BLOCK 3.3.5: 01:00 PM Post-Lunch Risk Mitigation Guide Card (Compact) */}
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primary }]}>
+                <Text style={[styles.cardHeaderTagText, { color: theme.colors.primary }]}>🍱 LUNCH MITIGATION | 01:00 PM Post-Lunch Plan</Text>
+              </View>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={[styles.titleBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.primary }]} />
+                    <Text style={[styles.badgeText, { color: theme.colors.primary }]}>🍱 POST-LUNCH RISK MITIGATION GUIDE</Text>
+                  </View>
+                </View>
+
+                <View style={styles.metaBadgeContainer}>
+                  <View style={styles.metaBadge}>
+                    <Text style={styles.metaBadgeText}>⏱️ TIME: 01:00 PM</Text>
+                  </View>
+                </View>
+
+                <View style={styles.introBox}>
+                  <Text style={styles.introText}>
+                    With near-double workload today, execute this two-part safety loop to protect your body and stay clear of Red Zone turnstile lockouts [health]:
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 16 }]}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('01:00 PM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
                 >
                   <Text style={styles.hubLinkEmoji}>🦺</Text>
                   <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -784,16 +724,9 @@ export const MyQuestScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Meta Badges */}
                 <View style={styles.metaBadgeContainer}>
                   <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
                     <Text style={styles.metaBadgeText}>⏱️ TIME: 01:20 PM</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
                   </View>
                 </View>
 
@@ -811,7 +744,10 @@ export const MyQuestScreen: React.FC = () => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[styles.hubLinkRow, { borderLeftColor: theme.colors.error, marginTop: 16 }]}
-                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('01:20 PM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
                 >
                   <Text style={styles.hubLinkEmoji}>🦺</Text>
                   <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -820,7 +756,7 @@ export const MyQuestScreen: React.FC = () => {
               </View>
             </View>
 
-                        {/* 🟨 PREDICTIVE SHIELD (02:01 PM) */}
+            {/* 🟨 BLOCK 3.6: 02:01 PM Predictive Shield Update */}
             <View style={styles.cardContainer}>
               <View style={[styles.cardHeaderTag, { backgroundColor: theme.colors.warningLight, borderColor: theme.colors.warning }]}>
                 <Text style={[styles.cardHeaderTagText, { color: theme.colors.warning }]}>🟨 PREDICTIVE SHIELD | 02:01 PM Update</Text>
@@ -836,13 +772,7 @@ export const MyQuestScreen: React.FC = () => {
                 {/* Meta Badges */}
                 <View style={styles.metaBadgeContainer}>
                   <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
                     <Text style={styles.metaBadgeText}>⏱️ TIME: 02:01 PM</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
                   </View>
                 </View>
 
@@ -860,7 +790,10 @@ export const MyQuestScreen: React.FC = () => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
-                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('02:01 PM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
                 >
                   <Text style={styles.hubLinkEmoji}>🦺</Text>
                   <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -885,13 +818,7 @@ export const MyQuestScreen: React.FC = () => {
                 {/* Meta Badges */}
                 <View style={styles.metaBadgeContainer}>
                   <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>📅 DATE: 27-Jul-2026</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
                     <Text style={styles.metaBadgeText}>⏱️ TIME: 05:30 PM</Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text style={styles.metaBadgeText}>🆔 {t.uhid}</Text>
                   </View>
                 </View>
 
@@ -905,7 +832,10 @@ export const MyQuestScreen: React.FC = () => {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[styles.hubLinkRow, { borderLeftColor: theme.colors.primary, marginTop: 8 }]}
-                  onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+                  onPress={() => {
+                    drawer?.setTargetCardTime('05:30 PM');
+                    drawer?.setActiveScreen('OccupationalSafety');
+                  }}
                 >
                   <Text style={styles.hubLinkEmoji}>🎛️</Text>
                   <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -934,10 +864,7 @@ export const MyQuestScreen: React.FC = () => {
             {/* Meta Badges stacked to prevent overflow on small screens */}
             <View style={styles.metaBadgeContainer}>
               <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>📅 {t.nightDate}</Text>
-              </View>
-              <View style={styles.metaBadge}>
-                <Text style={styles.metaBadgeText}>⏱️ {t.nightTime}</Text>
+                <Text style={styles.metaBadgeText}>⏱️ TIME: 11:30 PM</Text>
               </View>
             </View>
 
@@ -960,7 +887,10 @@ export const MyQuestScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.hubLinkRow, { borderLeftColor: theme.colors.warning, marginTop: 16 }]}
-              onPress={() => drawer?.setActiveScreen('OccupationalSafety')}
+              onPress={() => {
+                drawer?.setTargetCardTime('11:30 PM');
+                drawer?.setActiveScreen('OccupationalSafety');
+              }}
             >
               <Text style={styles.hubLinkEmoji}>🦺</Text>
               <Text style={styles.hubLinkLabel}>See Details in Shield Hub</Text>
@@ -1066,7 +996,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   cardContainer: {
-    marginBottom: 28,
+    marginBottom: 68,
   },
   cardHeaderTag: {
     backgroundColor: theme.colors.successLight,
@@ -1498,6 +1428,45 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: 11,
     fontWeight: '700',
+  },
+  stepRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stepTitle: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  stepBoxes: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  stepBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  stepBoxActive: {
+    backgroundColor: theme.colors.successLight,
+    borderColor: theme.colors.success,
+  },
+  stepBoxText: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '700',
+  },
+  stepBoxTextActive: {
+    color: theme.colors.success,
   },
   questSubmitRow: {
     alignItems: 'stretch',
