@@ -14,6 +14,7 @@ import {
   Platform,
   Alert,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
@@ -32,6 +33,27 @@ import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
 import Svg, { Circle } from 'react-native-svg';
 import { useDrawer } from '../../navigation/DrawerContext';
+const getActivityEmoji = (activityName: string, categoryName?: string): string => {
+  const nameLower = activityName.toLowerCase();
+  if (nameLower.includes('walk')) return '🚶';
+  if (nameLower.includes('run') || nameLower.includes('jog')) return '🏃';
+  if (nameLower.includes('cycle') || nameLower.includes('bike')) return '🚴';
+  if (nameLower.includes('swim')) return '🏊';
+  if (nameLower.includes('yoga') || nameLower.includes('stretch') || nameLower.includes('meditat')) return '🧘';
+  if (nameLower.includes('zumba') || nameLower.includes('aerobic') || nameLower.includes('dance')) return '💃';
+  if (nameLower.includes('cricket')) return '🏏';
+  if (nameLower.includes('badminton')) return '🏸';
+  if (nameLower.includes('soccer') || nameLower.includes('football')) return '⚽';
+  if (nameLower.includes('lift') || nameLower.includes('strength') || nameLower.includes('weight') || nameLower.includes('squat') || nameLower.includes('bench') || nameLower.includes('deadlift') || nameLower.includes('press') || nameLower.includes('row')) return '🏋️';
+  
+  if (categoryName) {
+    const catLower = categoryName.toLowerCase();
+    if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance')) return '🏋️';
+    if (catLower.includes('condition') || catLower.includes('cardio') || catLower.includes('endurance')) return '🏃';
+    if (catLower.includes('sport') || catLower.includes('game') || catLower.includes('court')) return '⚽';
+  }
+  return '🏃';
+};
 
 export const ActivityTrackingScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
@@ -76,14 +98,19 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [userWeight, setUserWeight] = useState(74.5);
 
   // Category Filtering
-  const [selectedCategory, setSelectedCategory] = useState<
-    'distance' | 'strength' | 'duration'
-  >('distance');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   // Additional Popup & Saving States
   const [seeAllVisible, setSeeAllVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dynamicActivities, setDynamicActivities] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedDynamicActivity, setSelectedDynamicActivity] = useState<any | null>(null);
+  const [catalogActivities, setCatalogActivities] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [trainingProfile, setTrainingProfile] = useState('Working Set');
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   const fetchActivities = async () => {
     try {
@@ -97,8 +124,28 @@ export const ActivityTrackingScreen: React.FC = () => {
     }
   };
 
+  const fetchInitialCatalog = async () => {
+    setCatalogLoading(true);
+    try {
+      const url = `https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/getActivityCatalog?search=`;
+      console.log('[ActivityLogger] Fetching initial catalog URL:', url);
+      const response = await fetch(url);
+      const json = await response.json();
+      console.log('[ActivityLogger] Initial Catalog Response:', JSON.stringify(json, null, 2));
+
+      if (json.status === 'Success' && Array.isArray(json.data)) {
+        setCatalogActivities(json.data);
+      }
+    } catch (error) {
+      console.error('[ActivityLogger] Failed to fetch initial catalog:', error);
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchActivities();
+    fetchInitialCatalog();
     // Fetch profile to get weight for live calorie previews
     apiService
       .getProfile()
@@ -110,33 +157,160 @@ export const ActivityTrackingScreen: React.FC = () => {
       .catch(err => console.error('Failed to load profile weight:', err));
   }, []);
 
+  useEffect(() => {
+    if (!seeAllVisible) {
+      setDynamicActivities([]);
+      return;
+    }
+
+    const fetchSearchedActivities = async () => {
+      setSearchLoading(true);
+      try {
+        const url = `https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/getActivityCatalog?search=${encodeURIComponent(
+          searchQuery,
+        )}`;
+        console.log('[ActivityLogger] Fetching catalog URL:', url);
+        const response = await fetch(url);
+        const json = await response.json();
+        console.log('[ActivityLogger] Dynamic Catalog Response:', JSON.stringify(json, null, 2));
+
+        if (json.status === 'Success' && Array.isArray(json.data)) {
+          setDynamicActivities(json.data);
+        } else {
+          setDynamicActivities([]);
+        }
+      } catch (error) {
+        console.error('[ActivityLogger] Failed to fetch catalog:', error);
+        setDynamicActivities([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchSearchedActivities();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, seeAllVisible]);
+  // Auto-resolve dynamic activity metadata when activityType changes
+  useEffect(() => {
+    if (activityType) {
+      const found = catalogActivities.find(
+        item => item.activityName.toLowerCase() === activityType.toLowerCase()
+      );
+      if (found) {
+        setSelectedDynamicActivity(found);
+      }
+    }
+  }, [activityType, catalogActivities]);
   // Sync category tab with selected activity category on open
   useEffect(() => {
     if (modalVisible) {
-      const item = WELLNESS_ACTIVITIES_REGISTRY.find(
-        act => act.name.toLowerCase() === activityType.toLowerCase(),
+      const foundInCatalog = catalogActivities.find(
+        item => item.activityName.toLowerCase() === activityType.toLowerCase()
       );
-      if (item) {
-        setSelectedCategory(item.category as any);
+      if (foundInCatalog && foundInCatalog.categoryName) {
+        setSelectedCategory(foundInCatalog.categoryName);
+        return;
+      }
+      
+      const keys = Object.keys(categoryMainOptions);
+      if (keys.length > 0) {
+        const item = WELLNESS_ACTIVITIES_REGISTRY.find(
+          act => act.name.toLowerCase() === activityType.toLowerCase()
+        );
+        if (item) {
+          const actCat = item.category;
+          const matchedKey = keys.find(key => {
+            const catLower = key.toLowerCase();
+            if (actCat === 'distance' && (catLower.includes('run') || catLower.includes('walk') || catLower.includes('cycle') || catLower.includes('swim') || catLower.includes('endurance') || catLower.includes('bicycling'))) return true;
+            if (actCat === 'strength' && (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || catLower.includes('condition'))) return true;
+            if (actCat === 'duration' && (catLower.includes('mind') || catLower.includes('body') || catLower.includes('yoga') || catLower.includes('stretch') || catLower.includes('recovery') || catLower.includes('studio'))) return true;
+            return false;
+          });
+          if (matchedKey) {
+            setSelectedCategory(matchedKey);
+          }
+        }
       }
     }
-  }, [modalVisible, activityType]);
+  }, [modalVisible, activityType, catalogActivities]);
+
+  // Set initial category tab on catalog load
+  useEffect(() => {
+    if (catalogActivities.length > 0) {
+      const uniqueCats: string[] = [];
+      catalogActivities.forEach(item => {
+        const cat = item.categoryName || 'General';
+        if (!uniqueCats.includes(cat)) {
+          uniqueCats.push(cat);
+        }
+      });
+      if (uniqueCats.length > 0 && (!selectedCategory || !uniqueCats.includes(selectedCategory))) {
+        setSelectedCategory(uniqueCats[0]);
+      }
+    }
+  }, [catalogActivities, selectedCategory]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchActivities();
   };
 
-  const activeRegistryItem = WELLNESS_ACTIVITIES_REGISTRY.find(
-    act => act.name.toLowerCase() === activityType.toLowerCase(),
-  ) || {
-    name: 'Other',
-    emoji: '💪',
-    baseMET: 4.0,
-    metric: 'mins',
-    category: 'duration',
-    color: theme.colors.primary,
-  };
+  const activeRegistryItem = (() => {
+    const staticItem = WELLNESS_ACTIVITIES_REGISTRY.find(
+      act => act.name.toLowerCase() === activityType.toLowerCase()
+    );
+    if (staticItem) return staticItem;
+
+    if (selectedDynamicActivity && selectedDynamicActivity.activityName.toLowerCase() === activityType.toLowerCase()) {
+      const name = selectedDynamicActivity.activityName;
+      const baseMET = selectedDynamicActivity.baseMet || 4.0;
+      
+      let category: 'distance' | 'strength' | 'duration' = 'duration';
+      let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
+      
+      const catLower = (selectedDynamicActivity.categoryName || '').toLowerCase();
+      const nameLower = name.toLowerCase();
+      
+      if (nameLower.includes('walk') || nameLower.includes('run') || nameLower.includes('cycle') || nameLower.includes('swim') || nameLower.includes('hike') || nameLower.includes('jog') || catLower.includes('bicycling') || catLower.includes('running')) {
+        category = 'distance';
+        if (nameLower.includes('walk')) {
+          metric = 'steps';
+        } else if (nameLower.includes('swim')) {
+          metric = 'm';
+        } else {
+          metric = 'km';
+        }
+      } else if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || nameLower.includes('deadlift') || nameLower.includes('bench') || nameLower.includes('squat')) {
+        category = 'strength';
+        if (nameLower.includes('squat') || nameLower.includes('press') || nameLower.includes('deadlift')) {
+          metric = 'sets';
+        } else {
+          metric = 'reps';
+        }
+      }
+
+      return {
+        name,
+        emoji: getActivityEmoji(name, selectedDynamicActivity.categoryName),
+        baseMET,
+        metric,
+        category,
+        color: theme.colors.primary,
+      };
+    }
+
+    return {
+      name: activityType || 'Other',
+      emoji: '💪',
+      baseMET: 4.0,
+      metric: 'mins',
+      category: 'duration',
+      color: theme.colors.primary,
+    };
+  })();
   const isDistanceBased = activeRegistryItem?.category === 'distance';
 
   const parsedDuration = parseFloat(duration) || 0;
@@ -212,7 +386,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       if (syncWearable) {
         formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
       } else if (registryItem.category === 'strength') {
-        const workoutDetail = `Logged: ${sets} sets x ${reps} reps @ ${weightKg} kg.`;
+        const workoutDetail = `Target: ${trainingProfile}. Logged: ${sets} sets x ${reps} reps @ ${weightKg} kg.`;
         formattedNotes = `Completed ${activityType.toLowerCase()} routine. ${workoutDetail}`;
       } else {
         formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
@@ -237,6 +411,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         durationMinutes: durationMin,
         caloriesBurned: calories,
         notes: formattedNotes,
+        modifier: registryItem.category === 'strength' ? trainingProfile : null,
       };
 
       console.log(
@@ -346,6 +521,8 @@ export const ActivityTrackingScreen: React.FC = () => {
     setHighIntensity(false);
     setStrengthRest(false);
     setActiveRecovery(false);
+    setTrainingProfile('Working Set');
+    setProfileDropdownOpen(false);
   };
 
   const activityOptions = WELLNESS_ACTIVITIES_REGISTRY.map(act => ({
@@ -353,49 +530,69 @@ export const ActivityTrackingScreen: React.FC = () => {
     emoji: act.emoji,
   }));
 
-  const categoryMainOptions: Record<
-    'distance' | 'strength' | 'duration',
-    { name: string; emoji: string }[]
-  > = {
-    distance: [
-      { name: 'Walking', emoji: '🚶' },
-      { name: 'Running', emoji: '🏃' },
-      { name: 'Cycling', emoji: '🚴' },
-      { name: 'Hiking', emoji: '🥾' },
-      { name: 'Jogging', emoji: '🏃‍♂️' },
-      { name: 'Swimming', emoji: '🏊' },
-    ],
-    strength: [
-      { name: 'Workout', emoji: '🏋️' },
-      { name: 'Deadlifts / Weights', emoji: '🏋️‍♂️' },
-      { name: 'Barbell Back Squats', emoji: '🏋️' },
-      { name: 'Bench Press', emoji: '🏋️‍♂️' },
-      { name: 'Push-ups / Calisthenics', emoji: '💪' },
-      { name: 'Plank / Core', emoji: '🧘‍♂️' },
-    ],
-    duration: [
-      { name: 'Yoga', emoji: '🧘' },
-      { name: 'Zumba Gold', emoji: '💃' },
-      { name: 'Cricket', emoji: '🏏' },
-      { name: 'Pilates', emoji: '🤸' },
-      { name: 'Badminton', emoji: '🏸' },
-      { name: 'Football', emoji: '⚽' },
-    ],
+  const categoryMainOptions: Record<string, { name: string; emoji: string }[]> = (() => {
+    const result: Record<string, { name: string; emoji: string }[]> = {};
+
+    catalogActivities.forEach((item: any) => {
+      const name = item.activityName;
+      const catName = item.categoryName || 'General';
+
+      if (!result[catName]) {
+        result[catName] = [];
+      }
+
+      // Show exactly up to 5 exercises per category, as requested
+      if (result[catName].length < 5) {
+        if (!result[catName].some((opt: { name: string; emoji: string }) => opt.name.toLowerCase() === name.toLowerCase())) {
+          const itemEmoji = getActivityEmoji(name, catName);
+          result[catName].push({ name, emoji: itemEmoji });
+        }
+      }
+    });
+
+    return result;
+  })();
+
+  const getCategoryEmoji = (catName: string): string => {
+    const nameLower = catName.toLowerCase();
+    if (nameLower.includes('run') || nameLower.includes('cardio') || nameLower.includes('endurance') || nameLower.includes('cycle') || nameLower.includes('bike') || nameLower.includes('walk')) return '🏃';
+    if (nameLower.includes('strength') || nameLower.includes('weight') || nameLower.includes('resistance') || nameLower.includes('condition')) return '🏋️';
+    if (nameLower.includes('mind') || nameLower.includes('body') || nameLower.includes('yoga') || nameLower.includes('stretch') || nameLower.includes('recovery') || nameLower.includes('studio')) return '🧘';
+    if (nameLower.includes('water') || nameLower.includes('swim')) return '🏊';
+    if (nameLower.includes('sport') || nameLower.includes('game') || nameLower.includes('court')) return '⚽';
+    return '🏃';
   };
 
-  const mainOptions = categoryMainOptions[selectedCategory];
-  const isCurrentCategorySelected =
-    activeRegistryItem?.category === selectedCategory;
+  const mainOptions = (selectedCategory && categoryMainOptions[selectedCategory]) || [];
+  const isCurrentCategorySelected = (() => {
+    if (!activeRegistryItem) return false;
+    
+    if (selectedDynamicActivity && selectedDynamicActivity.activityName.toLowerCase() === activityType.toLowerCase()) {
+      return (selectedDynamicActivity.categoryName || 'General') === selectedCategory;
+    }
+    
+    const catLower = selectedCategory.toLowerCase();
+    const actCat = activeRegistryItem.category;
+    if (actCat === 'distance' && (catLower.includes('run') || catLower.includes('walk') || catLower.includes('cycle') || catLower.includes('swim') || catLower.includes('endurance') || catLower.includes('bicycling'))) {
+      return true;
+    }
+    if (actCat === 'strength' && (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || catLower.includes('condition'))) {
+      return true;
+    }
+    if (actCat === 'duration' && (catLower.includes('mind') || catLower.includes('body') || catLower.includes('yoga') || catLower.includes('stretch') || catLower.includes('recovery') || catLower.includes('studio'))) {
+      return true;
+    }
+    return false;
+  })();
 
   let visibleOptions = [...mainOptions];
   if (isCurrentCategorySelected) {
-    const selectedOpt = activityOptions.find(
-      opt => opt.name.toLowerCase() === activityType.toLowerCase(),
-    );
-    const restOptions = mainOptions.filter(
-      opt => opt.name.toLowerCase() !== activityType.toLowerCase(),
-    );
-    visibleOptions = selectedOpt ? [selectedOpt, ...restOptions] : mainOptions;
+    // If the selected activity is a newly-searched custom activity not present in the list,
+    // prepend it to visibleOptions so the user can see it selected on the screen.
+    const exists = mainOptions.some((opt: { name: string; emoji: string }) => opt.name.toLowerCase() === activityType.toLowerCase());
+    if (!exists && activeRegistryItem) {
+      visibleOptions = [{ name: activeRegistryItem.name, emoji: activeRegistryItem.emoji }, ...mainOptions];
+    }
   }
 
 
@@ -629,65 +826,52 @@ export const ActivityTrackingScreen: React.FC = () => {
                     </View>
 
                     {/* Category Selector Tabs */}
-                    <View style={styles.categoryTabsRow}>
-                      <TouchableOpacity
-                        style={[
-                          styles.categoryTab,
-                          selectedCategory === 'distance' &&
-                            styles.categoryTabActive,
-                        ]}
-                        onPress={() => setSelectedCategory('distance')}
-                        activeOpacity={0.8}
+                    {catalogLoading ? (
+                      <View style={{ paddingVertical: 12, alignItems: 'center', justifyContent: 'center' }}>
+                        <ActivityIndicator size="small" color={theme.colors.primary} />
+                      </View>
+                    ) : Object.keys(categoryMainOptions).length === 0 ? (
+                      <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                        <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Failed to load categories.</Text>
+                      </View>
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.categoryTabsRowHorizontal}
+                        keyboardShouldPersistTaps="handled"
                       >
-                        <Text
-                          style={[
-                            styles.categoryTabText,
-                            selectedCategory === 'distance' &&
-                              styles.categoryTabTextActive,
-                          ]}
-                        >
-                          🏃 Cardio
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.categoryTab,
-                          selectedCategory === 'strength' &&
-                            styles.categoryTabActive,
-                        ]}
-                        onPress={() => setSelectedCategory('strength')}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.categoryTabText,
-                            selectedCategory === 'strength' &&
-                              styles.categoryTabTextActive,
-                          ]}
-                        >
-                          🏋️ Strength
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.categoryTab,
-                          selectedCategory === 'duration' &&
-                            styles.categoryTabActive,
-                        ]}
-                        onPress={() => setSelectedCategory('duration')}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.categoryTabText,
-                            selectedCategory === 'duration' &&
-                              styles.categoryTabTextActive,
-                          ]}
-                        >
-                          🧘 Mind & Sports
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        {Object.keys(categoryMainOptions).map(catName => {
+                          const isActive = selectedCategory === catName;
+                          const catEmoji = getCategoryEmoji(catName);
+                          let displayName = catName;
+                          if (catName.includes('&')) {
+                            displayName = catName.split('&')[0].trim();
+                          }
+                          return (
+                            <TouchableOpacity
+                              key={catName}
+                              style={[
+                                styles.categoryTab,
+                                isActive && styles.categoryTabActive,
+                                { flex: 0, paddingHorizontal: 16 },
+                              ]}
+                              onPress={() => setSelectedCategory(catName)}
+                              activeOpacity={0.8}
+                            >
+                              <Text
+                                style={[
+                                  styles.categoryTabText,
+                                  isActive && styles.categoryTabTextActive,
+                                ]}
+                              >
+                                {catEmoji} {displayName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
 
                     <ScrollView
                       horizontal
@@ -732,93 +916,130 @@ export const ActivityTrackingScreen: React.FC = () => {
                   </Text>
 
                   {/* Contextual Modifiers */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Contextual Modifiers</Text>
-
-                    {/* Row 1: High-Intensity & Active Recovery */}
-                    <View style={styles.modifiersRow}>
+                  {activeRegistryItem.category === 'strength' ? (
+                    <View style={[styles.inputGroup, { zIndex: 10 }]}>
+                      <Text style={styles.label}>Select Training Target Profile</Text>
                       <TouchableOpacity
-                        style={[
-                          styles.modifierButton,
-                          highIntensity && styles.modifierButtonActive,
-                        ]}
-                        onPress={() => {
-                          setHighIntensity(!highIntensity);
-                          if (!highIntensity) {
-                            setStrengthRest(false);
-                            setActiveRecovery(false);
-                          }
-                        }}
+                        style={styles.dropdownSelector}
+                        onPress={() => setProfileDropdownOpen(!profileDropdownOpen)}
                         activeOpacity={0.8}
                       >
-                        <Text
-                          style={[
-                            styles.modifierText,
-                            highIntensity && styles.modifierTextActive,
-                          ]}
-                        >
-                          ⚡ High-Intensity (+1.5 METs)
-                        </Text>
+                        <Text style={styles.dropdownSelectorText}>{trainingProfile}</Text>
+                        <Text style={styles.dropdownArrow}>{profileDropdownOpen ? '▲' : '▼'}</Text>
                       </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.modifierButton,
-                          activeRecovery && styles.modifierButtonActive,
-                        ]}
-                        onPress={() => {
-                          setActiveRecovery(!activeRecovery);
-                          if (!activeRecovery) {
-                            setHighIntensity(false);
-                            setStrengthRest(false);
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.modifierText,
-                            activeRecovery && styles.modifierTextActive,
-                          ]}
-                        >
-                          🚶 Active Recovery (-0.5 METs)
-                        </Text>
-                      </TouchableOpacity>
+                      
+                      {profileDropdownOpen && (
+                        <View style={styles.dropdownOptionsContainer}>
+                          {['Working Set', 'Warmup', 'To Failure'].map(option => (
+                            <TouchableOpacity
+                              key={option}
+                              style={[
+                                styles.dropdownOptionItem,
+                                trainingProfile === option && styles.dropdownOptionItemActive
+                              ]}
+                              onPress={() => {
+                                setTrainingProfile(option);
+                                setProfileDropdownOpen(false);
+                              }}
+                            >
+                              <Text style={[
+                                styles.dropdownOptionText,
+                                trainingProfile === option && styles.dropdownOptionTextActive
+                              ]}>{option}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
                     </View>
+                  ) : (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Contextual Modifiers</Text>
 
-                    {/* Row 2: Strength Rest (Centered below) */}
-                    <View
-                      style={[
-                        styles.modifiersRow,
-                        { marginTop: 8, justifyContent: 'center' },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={[
-                          styles.modifierButton,
-                          { flex: 0, width: '48.5%' },
-                          strengthRest && styles.modifierButtonActive,
-                        ]}
-                        onPress={() => {
-                          setStrengthRest(!strengthRest);
-                          if (!strengthRest) {
-                            setHighIntensity(false);
-                            setActiveRecovery(false);
-                          }
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text
+                      {/* Row 1: High-Intensity & Active Recovery */}
+                      <View style={styles.modifiersRow}>
+                        <TouchableOpacity
                           style={[
-                            styles.modifierText,
-                            strengthRest && styles.modifierTextActive,
+                            styles.modifierButton,
+                            highIntensity && styles.modifierButtonActive,
                           ]}
+                          onPress={() => {
+                            setHighIntensity(!highIntensity);
+                            if (!highIntensity) {
+                              setStrengthRest(false);
+                              setActiveRecovery(false);
+                            }
+                          }}
+                          activeOpacity={0.8}
                         >
-                          🧘 Strength Rest (-1.0 METs)
-                        </Text>
-                      </TouchableOpacity>
+                          <Text
+                            style={[
+                              styles.modifierText,
+                              highIntensity && styles.modifierTextActive,
+                            ]}
+                          >
+                            ⚡ High-Intensity (+1.5 METs)
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.modifierButton,
+                            activeRecovery && styles.modifierButtonActive,
+                          ]}
+                          onPress={() => {
+                            setActiveRecovery(!activeRecovery);
+                            if (!activeRecovery) {
+                              setHighIntensity(false);
+                              setStrengthRest(false);
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.modifierText,
+                              activeRecovery && styles.modifierTextActive,
+                            ]}
+                          >
+                            🚶 Active Recovery (-0.5 METs)
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Row 2: Strength Rest (Centered below) */}
+                      <View
+                        style={[
+                          styles.modifiersRow,
+                          { marginTop: 8, justifyContent: 'center' },
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={[
+                            styles.modifierButton,
+                            { flex: 0, width: '48.5%' },
+                            strengthRest && styles.modifierButtonActive,
+                          ]}
+                          onPress={() => {
+                            setStrengthRest(!strengthRest);
+                            if (!strengthRest) {
+                              setHighIntensity(false);
+                              setActiveRecovery(false);
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.modifierText,
+                              strengthRest && styles.modifierTextActive,
+                            ]}
+                          >
+                            🧘 Strength Rest (-1.0 METs)
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
+                  )}
                 </View>
 
                 {/* Sync Smart Wearable Toggle Switch */}
@@ -1028,44 +1249,59 @@ export const ActivityTrackingScreen: React.FC = () => {
               </View>
 
               {/* List of filtered activities */}
-              <ScrollView
-                contentContainerStyle={styles.searchScroll}
-                keyboardShouldPersistTaps="handled"
-              >
-                {WELLNESS_ACTIVITIES_REGISTRY.filter(opt =>
-                  opt.name.toLowerCase().includes(searchQuery.toLowerCase()),
-                ).map(opt => {
-                  const isSelected = activityType === opt.name;
-                  return (
-                    <TouchableOpacity
-                      key={opt.name}
-                      style={[
-                        styles.searchRowItem,
-                        isSelected && styles.searchRowItemActive,
-                      ]}
-                      onPress={() => {
-                        setActivityType(opt.name);
-                        setSelectedCategory(opt.category as any);
-                        setSeeAllVisible(false);
-                        setSearchQuery('');
-                      }}
-                    >
-                      <Text style={styles.searchRowEmoji}>{opt.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.searchRowText,
-                          isSelected && styles.searchRowTextActive,
-                        ]}
-                      >
-                        {opt.name}
-                      </Text>
-                      {isSelected && (
-                        <Text style={styles.searchRowCheck}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              {searchLoading ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color={theme.colors.primary} />
+                  <Text style={{ marginTop: 8, color: theme.colors.textSecondary }}>Searching catalog...</Text>
+                </View>
+              ) : (
+                <ScrollView
+                  contentContainerStyle={styles.searchScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {dynamicActivities.length === 0 ? (
+                    <View style={{ padding: 24, alignItems: 'center' }}>
+                      <Text style={{ color: theme.colors.textSecondary }}>No exercises found.</Text>
+                    </View>
+                  ) : (
+                    dynamicActivities.map((item: any) => {
+                      const isSelected = activityType === item.activityName;
+                      const itemEmoji = getActivityEmoji(item.activityName, item.categoryName);
+                      return (
+                        <TouchableOpacity
+                          key={item.activityCode + '-' + item.activityName}
+                          style={[
+                            styles.searchRowItem,
+                            isSelected && styles.searchRowItemActive,
+                          ]}
+                          onPress={() => {
+                            setActivityType(item.activityName);
+                            setSelectedDynamicActivity(item);
+                            
+                            setSelectedCategory(item.categoryName || 'General');
+                            
+                            setSeeAllVisible(false);
+                            setSearchQuery('');
+                          }}
+                        >
+                          <Text style={styles.searchRowEmoji}>{itemEmoji}</Text>
+                          <Text
+                            style={[
+                              styles.searchRowText,
+                              isSelected && styles.searchRowTextActive,
+                            ]}
+                          >
+                            {item.activityName}
+                          </Text>
+                          {isSelected && (
+                            <Text style={styles.searchRowCheck}>✓</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -1475,8 +1711,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F172A',
     borderRadius: theme.spacing.borderRadiusLg,
     width: '90%',
-    height: 400,
-    maxHeight: '80%',
+    height: 650,
+    maxHeight: '95%',
     borderWidth: 1,
     borderColor: '#1E293B',
     overflow: 'hidden',
@@ -1758,6 +1994,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modifierTextActive: {
+    color: '#818cf8',
+    fontWeight: theme.fonts.weights.bold as any,
+  },
+  dropdownSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.spacing.borderRadiusMd,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0F172A',
+  },
+  dropdownSelectorText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: theme.fonts.weights.medium as any,
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  dropdownOptionsContainer: {
+    marginTop: 4,
+    borderRadius: theme.spacing.borderRadiusMd,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0F172A',
+    overflow: 'hidden',
+  },
+  dropdownOptionItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  dropdownOptionItemActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  dropdownOptionTextActive: {
     color: '#818cf8',
     fontWeight: theme.fonts.weights.bold as any,
   },
@@ -2206,6 +2487,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     backgroundColor: '#0F172A',
     padding: 2,
+    borderRadius: theme.spacing.borderRadiusMd,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  categoryTabsRowHorizontal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    backgroundColor: '#0F172A',
+    padding: 6,
     borderRadius: theme.spacing.borderRadiusMd,
     borderWidth: 1,
     borderColor: '#1E293B',
