@@ -327,7 +327,17 @@ export const DashboardScreen: React.FC = () => {
       today.getMonth(),
       today.getDate(),
     ).getTime();
-    const timestamp = new Date(activity.timestamp).getTime();
+    
+    let tsStr = String(activity.timestamp || '').trim();
+    if (tsStr.includes(' ') && !tsStr.includes('T')) {
+      tsStr = tsStr.replace(' ', 'T');
+    }
+    if (tsStr.includes('T') && !tsStr.endsWith('Z') && !tsStr.includes('+') && !tsStr.includes('-')) {
+      tsStr = tsStr + 'Z';
+    }
+    const parsedDate = new Date(tsStr);
+    const timestamp = !isNaN(parsedDate.getTime()) ? parsedDate.getTime() : new Date().getTime();
+    
     return timestamp >= startOfToday;
   });
 

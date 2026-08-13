@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   StyleSheet,
@@ -15,6 +15,9 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  Animated,
+  PanResponder,
+  SectionList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
@@ -31,8 +34,9 @@ import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { getDynamicDeviceId } from '../../utils/device';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 import { useDrawer } from '../../navigation/DrawerContext';
+import { useNavigation } from '@react-navigation/native';
 const getActivityEmoji = (activityName: string, categoryName?: string): string => {
   const nameLower = activityName.toLowerCase();
   if (nameLower.includes('walk')) return '🚶';
@@ -55,8 +59,14 @@ const getActivityEmoji = (activityName: string, categoryName?: string): string =
   return '🏃';
 };
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const ITEM_HEIGHT = 60;
+const MINUTES_LIST = Array.from({ length: 90 }, (_, i) => i + 1);
+const PICKER_DATA = ['', ...MINUTES_LIST, ''];
+
 export const ActivityTrackingScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -111,6 +121,180 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [trainingProfile, setTrainingProfile] = useState('Working Set');
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalSelectedPill, setModalSelectedPill] = useState<string | null>(null);
+  const [sliderVal, setSliderVal] = useState(5.0);
+  const rpe = Math.round(sliderVal);
+  const trackRef = useRef<any>(null);
+  const trackLeftOffset = useRef(0);
+  const trackWidth = useRef(0);
+  const flatListRef = useRef<any>(null);
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  // Custom PanResponder for RPE Slider
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: (evt, gestureState) => {
+        trackRef.current?.measure((x: number, y: number, width: number, height: number, pageXOffset: number) => {
+          if (width > 0) {
+            trackLeftOffset.current = pageXOffset;
+            trackWidth.current = width;
+            const relativeX = evt.nativeEvent.pageX - pageXOffset;
+            let pct = relativeX / width;
+            pct = Math.max(0, Math.min(1, pct));
+            setSliderVal(pct * 9 + 1);
+          }
+        });
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (trackWidth.current > 0) {
+          const relativeX = gestureState.moveX - trackLeftOffset.current;
+          let pct = relativeX / trackWidth.current;
+          pct = Math.max(0, Math.min(1, pct));
+          setSliderVal(pct * 9 + 1);
+        }
+      },
+    })
+  ).current;
+
+  const getRpeDescription = (val: number) => {
+    if (val <= 2) return 'Easy / Rest';
+    if (val <= 4) return 'Moderate Effort';
+    if (val <= 6) return 'Hard / Challenging';
+    if (val <= 8) return 'Very Hard';
+    return 'Max Effort / Peak';
+  };
+
+  const getWorkoutBreakdown = () => {
+    if (!activeRegistryItem) {
+      return { cardioPct: 50, strengthPct: 20, balancePct: 15, recoveryPct: 15 };
+    }
+    const itemAny = activeRegistryItem as any;
+    if (
+      typeof itemAny.cardioPct === 'number' &&
+      typeof itemAny.strengthPct === 'number' &&
+      typeof itemAny.balancePct === 'number' &&
+      typeof itemAny.recoveryPct === 'number'
+    ) {
+      return {
+        cardioPct: itemAny.cardioPct,
+        strengthPct: itemAny.strengthPct,
+        balancePct: itemAny.balancePct,
+        recoveryPct: itemAny.recoveryPct,
+      };
+    }
+    const cat = activeRegistryItem.category;
+    const nameLower = activeRegistryItem.name.toLowerCase();
+    
+    if (cat === 'distance') {
+      return { cardioPct: 80, strengthPct: 10, balancePct: 5, recoveryPct: 5 };
+    } else if (cat === 'strength') {
+      return { cardioPct: 10, strengthPct: 80, balancePct: 5, recoveryPct: 5 };
+    } else {
+      // duration based
+      if (
+        nameLower.includes('yoga') || 
+        nameLower.includes('stretch') || 
+        nameLower.includes('meditat') || 
+        nameLower.includes('pilates') || 
+        nameLower.includes('stroll') ||
+        nameLower.includes('roll') || 
+        nameLower.includes('mobility')
+      ) {
+        return { cardioPct: 10, strengthPct: 10, balancePct: 40, recoveryPct: 40 };
+      } else if (
+        nameLower.includes('zumba') || 
+        nameLower.includes('dance') || 
+        nameLower.includes('aerobic') || 
+        nameLower.includes('badminton') || 
+        nameLower.includes('cricket') || 
+        nameLower.includes('football') || 
+        nameLower.includes('kabaddi') ||
+        nameLower.includes('sport') ||
+        nameLower.includes('boxing') ||
+        nameLower.includes('martial')
+      ) {
+        return { cardioPct: 70, strengthPct: 10, balancePct: 10, recoveryPct: 10 };
+      } else {
+        return { cardioPct: 50, strengthPct: 20, balancePct: 15, recoveryPct: 15 };
+      }
+    }
+  };
+
+  // Sync animation of the segmented donut ring when modal is visible or activity type changes
+  useEffect(() => {
+    if (modalVisible) {
+      animValue.setValue(0);
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [modalVisible, activityType]);
+
+  useEffect(() => {
+    if (modalSearchQuery.trim().length > 0) {
+      setModalSelectedPill('ALL');
+    } else {
+      setModalSelectedPill(null);
+    }
+  }, [modalSearchQuery]);
+
+  const getFilteredModalList = () => {
+    const query = modalSearchQuery.trim().toLowerCase();
+    const filteredBySearch = catalogActivities.filter(
+      e => (e.displayName || '').toLowerCase().includes(query) || (e.activityName || '').toLowerCase().includes(query)
+    );
+
+    if (modalSelectedPill && modalSelectedPill !== 'ALL') {
+      return filteredBySearch.filter(e => e.categoryName === modalSelectedPill);
+    }
+    return filteredBySearch;
+  };
+
+  const getCountsForModalQuery = () => {
+    const query = modalSearchQuery.trim().toLowerCase();
+    const filteredBySearch = catalogActivities.filter(
+      e => (e.displayName || '').toLowerCase().includes(query) || (e.activityName || '').toLowerCase().includes(query)
+    );
+    
+    const counts: Record<string, number> = {
+      ALL: filteredBySearch.length,
+    };
+
+    const uniqueCategories = Array.from(new Set(catalogActivities.map(e => e.categoryName).filter(Boolean)));
+    uniqueCategories.forEach(cat => {
+      counts[cat] = filteredBySearch.filter(e => e.categoryName === cat).length;
+    });
+
+    return counts;
+  };
+
+  const modalCounts = getCountsForModalQuery();
+  const currentModalList = getFilteredModalList();
+
+  const getModalSectionData = () => {
+    const light = currentModalList.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
+    const moderate = currentModalList.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+    const vigorous = currentModalList.filter(e => {
+      const band = (e.intensityBand || '').toUpperCase();
+      return band === 'VIGOROUS' || band === 'VIGOUR';
+    });
+
+    return [
+      { title: '🟢 LIGHT INTENSITY', data: light },
+      { title: '🟡 MODERATE INTENSITY', data: moderate },
+      { title: '🔴 VIGOROUS INTENSITY', data: vigorous },
+    ].filter(sec => sec.data.length > 0);
+  };
+
+
 
   const fetchActivities = async () => {
     try {
@@ -259,6 +443,49 @@ export const ActivityTrackingScreen: React.FC = () => {
   };
 
   const activeRegistryItem = (() => {
+    // 1. Search in catalogActivities first for dynamic exercises fetched from the API!
+    const catalogItem = catalogActivities.find(
+      act => (act.displayName || act.activityName || '').toLowerCase() === activityType.toLowerCase()
+    );
+    if (catalogItem) {
+      const catLower = (catalogItem.categoryName || '').toLowerCase();
+      const nameLower = (catalogItem.displayName || catalogItem.activityName || '').toLowerCase();
+      
+      let category: 'distance' | 'strength' | 'duration' = 'duration';
+      let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
+      
+      if (nameLower.includes('walk') || nameLower.includes('run') || nameLower.includes('cycle') || nameLower.includes('swim') || nameLower.includes('hike') || nameLower.includes('jog') || catLower.includes('bicycling') || catLower.includes('running') || catalogItem.metricType === 'DISTANCE_BASED') {
+        category = 'distance';
+        if (nameLower.includes('walk')) {
+          metric = 'steps';
+        } else if (nameLower.includes('swim')) {
+          metric = 'm';
+        } else {
+          metric = 'km';
+        }
+      } else if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || nameLower.includes('deadlift') || nameLower.includes('bench') || nameLower.includes('squat') || nameLower.includes('exercube')) {
+        category = 'strength';
+        if (nameLower.includes('squat') || nameLower.includes('press') || nameLower.includes('deadlift')) {
+          metric = 'sets';
+        } else {
+          metric = 'reps';
+        }
+      }
+
+      return {
+        name: catalogItem.displayName || catalogItem.activityName,
+        emoji: getActivityEmoji(catalogItem.activityName, catalogItem.categoryName),
+        baseMET: catalogItem.baseMet || 4.0,
+        metric,
+        category,
+        color: catalogItem.categoryName?.toLowerCase().includes('conditioning') ? '#DB2777' : '#0EA5E9',
+        cardioPct: typeof catalogItem.cardioPct === 'number' ? catalogItem.cardioPct : undefined,
+        strengthPct: typeof catalogItem.strengthPct === 'number' ? catalogItem.strengthPct : undefined,
+        balancePct: typeof catalogItem.balancePct === 'number' ? catalogItem.balancePct : undefined,
+        recoveryPct: typeof catalogItem.recoveryPct === 'number' ? catalogItem.recoveryPct : undefined,
+      };
+    }
+
     const staticItem = WELLNESS_ACTIVITIES_REGISTRY.find(
       act => act.name.toLowerCase() === activityType.toLowerCase()
     );
@@ -319,6 +546,25 @@ export const ActivityTrackingScreen: React.FC = () => {
     parsedDuration > 0 && parsedDistance > 0
       ? parsedDistance / (parsedDuration / 60)
       : 0;
+
+  const handleScroll = (event: any) => {
+    const yOffset = event.nativeEvent.contentOffset.y;
+    const index = Math.round(yOffset / ITEM_HEIGHT);
+    const value = MINUTES_LIST[index];
+    if (value !== undefined) {
+      setDuration(value.toString());
+    }
+  };
+
+  const getInterpolatedOffset = (percentage: number) => {
+    const radius = 42;
+    const circumference = 2 * Math.PI * radius;
+    const targetOffset = circumference - (circumference * percentage);
+    return animValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [circumference, targetOffset],
+    });
+  };
 
   const handleSaveActivity = async () => {
     setSaving(true);
@@ -386,10 +632,10 @@ export const ActivityTrackingScreen: React.FC = () => {
       if (syncWearable) {
         formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
       } else if (registryItem.category === 'strength') {
-        const workoutDetail = `Target: ${trainingProfile}. Logged: ${sets} sets x ${reps} reps @ ${weightKg} kg.`;
+        const workoutDetail = `Target: ${trainingProfile}. Logged: ${sets} sets x ${reps} reps @ ${weightKg} kg. RPE Scale Intensity: ${rpe}.`;
         formattedNotes = `Completed ${activityType.toLowerCase()} routine. ${workoutDetail}`;
       } else {
-        formattedNotes = `Completed ${activityType.toLowerCase()} routine.`;
+        formattedNotes = `Completed ${activityType.toLowerCase()} routine. RPE Scale Intensity: ${rpe}.`;
       }
 
       // Call the Health Connect save API
@@ -504,8 +750,20 @@ export const ActivityTrackingScreen: React.FC = () => {
       setWeightKg('15');
       setHighIntensity(false);
       setStrengthRest(false);
-      setSyncWearable(false);
-      setBenefitsVisible(true);
+      // Navigate to the DemoPostWorkoutSummary Screen first as Step 1
+      navigation.navigate('DemoPostWorkoutSummary', {
+        activityName: responseData.type || activityType,
+        baseMet: calculatedMET,
+        cardio: Math.round((resCardioPoints / (resGainPoints || 1)) * 100) || 50,
+        strength: Math.round((resMusculoPoints / (resGainPoints || 1)) * 100) || 50,
+        balance: 15,
+        recovery: 15,
+        duration: resDuration,
+        calories: resCalories,
+        gainPoints: resGainPoints,
+        showBenefitsNext: true,
+        fromActivityTracking: true,
+      });
     } catch (error: any) {
       console.error('Failed to log workout details:', error);
       const errMsg = error.response?.data?.message || error.message || 'Unknown error';
@@ -693,6 +951,38 @@ export const ActivityTrackingScreen: React.FC = () => {
     );
   };
 
+  const breakdown = getWorkoutBreakdown();
+  const pCardio = breakdown.cardioPct / 100;
+  const pStrength = breakdown.strengthPct / 100;
+  const pBalance = breakdown.balancePct / 100;
+  const pRecovery = breakdown.recoveryPct / 100;
+
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+
+  const segments = {
+    cardio: {
+      percentage: pCardio,
+      color: '#06B6D4',
+      rotation: 0,
+    },
+    strength: {
+      percentage: pStrength,
+      color: '#F97316',
+      rotation: 360 * pCardio,
+    },
+    balance: {
+      percentage: pBalance,
+      color: '#2DD4BF',
+      rotation: 360 * (pCardio + pStrength),
+    },
+    recovery: {
+      percentage: pRecovery,
+      color: '#FB923C',
+      rotation: 360 * (pCardio + pStrength + pBalance),
+    },
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader
@@ -809,103 +1099,210 @@ export const ActivityTrackingScreen: React.FC = () => {
               </View>
 
               <ScrollView
+                scrollEnabled={parentScrollEnabled}
                 contentContainerStyle={styles.modalScroll}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Card 1: Select Activity */}
                 <View style={styles.formCard}>
-                  <Text style={styles.formCardTitle}>🎯 Select Activity</Text>
-                  <View style={[styles.inputGroup, { marginBottom: 0 }]}>
-                    <View style={styles.labelRow}>
-                      <Text style={styles.labelNoMargin}>
-                        Select Activity Type
-                      </Text>
-                      <TouchableOpacity onPress={() => setSeeAllVisible(true)}>
-                        <Text style={styles.showAllTextLink}>Show All 🔍</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <Text style={styles.formCardTitle}>🎯 Select Activity Type</Text>
+                  
+                  {/* Search Bar Input */}
+                  <View style={styles.modalSearchBar}>
+                    <TextInput
+                      style={styles.modalSearchInput}
+                      placeholder="Search exercise..."
+                      placeholderTextColor="#94a3b8"
+                      value={modalSearchQuery}
+                      onChangeText={text => {
+                        setModalSearchQuery(text);
+                      }}
+                    />
+                  </View>
 
-                    {/* Category Selector Tabs */}
-                    {catalogLoading ? (
-                      <View style={{ paddingVertical: 12, alignItems: 'center', justifyContent: 'center' }}>
-                        <ActivityIndicator size="small" color={theme.colors.primary} />
-                      </View>
-                    ) : Object.keys(categoryMainOptions).length === 0 ? (
-                      <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                        <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Failed to load categories.</Text>
-                      </View>
-                    ) : (
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.categoryTabsRowHorizontal}
-                        keyboardShouldPersistTaps="handled"
-                      >
-                        {Object.keys(categoryMainOptions).map(catName => {
-                          const isActive = selectedCategory === catName;
-                          const catEmoji = getCategoryEmoji(catName);
-                          let displayName = catName;
-                          if (catName.includes('&')) {
-                            displayName = catName.split('&')[0].trim();
-                          }
-                          return (
-                            <TouchableOpacity
-                              key={catName}
-                              style={[
-                                styles.categoryTab,
-                                isActive && styles.categoryTabActive,
-                                { flex: 0, paddingHorizontal: 16 },
-                              ]}
-                              onPress={() => setSelectedCategory(catName)}
-                              activeOpacity={0.8}
-                            >
-                              <Text
-                                style={[
-                                  styles.categoryTabText,
-                                  isActive && styles.categoryTabTextActive,
-                                ]}
-                              >
-                                {catEmoji} {displayName}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    )}
-
+                  {/* Master Category Pills */}
+                  <View style={{ maxHeight: 60, marginVertical: 8 }}>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.optionsScroll}
+                      contentContainerStyle={styles.modalPillsScroll}
+                      keyboardShouldPersistTaps="handled"
                     >
-                      {visibleOptions.map(option => {
-                        const isSelected = activityType === option.name;
+                      <TouchableOpacity
+                        style={[styles.modalPill, modalSelectedPill === 'ALL' && styles.modalPillActive]}
+                        onPress={() => setModalSelectedPill('ALL')}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.modalPillText, modalSelectedPill === 'ALL' && styles.modalPillTextActive]}>
+                          🎽 ALL ({modalCounts.ALL || 0})
+                        </Text>
+                      </TouchableOpacity>
+
+                      {Array.from(new Set(catalogActivities.map(e => e.categoryName).filter(Boolean))).map((catName: string) => {
+                        const count = modalCounts[catName] || 0;
+                        const isActive = modalSelectedPill === catName;
+                        let friendlyName = catName;
+                        if (catName.includes('&')) {
+                          friendlyName = catName.split('&')[0].trim();
+                        }
+                        if (friendlyName.length > 18) {
+                          friendlyName = friendlyName.slice(0, 16) + '...';
+                        }
                         return (
                           <TouchableOpacity
-                            key={option.name}
-                            style={[
-                              styles.optionItem,
-                              isSelected && styles.optionItemActive,
-                            ]}
-                            onPress={() => setActivityType(option.name)}
+                            key={catName}
+                            style={[styles.modalPill, isActive && styles.modalPillActive]}
+                            onPress={() => setModalSelectedPill(catName)}
+                            activeOpacity={0.8}
                           >
-                            <Text
-                              style={option.emoji ? styles.optionEmoji : null}
-                            >
-                              {option.emoji}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.optionText,
-                                isSelected && styles.optionTextActive,
-                              ]}
-                            >
-                              {option.name}
+                            <Text style={[styles.modalPillText, isActive && styles.modalPillTextActive]}>
+                              🏷️ {friendlyName} ({count})
                             </Text>
                           </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
+                  </View>
+
+                  {/* Main exercise results list */}
+                  <View style={{ marginTop: 8 }}>
+                    {modalSelectedPill === null ? (
+                      /* Popular Workouts Block (first 4 items of catalogActivities) */
+                      <View style={styles.popularBlock}>
+                        <Text style={styles.sectionTitle}>🔥 POPULAR WORKOUTS RIGHT NOW</Text>
+                        <View style={styles.popularList}>
+                          {catalogActivities.slice(0, 4).map(item => {
+                            const isSelected = activityType.toLowerCase() === (item.displayName || item.activityName || '').toLowerCase();
+                            const emoji = getActivityEmoji(item.activityName, item.categoryName);
+                            return (
+                              <TouchableOpacity
+                                key={item.activityCode}
+                                style={[styles.card, isSelected && styles.cardActive]}
+                                onPress={() => {
+                                  setActivityType(item.displayName || item.activityName);
+                                  setSelectedDynamicActivity(item);
+                                  const band = (item.intensityBand || '').toUpperCase();
+                                  setSliderVal(band === 'LIGHT' ? 3.0 : band === 'VIGOROUS' || band === 'VIGOUR' ? 8.0 : 5.0);
+                                }}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.cardEmoji}>{emoji}</Text>
+                                <View style={styles.cardTextWrapper}>
+                                  <Text style={[styles.cardTitle, isSelected && styles.cardTitleActive]}>
+                                    {item.displayName || item.activityName}
+                                  </Text>
+                                  <Text style={styles.cardSub}>{item.activityName}</Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.badge,
+                                    item.primaryMode === 'telemetry' ? styles.badgeTelemetry : styles.badgeManual,
+                                  ]}
+                                >
+                                  <Text style={styles.badgeText}>
+                                    {item.primaryMode === 'telemetry' ? '⌚ Auto' : '✍️ Manual'}
+                                  </Text>
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ) : modalSelectedPill !== 'ALL' && modalCounts[modalSelectedPill] > 8 ? (
+                      /* If count > 8, render section mapping by Intensity Band */
+                      <View>
+                        {getModalSectionData().map((section, secIdx) => (
+                          <React.Fragment key={secIdx}>
+                            <View style={{ marginBottom: 12 }}>
+                              <View style={styles.modalSectionHeader}>
+                                <Text style={styles.modalSectionHeaderText}>{section.title}</Text>
+                              </View>
+                              <View style={styles.popularList}>
+                                {section.data.map(item => {
+                                  const isSelected = activityType.toLowerCase() === (item.displayName || item.activityName || '').toLowerCase();
+                                  const emoji = getActivityEmoji(item.activityName, item.categoryName);
+                                  return (
+                                    <TouchableOpacity
+                                      key={item.activityCode}
+                                      style={[styles.card, isSelected && styles.cardActive]}
+                                      onPress={() => {
+                                        setActivityType(item.displayName || item.activityName);
+                                        setSelectedDynamicActivity(item);
+                                        const band = (item.intensityBand || '').toUpperCase();
+                                        setSliderVal(band === 'LIGHT' ? 3.0 : band === 'VIGOROUS' || band === 'VIGOUR' ? 8.0 : 5.0);
+                                      }}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text style={styles.cardEmoji}>{emoji}</Text>
+                                      <View style={styles.cardTextWrapper}>
+                                        <Text style={[styles.cardTitle, isSelected && styles.cardTitleActive]}>
+                                          {item.displayName || item.activityName}
+                                        </Text>
+                                        <Text style={styles.cardSub}>{item.activityName}</Text>
+                                      </View>
+                                      <View
+                                        style={[
+                                          styles.badge,
+                                          item.primaryMode === 'telemetry' ? styles.badgeTelemetry : styles.badgeManual,
+                                        ]}
+                                      >
+                                        <Text style={styles.badgeText}>
+                                          {item.primaryMode === 'telemetry' ? '⌚ Auto' : '✍️ Manual'}
+                                        </Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            </View>
+                          </React.Fragment>
+                        ))}
+                      </View>
+                    ) : (
+                      /* Flat mapping of matching entries */
+                      <View style={styles.popularList}>
+                        {currentModalList.map(item => {
+                          const isSelected = activityType.toLowerCase() === (item.displayName || item.activityName || '').toLowerCase();
+                          const emoji = getActivityEmoji(item.activityName, item.categoryName);
+                          return (
+                            <TouchableOpacity
+                              key={item.activityCode}
+                              style={[styles.card, isSelected && styles.cardActive]}
+                              onPress={() => {
+                                setActivityType(item.displayName || item.activityName);
+                                setSelectedDynamicActivity(item);
+                                const band = (item.intensityBand || '').toUpperCase();
+                                setSliderVal(band === 'LIGHT' ? 3.0 : band === 'VIGOROUS' || band === 'VIGOUR' ? 8.0 : 5.0);
+                              }}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.cardEmoji}>{emoji}</Text>
+                              <View style={styles.cardTextWrapper}>
+                                <Text style={[styles.cardTitle, isSelected && styles.cardTitleActive]}>
+                                  {item.displayName || item.activityName}
+                                </Text>
+                                <Text style={styles.cardSub}>{item.activityName}</Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.badge,
+                                  item.primaryMode === 'telemetry' ? styles.badgeTelemetry : styles.badgeManual,
+                                ]}
+                              >
+                                <Text style={styles.badgeText}>
+                                  {item.primaryMode === 'telemetry' ? '⌚ Auto' : '✍️ Manual'}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {currentModalList.length === 0 && (
+                          <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                            <Text style={{ color: '#64748B', fontSize: 14 }}>No workouts found matching query.</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -1082,32 +1479,202 @@ export const ActivityTrackingScreen: React.FC = () => {
 
                     {!syncWearable && (
                       <>
-                        {/* Duration Input */}
-                        <View
-                          style={[
-                            styles.inputGroup,
-                            {
-                              marginBottom: isDistanceBased
-                                ? theme.spacing.lg
-                                : 0,
-                            },
-                          ]}
-                        >
-                          <Text style={styles.label}>Duration (minutes)</Text>
-                          <TextInput
-                            style={styles.input}
-                            placeholder="e.g. 30"
-                            placeholderTextColor={theme.colors.textLight}
-                            keyboardType="numeric"
-                            value={duration}
-                            onChangeText={setDuration}
+                        {/* Duration Input - Scroll Wheel */}
+                        <Text style={[styles.label, { textAlign: 'center', marginBottom: 8 }]}>Duration (minutes)</Text>
+                        <View style={styles.pickerContainer}>
+                          <View style={styles.activeSelectionBox} />
+
+                          <FlatList
+                            ref={flatListRef}
+                            data={PICKER_DATA}
+                            keyExtractor={(_, index) => `min-${index}`}
+                            nestedScrollEnabled={true}
+                            onTouchStart={() => setParentScrollEnabled(false)}
+                            onTouchEnd={() => setParentScrollEnabled(true)}
+                            onMomentumScrollEnd={() => setParentScrollEnabled(true)}
+                            renderItem={({ item, index }) => {
+                              const isSelected = item === parseInt(duration);
+                              if (item === '') {
+                                return <View style={{ height: ITEM_HEIGHT }} />;
+                              }
+                              return (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  onPress={() => {
+                                    setDuration(item.toString());
+                                    flatListRef.current?.scrollToIndex({ index: index - 1, animated: true });
+                                  }}
+                                  style={styles.pickerItem}
+                                >
+                                  <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                                    {item}
+                                  </Text>
+                                  {isSelected && (
+                                    <Text style={styles.minutesLabel}>MINUTES</Text>
+                                  )}
+                                </TouchableOpacity>
+                              );
+                            }}
+                            showsVerticalScrollIndicator={false}
+                            snapToInterval={ITEM_HEIGHT}
+                            decelerationRate="fast"
+                            onScroll={handleScroll}
+                            scrollEventThrottle={16}
+                            getItemLayout={(_, index) => ({
+                              length: ITEM_HEIGHT,
+                              offset: ITEM_HEIGHT * index,
+                              index,
+                            })}
+                            initialScrollIndex={29} // Index 29 maps to value 30
+                            contentContainerStyle={styles.pickerContent}
                           />
+                        </View>
+
+                        {/* RPE Scale Section */}
+                        <View style={styles.rpeSection}>
+                          <View style={styles.rpeLabelRow}>
+                            <Text style={styles.rpeTitle}>RPE Scale (Intensity)</Text>
+                            <View style={styles.rpeBadge}>
+                              <Text style={styles.rpeBadgeText}>
+                                {rpe} - {getRpeDescription(rpe)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View 
+                            ref={trackRef}
+                            onLayout={(e) => {
+                              trackWidth.current = e.nativeEvent.layout.width;
+                            }}
+                            style={styles.rpeTrack}
+                            {...panResponder.panHandlers}
+                          >
+                            {/* Active filled track */}
+                            <View 
+                              style={[
+                                styles.rpeFill, 
+                                { width: `${((sliderVal - 1) / 9) * 100}%` }
+                              ]} 
+                            />
+                            {/* Thumb */}
+                            <View 
+                              style={[
+                                styles.rpeThumb, 
+                                { left: `${((sliderVal - 1) / 9) * 100}%` }
+                              ]} 
+                            />
+                          </View>
+                          <View style={styles.rpeScaleLabels}>
+                            <Text style={styles.scaleLabelText}>2</Text>
+                            <Text style={styles.scaleLabelText}>4</Text>
+                            <Text style={styles.scaleLabelText}>6</Text>
+                            <Text style={styles.scaleLabelText}>8</Text>
+                            <Text style={styles.scaleLabelText}>10</Text>
+                          </View>
+                        </View>
+
+                        {/* Segmented Donut Ring Breakdown */}
+                        <View style={styles.breakdownCard}>
+                          <View style={styles.svgWrapper}>
+                            <Svg width={110} height={110} viewBox="0 0 110 110">
+                              <G transform="rotate(-90, 55, 55)">
+                                {/* Background static base ring */}
+                                <Circle
+                                  cx={55}
+                                  cy={55}
+                                  r={radius}
+                                  stroke="#E2E8F0"
+                                  strokeWidth={10}
+                                  fill="transparent"
+                                />
+                                
+                                {/* Segment 1: Cardio */}
+                                <G transform={`rotate(${segments.cardio.rotation}, 55, 55)`}>
+                                  <AnimatedCircle
+                                    cx={55}
+                                    cy={55}
+                                    r={radius}
+                                    stroke={segments.cardio.color}
+                                    strokeWidth={10}
+                                    fill="transparent"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={getInterpolatedOffset(segments.cardio.percentage)}
+                                    strokeLinecap="round"
+                                  />
+                                </G>
+
+                                {/* Segment 2: Strength */}
+                                <G transform={`rotate(${segments.strength.rotation}, 55, 55)`}>
+                                  <AnimatedCircle
+                                    cx={55}
+                                    cy={55}
+                                    r={radius}
+                                    stroke={segments.strength.color}
+                                    strokeWidth={10}
+                                    fill="transparent"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={getInterpolatedOffset(segments.strength.percentage)}
+                                    strokeLinecap="round"
+                                  />
+                                </G>
+
+                                {/* Segment 3: Balance */}
+                                <G transform={`rotate(${segments.balance.rotation}, 55, 55)`}>
+                                  <AnimatedCircle
+                                    cx={55}
+                                    cy={55}
+                                    r={radius}
+                                    stroke={segments.balance.color}
+                                    strokeWidth={10}
+                                    fill="transparent"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={getInterpolatedOffset(segments.balance.percentage)}
+                                    strokeLinecap="round"
+                                  />
+                                </G>
+
+                                {/* Segment 4: Recovery */}
+                                <G transform={`rotate(${segments.recovery.rotation}, 55, 55)`}>
+                                  <AnimatedCircle
+                                    cx={55}
+                                    cy={55}
+                                    r={radius}
+                                    stroke={segments.recovery.color}
+                                    strokeWidth={10}
+                                    fill="transparent"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={getInterpolatedOffset(segments.recovery.percentage)}
+                                    strokeLinecap="round"
+                                  />
+                                </G>
+                              </G>
+                            </Svg>
+                          </View>
+
+                          {/* Legend Grid */}
+                          <View style={styles.legendWrapper}>
+                            <View style={styles.legendRow}>
+                              <View style={[styles.legendDot, { backgroundColor: '#06B6D4' }]} />
+                              <Text style={styles.legendText}>Cardio: {breakdown.cardioPct}%</Text>
+                            </View>
+                            <View style={styles.legendRow}>
+                              <View style={[styles.legendDot, { backgroundColor: '#F97316' }]} />
+                              <Text style={styles.legendText}>Strength: {breakdown.strengthPct}%</Text>
+                            </View>
+                            <View style={styles.legendRow}>
+                              <View style={[styles.legendDot, { backgroundColor: '#2DD4BF' }]} />
+                              <Text style={styles.legendText}>Balance: {breakdown.balancePct}%</Text>
+                            </View>
+                            <View style={styles.legendRow}>
+                              <View style={[styles.legendDot, { backgroundColor: '#FB923C' }]} />
+                              <Text style={styles.legendText}>Recovery: {breakdown.recoveryPct}%</Text>
+                            </View>
+                          </View>
                         </View>
 
                         {/* Distance Input (Conditional) */}
                         {isDistanceBased && (
                           <View
-                            style={[styles.inputGroup, { marginBottom: 0 }]}
+                            style={[styles.inputGroup, { marginTop: theme.spacing.lg, marginBottom: 0 }]}
                           >
                             <Text style={styles.label}>Distance (KM)</Text>
                             <TextInput
@@ -1577,6 +2144,261 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B0F19',
+  },
+  modalSearchBar: {
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 48,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 8,
+  },
+  modalSearchInput: {
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  modalPillsScroll: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 22,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modalPillActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#60A5FA',
+  },
+  modalPillText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalPillTextActive: {
+    color: '#FFFFFF',
+  },
+  popularBlock: {
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  popularList: {
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    padding: 4,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 4,
+    borderWidth: 1.5,
+    borderColor: '#334155',
+  },
+  cardActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#1E293B',
+  },
+  cardEmoji: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  cardTextWrapper: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  cardTitleActive: {
+    color: '#3B82F6',
+    fontWeight: '800',
+  },
+  cardSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeTelemetry: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  badgeManual: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modalSectionHeader: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    backgroundColor: '#0F172A',
+  },
+  modalSectionHeaderText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  pickerContainer: {
+    height: 180,
+    width: '100%',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: '#0F172A',
+  },
+  activeSelectionBox: {
+    position: 'absolute',
+    height: ITEM_HEIGHT,
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderColor: '#3B82F6',
+    borderWidth: 1.5,
+    borderRadius: 16,
+  },
+  pickerContent: {
+    paddingVertical: 0,
+  },
+  pickerItem: {
+    height: ITEM_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerItemText: {
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  pickerItemTextActive: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#3B82F6',
+  },
+  minutesLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  rpeSection: {
+    width: '100%',
+    marginVertical: 16,
+    paddingHorizontal: 4,
+  },
+  rpeLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  rpeTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  rpeBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  rpeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  rpeTrack: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#1E293B',
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  rpeFill: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#3B82F6',
+  },
+  rpeThumb: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#3B82F6',
+    marginLeft: -12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  rpeScaleLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginTop: 6,
+  },
+  scaleLabelText: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  breakdownCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    width: '100%',
+    paddingVertical: 12,
+    marginVertical: 12,
+  },
+  svgWrapper: {
+    marginRight: 24,
+  },
+  legendWrapper: {
+    justifyContent: 'center',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
   listContent: {
     padding: theme.spacing.containerPadding,

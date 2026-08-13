@@ -230,19 +230,37 @@ export const apiService = {
         response.data.status === 'Success' &&
         Array.isArray(response.data.data)
       ) {
-        const mapped = response.data.data.map((item: any, index: number) => ({
-          id: item.id || `hc-${index}-${Date.now()}`,
-          type: item.type,
-          value: item.value,
-          metric: item.metric,
-          durationMinutes: item.durationMinutes,
-          caloriesBurned: item.caloriesBurned,
-          timestamp: item.timestamp || new Date().toISOString(),
-          notes: item.notes,
-          gainPoints: item.gainPoints,
-          cardioPoints: item.cardioPoints,
-          musculoPoints: item.musculoPoints,
-        }));
+        const mapped = response.data.data.map((item: any, index: number) => {
+          let parsedTimestamp = new Date().toISOString();
+          const rawTime = item.timestamp || item.created_at || item.activityDate;
+          if (rawTime) {
+            let tsStr = String(rawTime).trim();
+            if (tsStr.includes(' ') && !tsStr.includes('T')) {
+              tsStr = tsStr.replace(' ', 'T');
+            }
+            if (tsStr.includes('T') && !tsStr.endsWith('Z') && !tsStr.includes('+') && !tsStr.includes('-')) {
+              tsStr = tsStr + 'Z';
+            }
+            const dateObj = new Date(tsStr);
+            if (!isNaN(dateObj.getTime())) {
+              parsedTimestamp = dateObj.toISOString();
+            }
+          }
+          
+          return {
+            id: item.id || `hc-${index}-${Date.now()}`,
+            type: item.type,
+            value: item.value,
+            metric: item.metric,
+            durationMinutes: item.durationMinutes,
+            caloriesBurned: item.caloriesBurned,
+            timestamp: parsedTimestamp,
+            notes: item.notes,
+            gainPoints: item.gainPoints,
+            cardioPoints: item.cardioPoints,
+            musculoPoints: item.musculoPoints,
+          };
+        });
         // Reverse the array to ensure the latest added exercises are always at the top of the list
         return mapped.reverse();
       }
