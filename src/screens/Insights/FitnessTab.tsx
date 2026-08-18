@@ -131,7 +131,7 @@ const FitnessTab = ({
             ]}>
             <Text style={styles.emptyChartIcon}>📊</Text>
           </View>
-          <Text style={styles.cardTitle}>Weekly Performance</Text>
+          <Text style={styles.cardTitle}>Daily Performance</Text>
         </View>
 
         <View style={styles.speedometerRow}>
@@ -200,7 +200,7 @@ const FitnessTab = ({
           {!isINOXuser && (
             <View style={styles.speedometerCard}>
               <Text style={styles.speedometerLabel}>
-                S-DEX SCORE{`\n`}(Average)
+                S-DEX SCORE{`\n`}
               </Text>
               <SegmentedGauge
                 value={totalDailySdex}
