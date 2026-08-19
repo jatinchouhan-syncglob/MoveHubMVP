@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Switch,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { getHealthConnectAccessState, requestHealthConnectPermissions, openHealthConnectAppSettings } from '../../../services/healthConnect';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { apiService } from '../../../services/api';
@@ -831,17 +835,24 @@ export const StepsLogsTab: React.FC = () => {
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
   const [previousDaySummary, setPreviousDaySummary] = useState<any>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasPermissions, setHasPermissions] = useState<boolean>(true);
+  const [bypassCheck, setBypassCheck] = useState<boolean>(false);
 
-  useEffect(() => {
-    const fetchHealthActivities = async () => {
-      setLoadingLogs(true);
-      try {
-        const cachedProfile = await storageHelper.getItem<UserProfile>(
-          STORAGE_KEYS.USER_PROFILE,
-        );
-        const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-        setActiveUhid(targetUhid);
+  const fetchHealthActivities = useCallback(async (isRefresh = false, forceBypass = false) => {
+    if (!isRefresh) setLoadingLogs(true);
+    try {
+      const access = await getHealthConnectAccessState();
+      const hasPerms = access.hasAllPermissions || forceBypass;
+      setHasPermissions(hasPerms);
 
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      setActiveUhid(targetUhid);
+
+      if (hasPerms) {
         console.log(`Fetching Health Connect activities for ${targetUhid}...`);
         const response = await apiService.getHealthConnectActivities(targetUhid);
         console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
@@ -852,6 +863,8 @@ export const StepsLogsTab: React.FC = () => {
 
         if (workoutLogResponse && workoutLogResponse.status === 'Success' && Array.isArray(workoutLogResponse.data)) {
           setWorkoutLogs(workoutLogResponse.data);
+        } else {
+          setWorkoutLogs([]);
         }
 
         console.log(`Fetching Previous Day Summary for ${targetUhid}...`);
@@ -860,15 +873,43 @@ export const StepsLogsTab: React.FC = () => {
 
         if (previousDaySummaryResponse && previousDaySummaryResponse.status === 'Success' && previousDaySummaryResponse.data) {
           setPreviousDaySummary(previousDaySummaryResponse.data);
+        } else {
+          setPreviousDaySummary(null);
         }
-      } catch (error) {
-        console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
-      } finally {
-        setLoadingLogs(false);
+      } else {
+        setWorkoutLogs([]);
+        setPreviousDaySummary(null);
       }
-    };
-    fetchHealthActivities();
+    } catch (error) {
+      console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
+    } finally {
+      setLoadingLogs(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchHealthActivities(false, bypassCheck);
+    }, [fetchHealthActivities, bypassCheck])
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchHealthActivities(true, bypassCheck);
+  };
+
+  const handleGrantPermissions = async () => {
+    try {
+      const access = await requestHealthConnectPermissions();
+      setHasPermissions(access.hasAllPermissions);
+      if (access.hasAllPermissions) {
+        fetchHealthActivities(true);
+      }
+    } catch (err) {
+      console.warn('Failed to request permissions:', err);
+    }
+  };
 
   return (
     <View style={styles.mainWrapper}>
@@ -877,14 +918,31 @@ export const StepsLogsTab: React.FC = () => {
         <View style={styles.leftSection}>
           <Text style={styles.userId}>UHID: {activeUhid}</Text>
         </View>
-        <View style={styles.rightSection}>
-          <Text style={styles.dateText}>19 Jun, Friday</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Bypass Check</Text>
+          <Switch
+            value={bypassCheck}
+            onValueChange={(val) => {
+              setBypassCheck(val);
+              fetchHealthActivities(true, val);
+            }}
+            trackColor={{ false: '#334155', true: '#6366f1' }}
+            thumbColor={bypassCheck ? '#ffffff' : '#94a3b8'}
+          />
         </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#6366f1']}
+            tintColor="#6366f1"
+          />
+        }
       >
         <View>
           {/* Dynamic Activity Logs */}
@@ -894,6 +952,40 @@ export const StepsLogsTab: React.FC = () => {
               <Text style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontWeight: '500' }}>
                 Fetching dynamic time blocks...
               </Text>
+            </View>
+          ) : !hasPermissions ? (
+            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                ⚠️ Health Connect Permissions Missing
+              </Text>
+              <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+                MoveHub is not authorized to access your fitness records. Please grant permissions to sync your steps and activities.
+              </Text>
+              <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                <TouchableOpacity
+                  onPress={handleGrantPermissions}
+                  style={{
+                    backgroundColor: '#6366f1',
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 20,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '600' }}>Grant Permissions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={openHealthConnectAppSettings}
+                  style={{
+                    backgroundColor: '#334155',
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 20,
+                  }}
+                >
+                  <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600' }}>Open Settings</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : workoutLogs.length === 0 ? (
             <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>

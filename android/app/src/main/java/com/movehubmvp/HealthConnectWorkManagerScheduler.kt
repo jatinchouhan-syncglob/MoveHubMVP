@@ -16,7 +16,7 @@ object HealthConnectWorkManagerScheduler {
                 .build()
 
             // 30 minutes periodic work interval for background sync
-            val periodicWorkRequest = PeriodicWorkRequestBuilder<HealthConnectSyncWorker>(30, TimeUnit.MINUTES)
+            val periodicWorkRequest = PeriodicWorkRequestBuilder<HealthConnectSyncWorker>(16, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .build()
 
@@ -25,7 +25,7 @@ object HealthConnectWorkManagerScheduler {
                 ExistingPeriodicWorkPolicy.UPDATE,
                 periodicWorkRequest
             )
-            Log.d(TAG, "Enqueued 30-minute PeriodicWorkRequest for Health Connect sync successfully")
+            Log.d(TAG, "Enqueued 16-minute PeriodicWorkRequest for Health Connect sync successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error scheduling periodic sync WorkManager request", e)
         }

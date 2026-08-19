@@ -660,6 +660,34 @@ export const apiService = {
     }
   },
 
+  async runTier1Window(
+    uhid: string,
+    windowCode: string = '06:00_FINAL_DAY_WRAP',
+    reportDate: string = '2026-06-12'
+  ): Promise<any> {
+    try {
+      console.log(
+        `[apiService] POST http://13.204.123.149:8001/tier1/run-window | uhid=${uhid}, window_code=${windowCode}, report_date=${reportDate}`
+      );
+      const body = `uhid=${encodeURIComponent(uhid)}&window_code=${encodeURIComponent(
+        windowCode
+      )}&report_date=${encodeURIComponent(reportDate)}`;
+      const response = await axios.post(
+        'http://13.204.123.149:8001/tier1/run-window',
+        body,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in runTier1Window:', error);
+      throw error;
+    }
+  },
+
   async deleteUser(email: string): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/delete?email=${encodeURIComponent(

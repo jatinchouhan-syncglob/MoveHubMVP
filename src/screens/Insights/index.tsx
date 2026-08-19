@@ -355,6 +355,18 @@ export const InsightsScreen: React.FC = () => {
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       const staticChallengeId = 'CHALLENGE_TEST_1';
 
+      console.log('[Insights] Initiating run-window API for uhid:', targetUhid);
+      try {
+        const runWindowRes = await apiService.runTier1Window(
+          targetUhid,
+          '06:00_FINAL_DAY_WRAP',
+          '2026-06-12'
+        );
+        console.log('[Insights] run-window API SUCCESS:', JSON.stringify(runWindowRes, null, 2));
+      } catch (runWindowError) {
+        console.error('[Insights] run-window API ERROR:', runWindowError);
+      }
+
       const fitnessTrendRes = await apiService.getDailyFitnessTrend(targetUhid, staticChallengeId);
       if (fitnessTrendRes && fitnessTrendRes.status === 'Success' && fitnessTrendRes.data) {
         setFitnessTrend(fitnessTrendRes.data);

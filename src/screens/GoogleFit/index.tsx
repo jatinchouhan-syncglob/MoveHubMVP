@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
+  Switch,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import dayjs from 'dayjs';
@@ -269,8 +270,13 @@ const StepsTrackingTab = () => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'failure'>(
     'idle',
   );
+  const [showSetupUI, setShowSetupUI] = useState<boolean>(true);
 
   const { availability, hasAllPermissions } = accessState;
+
+  useEffect(() => {
+    setShowSetupUI(!hasAllPermissions);
+  }, [hasAllPermissions]);
 
   const summary = healthState?.summary;
   const lastSyncedAt = healthState?.lastSyncedAt || lastSyncedText;
@@ -280,7 +286,7 @@ const StepsTrackingTab = () => {
 
   const statusMeta = getStatusMeta(availability, hasAllPermissions);
   const requiredAppActions = getRequiredAppActions(availability);
-  const showHealthData = availability === 'available' && summary != null;
+  const showHealthData = availability === 'available' && !showSetupUI && summary != null;
 
   const todayExerciseRecords: IHealthConnectExerciseSession[] =
     summary?.todayExerciseRecords ?? [];
@@ -524,13 +530,22 @@ const StepsTrackingTab = () => {
             </View>
           </View>
 
-          <View style={s.headerMetaRow}>
+          <View style={[s.headerMetaRow, { justifyContent: 'space-between', alignItems: 'center' }]}>
             <View style={s.headerMetaItem}>
               <Icon name="sync" size={12} color={T.textMuted} />
               <Text style={s.headerMetaText}>
                 Last Synced:{' '}
                 {lastSyncedAt ? formatDateTime(lastSyncedAt) : 'Never synced'}
               </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Setup Info</Text>
+              <Switch
+                value={showSetupUI}
+                onValueChange={setShowSetupUI}
+                trackColor={{ false: '#334155', true: '#6366f1' }}
+                thumbColor={showSetupUI ? '#ffffff' : '#94a3b8'}
+              />
             </View>
           </View>
         </View>

@@ -420,11 +420,36 @@ class HealthConnectSyncWorker(
                 val payloadArray = JSONArray().put(payloadObj)
                 Log.d(TAG, "Posting Detailed Payload: ${payloadArray.toString()}")
 
-                // Execute Network POST
-                val cleanBaseUrl = baseUrl.trim().removeSuffix("/")
-                val targetUrl = "$cleanBaseUrl/health-connect/saveDetailedUserHealthAnalytics"
+                // Map to client payload structure (retaining all original fields)
+                val clientPayloadObj = JSONObject().apply {
+                    put("user_id", uhid ?: "TEST001")
+                    put("event_type", "TELEMETRY_SYNC")
+                    put("uhid", uhid ?: "")
+                    put("deviceId", deviceId ?: "")
+                    put("session", sessionName)
+                    put("date", dateStr)
+                    put("steps", totalSteps)
+                    put("heartPoint", exerciseHeartPoints.toInt())
+                    put("activeCaloriesInKcal", totalActiveCalories)
+                    put("averageHeartRate", avgHeartRate)
+                    put("heartRateMeasurements", heartRateSamplesCount)
+                    put("sleepHours", totalSleepHours)
+                    put("distanceInKm", totalDistanceKm)
+                    put("createdOn", DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(systemZone).format(now))
+                    put("lastSyncTime", DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX").withZone(systemZone).format(now))
+                    put("todayExerciseRecords", todayExerciseRecordsArray)
+                    put("stepsObject", stepsObjectArray)
+                    put("distanceObject", distanceObjectArray)
+                    put("caloriesObject", caloriesObjectArray)
+                    put("speedObject", speedObjectArray)
+                }
+
+                val clientPayloadArray = JSONArray().put(clientPayloadObj)
+
+                // Execute Network POST to client telemetry endpoint wrapped in array
+                val targetUrl = "https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/v1/telemetry"
                 val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-                val requestBody = RequestBody.create(mediaType, payloadArray.toString())
+                val requestBody = RequestBody.create(mediaType, clientPayloadArray.toString())
                 
                 val request = Request.Builder()
                     .url(targetUrl)

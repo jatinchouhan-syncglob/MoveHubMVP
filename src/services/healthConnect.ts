@@ -92,6 +92,7 @@ export const HEALTH_CONNECT_RECORD_TYPES: RecordType[] = [
   'SleepSession',
   'HeartRate',
   'ExerciseSession',
+  'Speed',
 ];
 
 const HEALTH_CONNECT_PERMISSIONS: Permission[] =
@@ -1321,10 +1322,15 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
         console.log(`[JS Sync] Posting Detailed Payload for session ${intervalKey}:`, JSON.stringify([payload], null, 2));
 
-        // POST request wrapped in array as required
+        // POST request to client telemetry endpoint with all original fields wrapped in array
+        const clientPayload = {
+          ...payload,
+          user_id: uhid || 'TEST001',
+          event_type: 'TELEMETRY_SYNC'
+        };
         await axios.post(
-          `${API_BASE_URL}/health-connect/saveDetailedUserHealthAnalytics`,
-          [payload],
+          'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/v1/telemetry',
+          [clientPayload],
           { headers: { 'Content-Type': 'application/json' } }
         );
 
