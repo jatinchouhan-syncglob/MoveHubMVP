@@ -232,13 +232,19 @@ export const apiService = {
       ) {
         const mapped = response.data.data.map((item: any, index: number) => {
           let parsedTimestamp = new Date().toISOString();
-          const rawTime = item.timestamp || item.created_at || item.activityDate;
+          const rawTime =
+            item.timestamp || item.created_at || item.activityDate;
           if (rawTime) {
             let tsStr = String(rawTime).trim();
             if (tsStr.includes(' ') && !tsStr.includes('T')) {
               tsStr = tsStr.replace(' ', 'T');
             }
-            if (tsStr.includes('T') && !tsStr.endsWith('Z') && !tsStr.includes('+') && !tsStr.includes('-')) {
+            if (
+              tsStr.includes('T') &&
+              !tsStr.endsWith('Z') &&
+              !tsStr.includes('+') &&
+              !tsStr.includes('-')
+            ) {
               tsStr = tsStr + 'Z';
             }
             const dateObj = new Date(tsStr);
@@ -246,7 +252,7 @@ export const apiService = {
               parsedTimestamp = dateObj.toISOString();
             }
           }
-          
+
           return {
             id: item.id || `hc-${index}-${Date.now()}`,
             type: item.type,
@@ -660,18 +666,10 @@ export const apiService = {
     }
   },
 
-  async runTier1Window(
-    uhid: string,
-    windowCode: string = '06:00_FINAL_DAY_WRAP',
-    reportDate: string = '2026-06-12'
-  ): Promise<any> {
+  async runTier1Window(): Promise<any> {
     try {
-      console.log(
-        `[apiService] POST http://13.204.123.149:8001/tier1/run-window | uhid=${uhid}, window_code=${windowCode}, report_date=${reportDate}`
-      );
-      const body = `uhid=${encodeURIComponent(uhid)}&window_code=${encodeURIComponent(
-        windowCode
-      )}&report_date=${encodeURIComponent(reportDate)}`;
+      const targetUhid = 'SAUSHA5546';
+      const body = `uhid=${encodeURIComponent(targetUhid)}`;
       const response = await axios.post(
         'http://13.204.123.149:8001/tier1/run-window',
         body,
@@ -679,7 +677,7 @@ export const apiService = {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-        }
+        },
       );
       return response.data;
     } catch (error) {

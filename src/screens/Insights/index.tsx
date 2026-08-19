@@ -355,7 +355,6 @@ export const InsightsScreen: React.FC = () => {
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       const staticChallengeId = 'CHALLENGE_TEST_1';
 
-      console.log('[Insights] Initiating run-window API for uhid:', targetUhid);
       try {
         const runWindowRes = await apiService.runTier1Window(
           targetUhid,
