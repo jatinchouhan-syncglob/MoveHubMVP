@@ -330,7 +330,7 @@ const BioSyncTab = ({
         </View>
 
         <View style={styles.chartWrapper}>
-          {energyEfficiency?.values?.some(v => v > 0) ? (
+          {energyEfficiency?.values && energyEfficiency.values.length > 0 ? (
             <ScrollableChart
               dataLength={energyEfficiency?.values?.length || 0}
               visibleWidth={chartWidth}>
@@ -500,7 +500,7 @@ const BioSyncTab = ({
         </View>
 
         <View style={styles.chartWrapper}>
-          {integratedStamina?.values?.some(v => v > 0) ? (
+          {integratedStamina?.values && integratedStamina.values.length > 0 ? (
             <ScrollableChart
               dataLength={integratedStamina?.values?.length || 0}
               visibleWidth={chartWidth}>

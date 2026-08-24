@@ -312,10 +312,8 @@ export const InsightsScreen: React.FC = () => {
   const loadTransformationData = async (monthStr: string) => {
     setTransformationLoading(true);
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA5546';
       
       // Convert short name to full month name (e.g. "Jun 2026" to "June 2026")
       const parts = monthStr.split(' ');
@@ -349,31 +347,117 @@ export const InsightsScreen: React.FC = () => {
 
   const loadTrendsLogs = async () => {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-      const staticChallengeId = 'CHALLENGE_TEST_1';
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA5546';
 
       try {
-        const runWindowRes = await apiService.runTier1Window(
-          targetUhid,
-          '06:00_FINAL_DAY_WRAP',
-          '2026-06-12'
-        );
+        const runWindowRes = await apiService.runTier1Window(targetUhid);
         console.log('[Insights] run-window API SUCCESS:', JSON.stringify(runWindowRes, null, 2));
+
+        if (runWindowRes && runWindowRes.status === 'success') {
+          const report = runWindowRes.health_report || {};
+          const dailyOutput = report.daily_output || [];
+          const weekSummary = report.week?.summary || [];
+          const firstDay = dailyOutput[0] || {};
+          const firstWeek = weekSummary[0] || {};
+
+          const mappedFitnessTrend = {
+            dailyStepsBreakdown: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: item.total_steps ?? 0
+            })),
+            dailyHeartPoints: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: item.total_hp ?? 0
+            })),
+            dailySdex: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: Math.round((item.sdex_daily ?? 0) * 100)
+            })),
+            energyExpanded: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: item.total_ee ?? 0
+            })),
+            dailyActiveMinutes: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: item.total_min ?? 0
+            })),
+            totalHeartPoint: dailyOutput.reduce((sum: number, item: any) => sum + (item.total_hp ?? 0), 0),
+            totalDailySdex: Math.round((firstDay.sdex_daily ?? 0) * 100),
+            dailyHeartPointsCharts: {
+              target: firstWeek.hp_target ?? 0,
+              actual: firstWeek.hp_actual ?? 0,
+              performance: firstWeek.hp_performance ?? 0
+            },
+            dailySdexCharts: {
+              target: firstWeek.sdex_target ?? 0,
+              actual: firstWeek.sdex_actual ?? 0,
+              performance: firstWeek.sdex_performance ?? 0
+            },
+            dailyStepsBreakdownCharts: {
+              target: 10000,
+              actual: firstDay.total_steps ?? 0,
+              performance: Math.round(((firstDay.total_steps ?? 0) / 10000) * 100)
+            },
+            energyExpandedCharts: {
+              target: firstWeek.ee_target ?? 0,
+              actual: firstWeek.ee_actual ?? 0,
+              performance: firstWeek.ee_performance ?? 0
+            }
+          };
+
+          const mappedBioSyncTrend = {
+            weeklyTrend: weekSummary.map((item: any) => ({
+              date: item.start_date || item.week_ending,
+              cys: item.cardio_yield_actual ?? 0,
+              eeKm: item.ee_km_actual ?? 0,
+              isAvg: item.weekly_is_average ?? 0
+            })),
+            integratedStamina: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              values: Math.round((item.is_daily ?? 0) * 100)
+            })),
+            eeKmAvg: firstWeek.weekly_ee_km_average ?? 0,
+            isAvg: firstWeek.weekly_is_average ?? 0,
+            cysTotal: firstWeek.cardio_yield_actual ?? 0,
+            stability: firstDay.stability_score ?? 0,
+            intensity: firstDay.intensity_score ?? 0,
+            metabolic: firstDay.metabolic_score ?? 0,
+            cardioYieldPerStep: dailyOutput.map((item: any) => ({
+              date: item.date || item.day,
+              morning: item.mor_hp ?? 0,
+              afternoon: item.aft_hp ?? 0,
+              evening: item.eve_hp ?? 0,
+              night: item.nig_hp ?? 0
+            })),
+            weeklyBioSyncEfficiencyScore: firstWeek.weekly_biosync_average ?? 0,
+            eePerKmCharts: {
+              target: firstWeek.ee_km_target ?? 0,
+              actual: firstWeek.ee_km_actual ?? 0,
+              performance: firstWeek.ee_km_performance ?? 0
+            },
+            integratedStaminaCharts: {
+              target: firstWeek.is_target ?? 100,
+              actual: firstWeek.is_actual ?? 0,
+              performance: firstWeek.is_performance ?? 0
+            },
+            weeklyTrendCharts: {
+              target: firstWeek.biosync_score_target ?? 70,
+              actual: firstWeek.biosync_score_actual ?? 0,
+              performance: firstWeek.biosync_score_performance ?? 0
+            },
+            cardioYieldPerStepCharts: {
+              target: firstWeek.cardio_yield_target ?? 0,
+              actual: firstWeek.cardio_yield_actual ?? 0,
+              performance: firstWeek.cardio_yield_performance ?? 0
+            }
+          };
+
+          setFitnessTrend(mappedFitnessTrend);
+          setBioSyncTrend(mappedBioSyncTrend);
+        }
       } catch (runWindowError) {
         console.error('[Insights] run-window API ERROR:', runWindowError);
-      }
-
-      const fitnessTrendRes = await apiService.getDailyFitnessTrend(targetUhid, staticChallengeId);
-      if (fitnessTrendRes && fitnessTrendRes.status === 'Success' && fitnessTrendRes.data) {
-        setFitnessTrend(fitnessTrendRes.data);
-      }
-
-      const bioSyncTrendRes = await apiService.getDailyBioSyncTrend(targetUhid, staticChallengeId);
-      if (bioSyncTrendRes && bioSyncTrendRes.status === 'Success' && bioSyncTrendRes.data) {
-        setBioSyncTrend(bioSyncTrendRes.data);
       }
     } catch (error) {
       console.error('[Insights] Error fetching daily trend APIs:', error);
@@ -419,82 +503,36 @@ export const InsightsScreen: React.FC = () => {
     loadData();
   };
 
-  // Compile active trends data
   const getTrendsData = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-
-    if (activeTimeframe === '7days') {
-      const compiled = BASE_7_DAYS.map(p => ({
-        ...p,
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-      
-      // Calculate today's steps/calories from user logs
-      const todayStart = new Date().setHours(0, 0, 0, 0);
-      const todayEnd = new Date().setHours(23, 59, 59, 999);
-      
-      const todayWalkActivities = activities.filter(
-        (a) => a.type === 'Walking' && new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todaySteps = todayWalkActivities.reduce((sum, a) => sum + a.value, 0);
-      
-      const todayAllActivities = activities.filter(
-        (a) => new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todayCalories = todayAllActivities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-      
-      // Heart Rate estimation
-      let todayHR = 70;
-      if (todayAllActivities.length > 0) {
-        todayHR = 80; // active heart rate average
-      }
-
-      compiled[6] = {
-        label: 'Sun', // today
-        steps: todaySteps ? Math.round(todaySteps * mult) : Math.round(4800 * mult),
-        calories: todayCalories ? Math.round(todayCalories * mult) : Math.round(210 * mult),
-        hr: todayHR,
-      };
-
-      return compiled;
-    } else if (activeTimeframe === '4weeks') {
-      const labels = ['Wk 01', 'Wk 02', 'Wk 03', 'Wk 04'];
-      const compiled = BASE_4_WEEKS.map((p, idx) => ({
-        label: labels[idx],
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-
-      // Add active logs to the last week if selectedMonth matches current month and activities are present
-      const currentYear = new Date().getFullYear();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentMonthName = monthNames[new Date().getMonth()];
-      const isCurrentMonth = selectedMonth === `${currentMonthName} ${currentYear}`;
-
-      if (isCurrentMonth) {
-        const week4Steps = activities.reduce((sum, a) => sum + (a.type === 'Walking' ? a.value : 0), 0);
-        const week4Calories = activities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-        if (week4Steps > 0 || week4Calories > 0) {
-          compiled[3] = {
-            label: labels[3],
-            steps: Math.round(Math.max(31000, week4Steps) * mult),
-            calories: Math.round(Math.max(1400, week4Calories) * mult),
-            hr: 75,
-          };
+    if (fitnessTrend && fitnessTrend.dailyStepsBreakdown && fitnessTrend.dailyStepsBreakdown.length > 0) {
+      return fitnessTrend.dailyStepsBreakdown.map((item: any, idx: number) => {
+        const steps = item.values ?? 0;
+        const hr = fitnessTrend.dailyHeartPoints?.[idx]?.values ?? 0;
+        const calories = fitnessTrend.energyExpanded?.[idx]?.values ?? 0;
+        
+        let label = '';
+        if (item.date) {
+          try {
+            if (item.date.length === 3 || isNaN(Date.parse(item.date))) {
+              label = item.date.slice(0, 3);
+            } else {
+              const d = new Date(item.date);
+              label = d.toLocaleDateString('en-US', { weekday: 'short' });
+            }
+          } catch {
+            label = item.date ? String(item.date).slice(0, 3) : '';
+          }
         }
-      }
-      return compiled;
-    } else {
-      let count = 3;
-      if (activeTimeframe === '6months') count = 6;
-      else if (activeTimeframe === '9months') count = 9;
-      else if (activeTimeframe === '12months') count = 12;
-
-      return getMonthsSequence(selectedMonth, count).map(item => getMonthlyDataPoint(item.label, item.year));
+        
+        return {
+          label,
+          steps,
+          calories,
+          hr
+        };
+      });
     }
+    return [];
   };
 
   const trendPoints = getTrendsData();
@@ -509,38 +547,20 @@ export const InsightsScreen: React.FC = () => {
   // Dynamic values based on selected index in chart
   const activePoint = trendPoints[selectedTrendIdx] || trendPoints[0];
 
-  // Helper values for distance & active minutes summary
   const getSummaryMetrics = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-    let totalDistance = 112.5;
-    let distanceDiff = '+12%';
-    let activeMinutes = 980;
-    let activeMinutesDiff = '+8%';
+    let totalDistance = 0.0;
+    let distanceDiff = '';
+    let activeMinutes = 0;
+    let activeMinutesDiff = '';
 
-    if (activeTimeframe === '7days') {
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026';
+
+    if (isDataAvailable && fitnessTrend && fitnessTrend.dailyStepsBreakdown) {
       const stepsSum = trendPoints.reduce((sum, p) => sum + p.steps, 0);
       totalDistance = parseFloat((stepsSum * 0.0008).toFixed(1));
-      distanceDiff = '+4%';
-      activeMinutes = activities.reduce((sum, a) => sum + a.durationMinutes, 0) || 180;
-      activeMinutesDiff = '+3%';
-    } else if (activeTimeframe === '4weeks') {
-      totalDistance = parseFloat((112.5 * mult).toFixed(1));
-      activeMinutes = Math.round(980 * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(12 * mult)}%` : `+${Math.round(12 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(8 * mult)}%` : `+${Math.round(8 * mult)}%`;
-    } else if (activeTimeframe === '3months' || activeTimeframe === '6months' || activeTimeframe === '9months' || activeTimeframe === '12months') {
-      let baseDistance = 384.2;
-      let baseMinutes = 3450;
-      let factor = 1.0;
       
-      if (activeTimeframe === '6months') factor = 2.0;
-      else if (activeTimeframe === '9months') factor = 3.0;
-      else if (activeTimeframe === '12months') factor = 4.0;
-
-      totalDistance = parseFloat((baseDistance * factor * mult).toFixed(1));
-      activeMinutes = Math.round(baseMinutes * factor * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(18 * mult)}%` : `+${Math.round(18 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(15 * mult)}%` : `+${Math.round(15 * mult)}%`;
+      const minsArray = fitnessTrend.dailyActiveMinutes || [];
+      activeMinutes = minsArray.reduce((sum: number, p: any) => sum + (p.values ?? 0), 0);
     }
 
     return { totalDistance, distanceDiff, activeMinutes, activeMinutesDiff };
@@ -550,6 +570,18 @@ export const InsightsScreen: React.FC = () => {
 
   // Draw Activity SVG Chart
   const renderActivityTrendsChart = () => {
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026' && trendPoints && trendPoints.length > 0;
+
+    if (!isDataAvailable) {
+      return (
+        <View style={[styles.chartOuterContainer, { height: CHART_HEIGHT, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16 }]}>
+          <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500' }}>
+            No data available for this selection.
+          </Text>
+        </View>
+      );
+    }
+
     const pL = scale(46);
     const pR = scale(34);
     const pT = verticalScale(34); // extra space at top for tooltip
@@ -950,14 +982,9 @@ export const InsightsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <CustomHeader title="Health Insights & Trends" showDrawerButton />
-
-      {/* Background Soft Glow Spots */}
+      <CustomHeader title="Fitness Insights & Trends" showDrawerButton />
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
-
-      {/* Screen Segment Selector */}
-      {/* Screen Segment Selector */}
       <View style={styles.tabScrollContainer}>
         <ScrollView
           horizontal
@@ -997,7 +1024,7 @@ export const InsightsScreen: React.FC = () => {
             style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
           >
             <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
-              Health Transformation
+              Fitness Report
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1178,9 +1205,11 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Total Distance</Text>
                   <Text style={styles.summaryValue}>{summary.totalDistance} km</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.distanceDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
 
@@ -1195,9 +1224,11 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Active Minutes</Text>
                   <Text style={styles.summaryValue}>{summary.activeMinutes} min</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.activeMinutesDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
             </View>

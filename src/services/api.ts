@@ -392,37 +392,40 @@ export const apiService = {
 
   // --- Health Connect Integration ---
   async getHealthConnectActivities(uhid: string = 'SAUSHA9775'): Promise<any> {
+    const url = `${BACKEND_8081_URL}/backend/health-connect/getActivitiesForCurrentDate?uhid=${uhid}`;
+    console.log(`[API Request] GET getHealthConnectActivities: ${url}`);
     try {
-      const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/getActivitiesForCurrentDate?uhid=${uhid}`,
-      );
+      const response = await axios.get(url);
+      console.log(`[API Response] GET getHealthConnectActivities SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('Error in getHealthConnectActivities:', error);
+      console.error(`[API Error] GET getHealthConnectActivities FAILED: ${url}`, error);
       throw error;
     }
   },
 
   async getWorkoutLog(uhid: string): Promise<any> {
+    const url = `${BACKEND_8081_URL}/backend/health-connect/getWorkoutLog?uhid=${uhid}`;
+    console.log(`[API Request] GET getWorkoutLog: ${url}`);
     try {
-      const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/getWorkoutLog?uhid=${uhid}`,
-      );
+      const response = await axios.get(url);
+      console.log(`[API Response] GET getWorkoutLog SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('Error in getWorkoutLog:', error);
+      console.error(`[API Error] GET getWorkoutLog FAILED: ${url}`, error);
       throw error;
     }
   },
 
   async getPreviousDaySummary(uhid: string): Promise<any> {
+    const url = `${BACKEND_8081_URL}/backend/health-connect/getPreviousDaySummary?uhid=${uhid}`;
+    console.log(`[API Request] GET getPreviousDaySummary: ${url}`);
     try {
-      const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/getPreviousDaySummary?uhid=${uhid}`,
-      );
+      const response = await axios.get(url);
+      console.log(`[API Response] GET getPreviousDaySummary SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('Error in getPreviousDaySummary:', error);
+      console.error(`[API Error] GET getPreviousDaySummary FAILED: ${url}`, error);
       throw error;
     }
   },
@@ -666,10 +669,9 @@ export const apiService = {
     }
   },
 
-  async runTier1Window(): Promise<any> {
+  async runTier1Window(uhid: string): Promise<any> {
     try {
-      const targetUhid = 'SAUSHA5546';
-      const body = `uhid=${encodeURIComponent(targetUhid)}`;
+      const body = `uhid=${encodeURIComponent(uhid)}`;
       const response = await axios.post(
         'http://13.204.123.149:8001/tier1/run-window',
         body,

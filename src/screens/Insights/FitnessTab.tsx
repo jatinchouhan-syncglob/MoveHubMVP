@@ -266,7 +266,7 @@ const FitnessTab = ({
         </View>
 
         <View style={styles.chartWrapper}>
-          {dailyStepsBreakdown?.values?.some(v => v > 0) ? (
+          {dailyStepsBreakdown?.values && dailyStepsBreakdown.values.length > 0 ? (
             <ScrollableChart
               dataLength={dailyStepsBreakdown?.values?.length || 0}
               visibleWidth={chartWidth}>
@@ -313,7 +313,7 @@ const FitnessTab = ({
         </View>
 
         <View style={styles.chartWrapper}>
-          {dailyHeartPoints?.values?.some(v => v > 0) ? (
+          {dailyHeartPoints?.values && dailyHeartPoints.values.length > 0 ? (
             <ScrollableChart
               dataLength={dailyHeartPoints?.values?.length || 0}
               visibleWidth={chartWidth}>
@@ -355,7 +355,7 @@ const FitnessTab = ({
             <Text style={styles.sectionTitle}>Energy Expended</Text>
 
             <View style={styles.chartWrapper}>
-              {energyExpended?.values?.some(v => v > 0) ? (
+              {energyExpended?.values && energyExpended.values.length > 0 ? (
                 <ScrollableChart
                   dataLength={energyExpended?.values?.length || 0}
                   visibleWidth={chartWidth}>
@@ -418,7 +418,7 @@ const FitnessTab = ({
             </View>
 
             <View style={styles.chartWrapper}>
-              {sdexActivity?.values?.some(v => v > 0) ? (
+              {sdexActivity?.values && sdexActivity.values.length > 0 ? (
                 <ScrollableChart
                   dataLength={sdexActivity?.values?.length || 0}
                   visibleWidth={chartWidth}>

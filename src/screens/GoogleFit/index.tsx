@@ -270,6 +270,7 @@ const StepsTrackingTab = () => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'failure'>(
     'idle',
   );
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
   const [showSetupUI, setShowSetupUI] = useState<boolean>(true);
 
   const { availability, hasAllPermissions } = accessState;
@@ -335,8 +336,18 @@ const StepsTrackingTab = () => {
       if (lastSync) {
         setLastSyncedText(lastSync);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load health connect snapshot:', err);
+      let msg = err?.message || String(err);
+      if (msg.includes('Rate limited') || msg.includes('quota has been exceeded')) {
+        msg = 'Request rejected. Rate limited request quota has been exceeded. Please wait until quota has replenished before making further requests.';
+      }
+      if (!_silent) {
+        throw new Error(msg);
+      } else {
+        setSyncErrorMessage(msg);
+        setSyncStatus('failure');
+      }
     }
   };
 
@@ -348,12 +359,18 @@ const StepsTrackingTab = () => {
         const snapshot = await loadHealthConnectSnapshot(access);
         setHealthState(snapshot);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to grant health connect access:', err);
-      Alert.alert(
-        'Permission Denied',
-        'MoveHub requires these permissions to sync your Google Fit steps.',
-      );
+      const msg = err?.message || String(err);
+      if (msg.includes('Rate limited')) {
+        setSyncErrorMessage(msg);
+        setSyncStatus('failure');
+      } else {
+        Alert.alert(
+          'Permission Denied',
+          'MoveHub requires these permissions to sync your Google Fit steps.',
+        );
+      }
     }
   };
 
@@ -402,18 +419,27 @@ const StepsTrackingTab = () => {
 
   const _saveHealthData = async () => {
     setSyncing(true);
+    setSyncErrorMessage(null);
     try {
       const success = await syncHealthConnectAnalytics();
       if (success) {
+        // Fetch dashboard data. Since we pass false (not silent), if this fails with a rate limit error,
+        // it will throw and directly trigger the catch block below instead of showing Success modal first.
+        await checkStatusAndData(false);
         const syncTime = new Date().toISOString();
         setLastSyncedText(syncTime);
         setSyncStatus('success');
-        await checkStatusAndData(true);
       } else {
+        setSyncErrorMessage('Failed to synchronize health records. Please check permissions or try again later.');
         setSyncStatus('failure');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save health data:', err);
+      let msg = err?.message || String(err);
+      if (msg.includes('Rate limited') || msg.includes('quota has been exceeded')) {
+        msg = 'Request rejected. Rate limited request quota has been exceeded. Please wait until quota has replenished before making further requests.';
+      }
+      setSyncErrorMessage(msg);
       setSyncStatus('failure');
     } finally {
       setSyncing(false);
@@ -1031,8 +1057,7 @@ const StepsTrackingTab = () => {
                 </View>
                 <Text style={s.statusTitle}>Sync Failed</Text>
                 <Text style={s.statusSub}>
-                  Failed to synchronize health records. Please check your
-                  network connection and try again.
+                  {syncErrorMessage || 'Failed to synchronize health records. Please check your network connection and try again.'}
                 </Text>
                 <TouchableOpacity
                   style={s.statusButtonFailure}

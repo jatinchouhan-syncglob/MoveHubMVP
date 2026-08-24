@@ -6,6 +6,7 @@ import { getDynamicDeviceId } from '../utils/device';
 import {
   aggregateRecord,
   type BackgroundAccessPermission,
+  type ReadHealthDataHistoryPermission,
   getGrantedPermissions,
   getSdkStatus,
   initialize,
@@ -100,6 +101,18 @@ const HEALTH_CONNECT_PERMISSIONS: Permission[] =
     accessType: 'read' as const,
     recordType,
   }));
+
+const HEALTH_CONNECT_REQUEST_PERMISSIONS: (Permission | BackgroundAccessPermission | ReadHealthDataHistoryPermission)[] = [
+  ...HEALTH_CONNECT_PERMISSIONS,
+  {
+    accessType: 'read' as const,
+    recordType: 'BackgroundAccessPermission',
+  },
+  {
+    accessType: 'read' as const,
+    recordType: 'ReadHealthDataHistory',
+  }
+];
 
 export const HEALTH_CONNECT_PERMISSION_COUNT =
   HEALTH_CONNECT_PERMISSIONS.length;
@@ -426,21 +439,21 @@ const safeReadRecords = async <T extends RecordType>(
     return {
       records: Array.isArray(result?.records) ? result.records : [],
     } as unknown as ReadRecordsResult<T>;
-  } catch (error) {
+  } catch (error: any) {
     console.warn(`Health Connect readRecords failed for ${recordType}`, error);
-    return {records: []} as ReadRecordsResult<T>;
+    throw new Error(`Health Connect readRecords failed for ${recordType}: ${error?.message || error}`);
   }
 };
 
 const safeAggregateRecord = async (args: any) => {
   try {
     return await aggregateRecord(args);
-  } catch (error) {
+  } catch (error: any) {
     console.warn(
       `Health Connect aggregateRecord failed for ${args.recordType}`,
       error,
     );
-    return {} as any;
+    throw new Error(`Health Connect aggregateRecord failed for ${args.recordType}: ${error?.message || error}`);
   }
 };
 
@@ -458,7 +471,7 @@ const getDistanceInKm = async (
 const getActiveCaloriesInKcal = async (
   timeRangeFilter: ReturnType<typeof buildTimeRange>,
 ) => {
-  const activeCalories = await aggregateRecord({
+  const activeCalories = await safeAggregateRecord({
     recordType: 'ActiveCaloriesBurned',
     timeRangeFilter,
   });
@@ -471,7 +484,7 @@ const getActiveCaloriesInKcal = async (
 const getTotalCaloriesInKcal = async (
   timeRangeFilter: ReturnType<typeof buildTimeRange>,
 ) => {
-  const totalCalories = await aggregateRecord({
+  const totalCalories = await safeAggregateRecord({
     recordType: 'TotalCaloriesBurned',
     timeRangeFilter,
   });
@@ -563,7 +576,7 @@ const initializeGoogleHealthConnect = async ({
   }
 
   const grantedPermissions = normalizePermissions(
-    await requestPermission(HEALTH_CONNECT_PERMISSIONS),
+    await requestPermission(HEALTH_CONNECT_REQUEST_PERMISSIONS),
   );
 
   return {
@@ -1142,15 +1155,24 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     // 2b. Fetch Remote lastSyncTime from Server
     let lastSyncTimeVal: dayjs.Dayjs | null = null;
     try {
+      let lastSyncUrl = `${API_BASE_URL}/health-connect/getLastSyncDateTime`;
+      if (lastSyncUrl.includes('97c0imknqe')) {
+        lastSyncUrl = lastSyncUrl.replace('97c0imknqe', 'txsbp7baq1');
+      } else {
+        lastSyncUrl = lastSyncUrl.replace(':8082', ':8081');
+      }
+
       const res = await axios.post(
-        `${API_BASE_URL.replace(':8082', ':8081')}/health-connect/getLastSyncDateTime`,
-        { uhid, deviceId },
+        lastSyncUrl,
+        { uhid, deviceId, device_id: deviceId },
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (res.data) {
         console.log(`[JS Sync] Raw getLastSyncDateTime response:`, JSON.stringify(res.data, null, 2));
         const data = res.data.data;
-        if (data && data.lastSyncDate && data.lastSyncTime) {
+        if (data && data.lastSyncTime && data.lastSyncTime.includes('T')) {
+          lastSyncTimeVal = dayjs(data.lastSyncTime);
+        } else if (data && data.lastSyncDate && data.lastSyncTime) {
           lastSyncTimeVal = dayjs(`${data.lastSyncDate} ${data.lastSyncTime}:00`);
         } else if (data && data.lastSyncTime) {
           lastSyncTimeVal = dayjs(data.lastSyncTime);
@@ -1362,9 +1384,12 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
       );
     }
 
-    return overallSuccess;
-  } catch (err) {
+    if (!overallSuccess) {
+      throw new Error('Sync failed for one or more sessions. Please check logs.');
+    }
+    return true;
+  } catch (err: any) {
     console.warn('[JS Sync] Sync crashed:', err);
-    return false;
+    throw err;
   }
 };

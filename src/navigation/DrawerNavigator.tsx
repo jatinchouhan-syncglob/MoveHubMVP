@@ -960,7 +960,7 @@ const DrawerNavigatorContent: React.FC = () => {
               onPress={() => setLogoutModalVisible(true)}
             >
               <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutLabel}>Logout</Text>
+              <Text style={styles.logoutLabel}> Logout</Text>
             </TouchableOpacity>
 
             <View style={styles.versionBadge}>

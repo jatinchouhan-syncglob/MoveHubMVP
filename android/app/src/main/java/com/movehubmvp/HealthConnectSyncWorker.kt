@@ -110,14 +110,21 @@ class HealthConnectSyncWorker(
 
         // 2a. Fetch Remote Last Sync Time from Server
         var lastSyncInstant: Instant? = null
+        var fetchSuccess = false
+        var tempLastSyncTimeStr: String? = null
         try {
             val cleanBaseUrl = baseUrl.trim().removeSuffix("/")
-            val lastSyncBaseUrl = cleanBaseUrl.replace(":8082", ":8081")
+            val lastSyncBaseUrl = if (cleanBaseUrl.contains("97c0imknqe")) {
+                cleanBaseUrl.replace("97c0imknqe", "txsbp7baq1")
+            } else {
+                cleanBaseUrl.replace(":8082", ":8081")
+            }
             val targetUrl = "$lastSyncBaseUrl/health-connect/getLastSyncDateTime"
             val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
             val requestBodyJson = JSONObject().apply {
                 put("uhid", uhid ?: "")
                 put("deviceId", deviceId ?: "")
+                put("device_id", deviceId ?: "")
             }
             val requestBody = RequestBody.create(mediaType, requestBodyJson.toString())
             val request = Request.Builder()
@@ -127,15 +134,17 @@ class HealthConnectSyncWorker(
 
             httpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
+                    fetchSuccess = true
                     val responseBody = response.body?.string()
                     if (!responseBody.isNullOrBlank()) {
                         val resObj = JSONObject(responseBody)
                         val dataObj = resObj.optJSONObject("data")
-                        var tempLastSyncTimeStr: String? = null
                         if (dataObj != null) {
                             val lastSyncDate = dataObj.optString("lastSyncDate", "")
                             val lastSyncTime = dataObj.optString("lastSyncTime", "")
-                            if (lastSyncDate.isNotEmpty() && lastSyncTime.isNotEmpty() && lastSyncDate != "null" && lastSyncTime != "null") {
+                            if (lastSyncTime.contains("T")) {
+                                tempLastSyncTimeStr = lastSyncTime
+                            } else if (lastSyncDate.isNotEmpty() && lastSyncTime.isNotEmpty() && lastSyncDate != "null" && lastSyncTime != "null") {
                                 tempLastSyncTimeStr = "$lastSyncDate $lastSyncTime:00"
                             } else if (dataObj.has("lastSyncTime")) {
                                 tempLastSyncTimeStr = dataObj.getString("lastSyncTime")
@@ -145,7 +154,7 @@ class HealthConnectSyncWorker(
                         }
                         
                         if (!tempLastSyncTimeStr.isNullOrBlank() && tempLastSyncTimeStr != "null") {
-                            lastSyncInstant = parseLastSyncTime(tempLastSyncTimeStr, systemZone)
+                            lastSyncInstant = parseLastSyncTime(tempLastSyncTimeStr!!, systemZone)
                         }
                         Log.d(TAG, "Fetched remote lastSyncTime (Combined): $lastSyncInstant")
                     }
@@ -157,42 +166,50 @@ class HealthConnectSyncWorker(
             Log.e(TAG, "Error fetching remote lastSyncTime, defaulting to NULL", e)
         }
         // Purge local cache based on remote lastSyncInstant
-        if (lastSyncInstant != null) {
-            // 1. Purge syncedIntervalsSet
-            val intervalsIterator = syncedIntervalsSet.iterator()
-            while (intervalsIterator.hasNext()) {
-                val intervalKey = intervalsIterator.next()
-                val parts = intervalKey.split(":")
-                if (parts.size >= 2) {
-                    val dateStr = parts[0]
-                    val sessionName = parts[1]
-                    val (startInstant, _) = getSessionTimeRange(dateStr, sessionName, systemZone)
-                    if (startInstant.isAfter(lastSyncInstant)) {
-                        intervalsIterator.remove()
-                    }
-                }
-            }
-
-            // 2. Purge syncedKeysSet
-            val keysIterator = syncedKeysSet.iterator()
-            while (keysIterator.hasNext()) {
-                val key = keysIterator.next()
-                val parts = key.split("|")
-                if (parts.size >= 2) {
-                    try {
-                        val recordStart = Instant.parse(parts[1])
-                        if (recordStart.isAfter(lastSyncInstant)) {
-                            keysIterator.remove()
+        if (fetchSuccess) {
+            if (!tempLastSyncTimeStr.isNullOrBlank() && tempLastSyncTimeStr != "null") {
+                if (lastSyncInstant != null) {
+                    // 1. Purge syncedIntervalsSet
+                    val intervalsIterator = syncedIntervalsSet.iterator()
+                    while (intervalsIterator.hasNext()) {
+                        val intervalKey = intervalsIterator.next()
+                        val parts = intervalKey.split(":")
+                        if (parts.size >= 2) {
+                            val dateStr = parts[0]
+                            val sessionName = parts[1]
+                            val (startInstant, _) = getSessionTimeRange(dateStr, sessionName, systemZone)
+                            if (startInstant.isAfter(lastSyncInstant)) {
+                                intervalsIterator.remove()
+                            }
                         }
-                    } catch (e: Exception) {
-                        // ignore parsing errors
                     }
+
+                    // 2. Purge syncedKeysSet
+                    val keysIterator = syncedKeysSet.iterator()
+                    while (keysIterator.hasNext()) {
+                        val key = keysIterator.next()
+                        val parts = key.split("|")
+                        if (parts.size >= 2) {
+                            try {
+                                val recordStart = Instant.parse(parts[1])
+                                if (recordStart.isAfter(lastSyncInstant)) {
+                                    keysIterator.remove()
+                                }
+                            } catch (e: Exception) {
+                                // ignore parsing errors
+                            }
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "Parsing of lastSyncTime failed. Keeping local cache intact.")
                 }
+            } else {
+                // If server successfully responded and has no last sync timestamp, clear all caches to dump everything
+                syncedIntervalsSet.clear()
+                syncedKeysSet.clear()
             }
         } else {
-            // If server has no last sync timestamp, clear all caches to dump everything
-            syncedIntervalsSet.clear()
-            syncedKeysSet.clear()
+            Log.d(TAG, "Server sync check failed. Keeping local sync cache intact.")
         }
         for (sessionPair in sessionsToSync) {
             val dateStr = sessionPair.first
@@ -508,12 +525,17 @@ class HealthConnectSyncWorker(
         }
     }
 
-    private fun parseLastSyncTime(timeStr: String, zoneId: ZoneId): Instant {
+    private fun parseLastSyncTime(timeStr: String, zoneId: ZoneId): Instant? {
         return try {
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(zoneId)
-            Instant.from(formatter.parse(timeStr))
+            if (timeStr.contains("T")) {
+                Instant.parse(timeStr)
+            } else {
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(zoneId)
+                Instant.from(formatter.parse(timeStr))
+            }
         } catch (e: Exception) {
-            Instant.EPOCH
+            Log.e("HealthConnectSyncWorker", "Error parsing time string: $timeStr", e)
+            null
         }
     }
 
