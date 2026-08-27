@@ -121,7 +121,7 @@ export const styles = ScaledSheet.create({
     marginRight: '6@ms',
   },
   legendText: {
-    fontSize: '8.5@ms',
+    fontSize: '11@ms',
     color: '#64748B',
     fontWeight: '500',
   },
@@ -441,5 +441,58 @@ export const styles = ScaledSheet.create({
   recommendationText: {
     color: '#4F46E5',
     lineHeight: '18@ms',
+  },
+  hpCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: '12@ms',
+  },
+  hpCard: {
+    maxWidth: '280@ms',
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: '12@ms',
+    padding: '12@ms',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  ringContainer: {
+    width: '140@ms',
+    height: '140@ms',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: '8@ms',
+  },
+  ringTextContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringValueText: {
+    fontSize: '24@ms',
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  ringPercentageText: {
+    fontSize: '11@ms',
+    fontWeight: '700',
+  },
+  hpLegendContainer: {
+    marginTop: '12@ms',
+    alignSelf: 'stretch',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: '10@ms',
+  },
+  recommendationFooter: {
+    marginTop: '12@ms',
+  },
+  recommendationFooterText: {
+    fontSize: '9.5@ms',
+    color: '#94A3B8',
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: '13@ms',
   },
 });

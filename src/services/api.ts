@@ -691,6 +691,41 @@ export const apiService = {
     }
   },
 
+  async getDailyDisplayBlock(uhid: string, date: string): Promise<any> {
+    const url = `http://13.204.123.149:8001/api/v1/display-block/daily?uhid=${encodeURIComponent(uhid)}&date=${encodeURIComponent(date)}`;
+    console.log(`[API Request] GET getDailyDisplayBlock: ${url}`);
+    try {
+      const response = await axios.get(url);
+      console.log(`[API Response] GET getDailyDisplayBlock SUCCESS for UHID: ${uhid} and Date: ${date}`, JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error(`[API Error] GET getDailyDisplayBlock FAILED for UHID: ${uhid} and Date: ${date}`, error);
+      throw error;
+    }
+  },
+
+  async getDailyCharts(uhid: string): Promise<any> {
+    const url = 'http://13.204.123.149:8001/api/v1/charts/daily';
+    const body = `uhid=${encodeURIComponent(uhid)}`;
+    console.log(`[API Request] POST ${url} | Body: ${body}`);
+    try {
+      const response = await axios.post(
+        url,
+        body,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        },
+      );
+      console.log(`[API Response] POST getDailyCharts SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error(`[API Error] POST getDailyCharts FAILED for UHID: ${uhid}`, error);
+      throw error;
+    }
+  },
+
   async deleteUser(email: string): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/delete?email=${encodeURIComponent(

@@ -347,7 +347,7 @@ const ActivityCard: React.FC<{
     activityCardColorTheme.THEMES[time.toLowerCase() as keyof typeof activityCardColorTheme.THEMES] ||
     activityCardColorTheme.THEMES.night;
   
-  const progress = Math.min(hp / goal, 1);
+  const progress = isActive ? 0 : Math.min(hp / goal, 1);
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const timeScale = getScaleForTime(time);
 
@@ -434,19 +434,19 @@ const ActivityCard: React.FC<{
               />
             </Svg>
             <View style={cardStyles.centerText}>
-              <Text style={cardStyles.hpText}>{hp}</Text>
+              <Text style={cardStyles.hpText}>{isActive ? '--' : hp}</Text>
               <Text style={[cardStyles.goalText, { color: theme.iconColor }]}>HP</Text>
             </View>
           </View>
 
           <View style={cardStyles.statsColumn}>
             <View style={cardStyles.statsRow}>
-              <StatRow icon="run-fast" value={steps.toLocaleString()} label="Steps" theme={theme} />
-              <StatRow icon="map-marker-path" value={`${km} km`} label="Distance" theme={theme} />
+              <StatRow icon="run-fast" value={isActive ? '--' : steps.toLocaleString()} label="Steps" theme={theme} />
+              <StatRow icon="map-marker-path" value={isActive ? '--' : `${km} km`} label="Distance" theme={theme} />
             </View>
             <View style={[cardStyles.statsRow, { marginTop: 8 }]}>
-              <StatRow icon="clock" value={`${duration} min`} label="Duration" theme={theme} />
-              <StatRow icon="fire" value={`${cal} kcal`} label="Energy" theme={theme} />
+              <StatRow icon="clock" value={isActive ? '--' : `${duration} min`} label="Duration" theme={theme} />
+              <StatRow icon="fire" value={isActive ? '--' : `${cal} kcal`} label="Energy" theme={theme} />
             </View>
           </View>
         </View>
@@ -838,7 +838,7 @@ export const StepsLogsTab: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean>(true);
   const [bypassCheck, setBypassCheck] = useState<boolean>(false);
-  const [runWindowData, setRunWindowData] = useState<any>(null);
+  const [dailyDisplayBlock, setDailyDisplayBlock] = useState<any>(null);
 
   const fetchHealthActivities = useCallback(async (isRefresh = false, forceBypass = false) => {
     if (!isRefresh) setLoadingLogs(true);
@@ -879,22 +879,28 @@ export const StepsLogsTab: React.FC = () => {
         }
 
         try {
-          console.log(`Fetching runTier1Window for ${targetUhid}...`);
-          const runWindowRes = await apiService.runTier1Window(targetUhid);
-          console.log('runTier1Window Response in StepsLogsTab:', JSON.stringify(runWindowRes, null, 2));
-          if (runWindowRes) {
-            setRunWindowData(runWindowRes);
+          const sysDate = new Date();
+          const sysY = sysDate.getFullYear();
+          const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+          const sysD = String(sysDate.getDate()).padStart(2, '0');
+          const systemDateStr = `${sysY}-${sysM}-${sysD}`;
+
+          console.log(`Fetching getDailyDisplayBlock for ${targetUhid} on Date: ${systemDateStr}...`);
+          const displayBlockRes = await apiService.getDailyDisplayBlock(targetUhid, systemDateStr);
+          console.log('getDailyDisplayBlock Response in StepsLogsTab:', JSON.stringify(displayBlockRes, null, 2));
+          if (displayBlockRes) {
+            setDailyDisplayBlock(displayBlockRes);
           } else {
-            setRunWindowData(null);
+            setDailyDisplayBlock(null);
           }
-        } catch (runWinErr) {
-          console.warn('Error fetching runTier1Window in StepsLogsTab:', runWinErr);
-          setRunWindowData(null);
+        } catch (displayBlockErr) {
+          console.warn('Error fetching getDailyDisplayBlock in StepsLogsTab:', displayBlockErr);
+          setDailyDisplayBlock(null);
         }
       } else {
         setWorkoutLogs([]);
         setPreviousDaySummary(null);
-        setRunWindowData(null);
+        setDailyDisplayBlock(null);
       }
     } catch (error) {
       console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
@@ -933,6 +939,25 @@ export const StepsLogsTab: React.FC = () => {
       <View style={styles.topHeader}>
         <View style={styles.leftSection}>
           <Text style={styles.userId}>UHID: {activeUhid}</Text>
+        </View>
+        <View style={styles.rightSection}>
+          <Text style={styles.dateText}>
+            {(() => {
+              const sysDate = new Date();
+              const sysY = sysDate.getFullYear();
+              const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+              const sysD = String(sysDate.getDate()).padStart(2, '0');
+              
+              let hours = sysDate.getHours();
+              const ampm = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12;
+              hours = hours ? hours : 12; // 0 should be 12
+              
+              const sysH = String(hours).padStart(2, '0');
+              const sysMin = String(sysDate.getMinutes()).padStart(2, '0');
+              return `${sysY}-${sysM}-${sysD} ${sysH}:${sysMin} ${ampm}`;
+            })()}
+          </Text>
         </View>
         {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Bypass Check</Text>
@@ -1031,51 +1056,41 @@ export const StepsLogsTab: React.FC = () => {
                 sortedKeys.push(blockOrder[index]);
               }
 
-              const sortedLogs = [...workoutLogs].sort((a, b) => {
-                const aBlock = (a.title || '').toLowerCase();
-                const bBlock = (b.title || '').toLowerCase();
-                const aIndex = sortedKeys.indexOf(aBlock);
-                const bIndex = sortedKeys.indexOf(bBlock);
-                return aIndex - bIndex;
-              });
-
-              return sortedLogs.map((item, index) => {
-                const formattedTime = item.title 
-                  ? item.title.charAt(0).toUpperCase() + item.title.slice(1).toLowerCase() 
-                  : 'Night';
-                
-                const block = formattedTime.toLowerCase();
+              return sortedKeys.map((blockKey, index) => {
+                const formattedTime = blockKey.charAt(0).toUpperCase() + blockKey.slice(1).toLowerCase();
+                const block = blockKey;
                 const isActive = block === activeBlock;
 
-                let hpVal = item.heartPoint || 0;
-                let stepsVal = item.steps || 0;
-                let distanceVal = item.distance ? parseFloat(parseFloat(item.distance).toFixed(1)) || 0 : 0;
-                let calVal = item.energyExpended || 0;
-                let durationVal = item.duration ? parseInt(item.duration) || 0 : 0;
+                // Find default log if exists
+                const defaultLog = workoutLogs.find(log => (log.title || '').toLowerCase() === block);
 
-                if (runWindowData && runWindowData.block_schedule_window && runWindowData.activity_blocks) {
-                  const windowStr = runWindowData.block_schedule_window.toUpperCase();
-                  if (windowStr.includes(block.toUpperCase())) {
-                    const blocks = runWindowData.activity_blocks;
-                    hpVal = typeof blocks.aha_heart_points_earned === 'number' ? blocks.aha_heart_points_earned : hpVal;
-                    stepsVal = typeof blocks.steps_completed === 'number' ? blocks.steps_completed : stepsVal;
-                    
-                    if (blocks.distance_traveled_km !== undefined && blocks.distance_traveled_km !== null) {
-                      const distFloat = typeof blocks.distance_traveled_km === 'string' ? parseFloat(blocks.distance_traveled_km) : blocks.distance_traveled_km;
-                      distanceVal = distFloat > 0 && distFloat < 0.1 ? parseFloat(distFloat.toFixed(4)) : parseFloat(distFloat.toFixed(1));
-                    }
-                    
-                    calVal = typeof blocks.energy_expenditure_ee_kcal === 'number' ? Math.round(blocks.energy_expenditure_ee_kcal) : calVal;
-                    durationVal = typeof blocks.active_minutes_total === 'number' ? blocks.active_minutes_total : durationVal;
+                let hpVal = defaultLog?.heartPoint || 0;
+                let stepsVal = defaultLog?.steps || 0;
+                let distanceVal = defaultLog?.distance ? parseFloat(parseFloat(defaultLog.distance).toFixed(1)) || 0 : 0;
+                let calVal = defaultLog?.energyExpended || 0;
+                let durationVal = defaultLog?.duration ? parseInt(defaultLog.duration) || 0 : 0;
+
+                const displayBlock = dailyDisplayBlock?.time_block_breakdown?.[block as 'morning' | 'afternoon' | 'evening' | 'night'];
+                if (displayBlock) {
+                  stepsVal = typeof displayBlock.steps === 'number' ? displayBlock.steps : stepsVal;
+                  hpVal = typeof displayBlock.heart_points === 'number' ? displayBlock.heart_points : hpVal;
+                  
+                  const dist = displayBlock.km;
+                  if (dist !== undefined && dist !== null) {
+                    const distFloat = typeof dist === 'string' ? parseFloat(dist) : dist;
+                    distanceVal = distFloat > 0 && distFloat < 0.1 ? parseFloat(distFloat.toFixed(4)) : parseFloat(distFloat.toFixed(1));
                   }
+
+                  calVal = typeof displayBlock.energy_expended_kcal === 'number' ? Math.round(displayBlock.energy_expended_kcal) : calVal;
+                  durationVal = typeof displayBlock.min === 'number' ? displayBlock.min : durationVal;
                 }
 
                 return (
                   <ActivityCard
-                    key={item.title || index}
+                    key={block || index}
                     time={formattedTime}
                     hp={hpVal}
-                    goal={item.targetHeartPoint || 50}
+                    goal={defaultLog?.targetHeartPoint || 50}
                     steps={stepsVal}
                     km={distanceVal}
                     cal={calVal}

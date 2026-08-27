@@ -351,113 +351,111 @@ export const InsightsScreen: React.FC = () => {
       const targetUhid = cachedProfile?.uhid || 'SAUSHA5546';
 
       try {
-        const runWindowRes = await apiService.runTier1Window(targetUhid);
-        console.log('[Insights] run-window API SUCCESS:', JSON.stringify(runWindowRes, null, 2));
+        const dailyChartsRes = await apiService.getDailyCharts(targetUhid);
+        console.log('[Insights] daily-charts API SUCCESS:', JSON.stringify(dailyChartsRes, null, 2));
 
-        if (runWindowRes && runWindowRes.status === 'success') {
-          const report = runWindowRes.health_report || {};
-          const dailyOutput = report.daily_output || [];
-          const weekSummary = report.week?.summary || [];
-          const firstDay = dailyOutput[0] || {};
-          const firstWeek = weekSummary[0] || {};
+        if (dailyChartsRes) {
+          const metrics = dailyChartsRes.daily_metrics || {};
+          const heartPointsObj = metrics.heart_points || {};
+          const bioSyncObj = dailyChartsRes.bio_sync_charts || {};
+          const labelDate = dailyChartsRes.target_date || 'Today';
 
           const mappedFitnessTrend = {
-            dailyStepsBreakdown: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: item.total_steps ?? 0
-            })),
-            dailyHeartPoints: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: item.total_hp ?? 0
-            })),
-            dailySdex: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: Math.round((item.sdex_daily ?? 0) * 100)
-            })),
-            energyExpanded: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: item.total_ee ?? 0
-            })),
-            dailyActiveMinutes: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: item.total_min ?? 0
-            })),
-            totalHeartPoint: dailyOutput.reduce((sum: number, item: any) => sum + (item.total_hp ?? 0), 0),
-            totalDailySdex: Math.round((firstDay.sdex_daily ?? 0) * 100),
+            dailyStepsBreakdown: [
+              { date: labelDate, values: metrics.steps ?? 0 }
+            ],
+            dailyHeartPoints: [
+              { date: labelDate, values: heartPointsObj.value ?? 0 }
+            ],
+            dailySdex: [
+              { date: labelDate, values: Math.round(metrics.sdex ?? 0) }
+            ],
+            energyExpanded: [
+              { date: labelDate, values: metrics.energy_expended_kcal ?? 0 }
+            ],
+            dailyActiveMinutes: [
+              { date: labelDate, values: 0 }
+            ],
+            totalHeartPoint: heartPointsObj.value ?? 0,
+            totalDailySdex: Math.round(metrics.sdex ?? 0),
+            dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
             dailyHeartPointsCharts: {
-              target: firstWeek.hp_target ?? 0,
-              actual: firstWeek.hp_actual ?? 0,
-              performance: firstWeek.hp_performance ?? 0
+              target: 150,
+              actual: heartPointsObj.value ?? 0,
+              performance: Math.round(heartPointsObj.percent ?? 0)
             },
             dailySdexCharts: {
-              target: firstWeek.sdex_target ?? 0,
-              actual: firstWeek.sdex_actual ?? 0,
-              performance: firstWeek.sdex_performance ?? 0
+              target: 35,
+              actual: metrics.sdex ?? 0,
+              performance: Math.round(((metrics.sdex ?? 0) / 35) * 100)
             },
             dailyStepsBreakdownCharts: {
               target: 10000,
-              actual: firstDay.total_steps ?? 0,
-              performance: Math.round(((firstDay.total_steps ?? 0) / 10000) * 100)
+              actual: metrics.steps ?? 0,
+              performance: Math.round(((metrics.steps ?? 0) / 10000) * 100)
             },
             energyExpandedCharts: {
-              target: firstWeek.ee_target ?? 0,
-              actual: firstWeek.ee_actual ?? 0,
-              performance: firstWeek.ee_performance ?? 0
+              target: 2000,
+              actual: metrics.energy_expended_kcal ?? 0,
+              performance: Math.round(((metrics.energy_expended_kcal ?? 0) / 2000) * 100)
             }
           };
 
           const mappedBioSyncTrend = {
-            weeklyTrend: weekSummary.map((item: any) => ({
-              date: item.start_date || item.week_ending,
-              cys: item.cardio_yield_actual ?? 0,
-              eeKm: item.ee_km_actual ?? 0,
-              isAvg: item.weekly_is_average ?? 0
-            })),
-            integratedStamina: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              values: Math.round((item.is_daily ?? 0) * 100)
-            })),
-            eeKmAvg: firstWeek.weekly_ee_km_average ?? 0,
-            isAvg: firstWeek.weekly_is_average ?? 0,
-            cysTotal: firstWeek.cardio_yield_actual ?? 0,
-            stability: firstDay.stability_score ?? 0,
-            intensity: firstDay.intensity_score ?? 0,
-            metabolic: firstDay.metabolic_score ?? 0,
-            cardioYieldPerStep: dailyOutput.map((item: any) => ({
-              date: item.date || item.day,
-              morning: item.mor_hp ?? 0,
-              afternoon: item.aft_hp ?? 0,
-              evening: item.eve_hp ?? 0,
-              night: item.nig_hp ?? 0
-            })),
-            weeklyBioSyncEfficiencyScore: firstWeek.weekly_biosync_average ?? 0,
+            weeklyTrend: [
+              {
+                date: labelDate,
+                cys: bioSyncObj.ppi?.value ?? 0,
+                eeKm: bioSyncObj.e3?.value ?? 0,
+                isAvg: bioSyncObj.is?.value ?? 0
+              }
+            ],
+            integratedStamina: [
+              { date: labelDate, values: Math.round(bioSyncObj.is?.value ?? 0) }
+            ],
+            eeKmAvg: bioSyncObj.e3?.value ?? 0,
+            isAvg: bioSyncObj.is?.value ?? 0,
+            cysTotal: bioSyncObj.ppi?.value ?? 0,
+            stability: bioSyncObj.ppi?.value ?? 0,
+            intensity: bioSyncObj.bio_sync?.value ?? 0,
+            metabolic: bioSyncObj.e3?.value ?? 0,
+            cardioYieldPerStep: [
+              {
+                date: labelDate,
+                morning: 0,
+                afternoon: 0,
+                evening: 0,
+                night: 0
+              }
+            ],
+            weeklyBioSyncEfficiencyScore: bioSyncObj.bio_sync?.value ?? 0,
             eePerKmCharts: {
-              target: firstWeek.ee_km_target ?? 0,
-              actual: firstWeek.ee_km_actual ?? 0,
-              performance: firstWeek.ee_km_performance ?? 0
+              target: 10,
+              actual: bioSyncObj.e3?.value ?? 0,
+              performance: Math.round(bioSyncObj.e3?.percent ?? 0)
             },
             integratedStaminaCharts: {
-              target: firstWeek.is_target ?? 100,
-              actual: firstWeek.is_actual ?? 0,
-              performance: firstWeek.is_performance ?? 0
+              target: 100,
+              actual: bioSyncObj.is?.value ?? 0,
+              performance: Math.round(bioSyncObj.is?.percent ?? 0)
             },
             weeklyTrendCharts: {
-              target: firstWeek.biosync_score_target ?? 70,
-              actual: firstWeek.biosync_score_actual ?? 0,
-              performance: firstWeek.biosync_score_performance ?? 0
+              target: 100,
+              actual: bioSyncObj.bio_sync?.value ?? 0,
+              performance: Math.round(bioSyncObj.bio_sync?.percent ?? 0)
             },
             cardioYieldPerStepCharts: {
-              target: firstWeek.cardio_yield_target ?? 0,
-              actual: firstWeek.cardio_yield_actual ?? 0,
-              performance: firstWeek.cardio_yield_performance ?? 0
+              target: 100,
+              actual: bioSyncObj.ppi?.value ?? 0,
+              performance: Math.round(bioSyncObj.ppi?.percent ?? 0)
             }
           };
 
           setFitnessTrend(mappedFitnessTrend);
           setBioSyncTrend(mappedBioSyncTrend);
         }
-      } catch (runWindowError) {
-        console.error('[Insights] run-window API ERROR:', runWindowError);
+      } catch (dailyChartsError) {
+        console.error('[Insights] daily-charts API ERROR:', dailyChartsError);
       }
     } catch (error) {
       console.error('[Insights] Error fetching daily trend APIs:', error);
@@ -997,7 +995,7 @@ export const InsightsScreen: React.FC = () => {
             style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
           >
             <Text style={[styles.tabBtnText, activeScreenTab === 'fitness' && styles.tabActiveText]}>
-              Fitness
+              Daily Metrics
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1024,7 +1022,7 @@ export const InsightsScreen: React.FC = () => {
             style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
           >
             <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
-              Fitness Report
+              Weekly Report
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1057,6 +1055,7 @@ export const InsightsScreen: React.FC = () => {
               dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
               dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
               energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
+              dailyInsightText={fitnessTrend?.dailyInsightText}
             />
           )
         )}

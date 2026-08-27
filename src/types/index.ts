@@ -95,6 +95,7 @@ export interface IFitnessTabProps {
     actual: number | string;
     performance: number | string;
   };
+  dailyInsightText?: string;
 }
 
 export interface PillarHealthItem {
