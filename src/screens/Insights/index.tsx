@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -35,6 +36,9 @@ import {
   areaPath,
   lerp,
 } from '../../components/charts/CustomSvgCharts';
+import { FitnessTab } from './FitnessTab';
+import { BioSyncTab } from './BioSyncTab';
+import { healthReportWebSocketService } from '../../services/websocketService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - scale(32); // margin horizontal (16 * 2)
@@ -145,11 +149,146 @@ const VITALITY_INDEX_DATA = [
 
 const VITALITY_INDEX_LABELS = ['Day 1', '5', '10', '15', '20', '25', '30'];
 
+// Static data for Fitness Tab
+const FITNESS_DAILY_STEPS = {
+  values: [6200, 8100, 5400, 7800, 9200, 11000, 4800],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_DAILY_HEART_POINTS = {
+  values: [22, 35, 18, 30, 42, 55, 15],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_SDEX_ACTIVITY = {
+  values: [45, 58, 42, 60, 72, 85, 38],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_ENERGY_EXPENDED = {
+  values: [240, 310, 210, 290, 350, 420, 180],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_HEART_POINTS_CHARTS = { target: '150', actual: '217', performance: '144' };
+const FITNESS_SDEX_CHARTS = { target: '50', actual: '57', performance: '114' };
+const FITNESS_STEPS_CHARTS = { target: '45,000', actual: '52,900', performance: '117' };
+const FITNESS_ENERGY_EXPANDED_CHARTS = { target: '1,800', actual: '2,000', performance: '111' };
+
+// Static data for Bio-sync Tab
+const BIOSYNC_ENERGY_EFFICIENCY = {
+  values: [4.1, 3.7, 4.3, 3.8, 3.9, 3.5, 4.2],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_INTEGRATED_STAMINA = {
+  values: [88, 85, 90, 86, 87, 92, 84],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE = {
+  labels: ['Wk 41', 'Wk 42', 'Wk 43', 'Wk 44'],
+  cys: [75, 78, 80, 83],
+  eeKm: [4.0, 3.9, 3.8, 3.7],
+  is: [84, 85, 86, 88],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE_SUMMARY = { eeKmAvg: '3.85', isAvg: '85.7', cysTotal: '316' };
+const BIOSYNC_PILLAR_HEALTH_DATA = [
+  { label: 'Sleep Consistency', value: 94, color: '#22C55E' },
+  { label: 'Physical Activity', value: 89, color: '#3B82F6' },
+  { label: 'Circadian Alignment', value: 87, color: '#F59E0B' },
+];
+const BIOSYNC_CARDIO_YIELD_DATA = [
+  { day: 'Mon', trend: '+3%', stacks: [18, 22, 24, 12] },
+  { day: 'Tue', trend: '+5%', stacks: [20, 24, 26, 14] },
+  { day: 'Wed', trend: '-2%', stacks: [15, 18, 20, 10] },
+  { day: 'Thu', trend: '+4%', stacks: [19, 22, 25, 12] },
+  { day: 'Fri', trend: '+8%', stacks: [26, 28, 32, 16] },
+  { day: 'Sat', trend: '+6%', stacks: [24, 26, 30, 15] },
+  { day: 'Sun', trend: '+2%', stacks: [17, 20, 22, 11] },
+];
+const BIOSYNC_EE_PER_KM_CHARTS = { target: '4.0', actual: '3.85', performance: '104' };
+const BIOSYNC_INTEGRATED_STAMINA_CHARTS = { target: '82', actual: '85.7', performance: '104' };
+const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '106' };
+const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
+
+const parseFitnessTrendArray = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return undefined;
+  const values = arr.map(item => item.values ?? 0);
+  const labels = arr.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  return { values, labels };
+};
+
+const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
+  if (!weeklyTrend || weeklyTrend.length === 0) return undefined;
+  const labels = weeklyTrend.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  const cys = weeklyTrend.map(item => item.cys ?? 0);
+  const eeKm = weeklyTrend.map(item => item.eeKm ?? 0);
+  const is = weeklyTrend.map(item => item.isAvg ?? 0);
+  return { labels, cys, eeKm, is };
+};
+
+const parseCardioYieldData = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return [];
+  return arr.map(item => {
+    const dayLabel = item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) : `Day ${item.day}`;
+    return {
+      day: dayLabel,
+      trend: '',
+      stacks: [
+        item.morning ?? 0,
+        item.afternoon ?? 0,
+        item.evening ?? 0,
+        item.night ?? 0
+      ]
+    };
+  });
+};
+
+const formatChartSummary = (summaryObj?: any) => {
+  if (!summaryObj) {
+    return {
+      target: 'N/A',
+      actual: 'N/A',
+      performance: 'N/A'
+    };
+  }
+  let perf = summaryObj.performance != null ? String(summaryObj.performance) : 'N/A';
+  if (perf.endsWith('%')) {
+    perf = perf.slice(0, -1);
+  }
+  return {
+    target: summaryObj.target != null ? String(summaryObj.target) : 'N/A',
+    actual: summaryObj.actual != null ? String(summaryObj.actual) : 'N/A',
+    performance: perf
+  };
+};
+
+const getBioSyncStatus = (score?: number) => {
+  if (score === undefined || score === null) return 'green';
+  if (score >= 90) return 'green';
+  if (score >= 70) return 'amber';
+  return 'red';
+};
+
 export const InsightsScreen: React.FC = () => {
-  const [activeScreenTab, setActiveScreenTab] = useState<'trends' | 'transformation'>('trends');
+  const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [fitnessTrend, setFitnessTrend] = useState<any>(null);
+  const [bioSyncTrend, setBioSyncTrend] = useState<any>(null);
+  const [loadingTrends, setLoadingTrends] = useState<boolean>(true);
 
   // Interactive index for Activity Trends tooltip selection
   const [selectedTrendIdx, setSelectedTrendIdx] = useState<number>(2); // Default to index 2 (e.g. Wk 43)
@@ -163,7 +302,7 @@ export const InsightsScreen: React.FC = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState<boolean>(false);
 
   // Health Transformation Dynamic API Data states
-  const [transformationLoading, setTransformationLoading] = useState(false);
+  const [_transformationLoading, setTransformationLoading] = useState(false);
   const [transformationData, setTransformationData] = useState<any>(null);
 
   // Scroll & Ref states for horizontal see-more chart
@@ -173,10 +312,8 @@ export const InsightsScreen: React.FC = () => {
   const loadTransformationData = async (monthStr: string) => {
     setTransformationLoading(true);
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA5546';
       
       // Convert short name to full month name (e.g. "Jun 2026" to "June 2026")
       const parts = monthStr.split(' ');
@@ -208,19 +345,155 @@ export const InsightsScreen: React.FC = () => {
     }
   }, [activeScreenTab, selectedMonth]);
 
+  const loadTrendsLogs = async () => {
+    try {
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA5546';
+
+      try {
+        const dailyChartsRes = await apiService.getDailyCharts(targetUhid);
+        console.log('[Insights] daily-charts API SUCCESS:', JSON.stringify(dailyChartsRes, null, 2));
+
+        if (dailyChartsRes) {
+          const metrics = dailyChartsRes.daily_metrics || {};
+          const heartPointsObj = metrics.heart_points || {};
+          const bioSyncObj = dailyChartsRes.bio_sync_charts || {};
+          const labelDate = dailyChartsRes.target_date || 'Today';
+
+          const mappedFitnessTrend = {
+            dailyStepsBreakdown: [
+              { date: labelDate, values: metrics.steps ?? 0 }
+            ],
+            dailyHeartPoints: [
+              { date: labelDate, values: heartPointsObj.value ?? 0 }
+            ],
+            dailySdex: [
+              { date: labelDate, values: Math.round(metrics.sdex ?? 0) }
+            ],
+            energyExpanded: [
+              { date: labelDate, values: metrics.energy_expended_kcal ?? 0 }
+            ],
+            dailyActiveMinutes: [
+              { date: labelDate, values: 0 }
+            ],
+            totalHeartPoint: heartPointsObj.value ?? 0,
+            totalDailySdex: Math.round(metrics.sdex ?? 0),
+            dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
+            dailyHeartPointsCharts: {
+              target: 150,
+              actual: heartPointsObj.value ?? 0,
+              performance: Math.round(heartPointsObj.percent ?? 0)
+            },
+            dailySdexCharts: {
+              target: 35,
+              actual: metrics.sdex ?? 0,
+              performance: Math.round(((metrics.sdex ?? 0) / 35) * 100)
+            },
+            dailyStepsBreakdownCharts: {
+              target: 10000,
+              actual: metrics.steps ?? 0,
+              performance: Math.round(((metrics.steps ?? 0) / 10000) * 100)
+            },
+            energyExpandedCharts: {
+              target: 2000,
+              actual: metrics.energy_expended_kcal ?? 0,
+              performance: Math.round(((metrics.energy_expended_kcal ?? 0) / 2000) * 100)
+            }
+          };
+
+          const mappedBioSyncTrend = {
+            weeklyTrend: [
+              {
+                date: labelDate,
+                cys: bioSyncObj.ppi?.value ?? 0,
+                eeKm: bioSyncObj.e3?.value ?? 0,
+                isAvg: bioSyncObj.is?.value ?? 0
+              }
+            ],
+            integratedStamina: [
+              { date: labelDate, values: Math.round(bioSyncObj.is?.value ?? 0) }
+            ],
+            eeKmAvg: bioSyncObj.e3?.value ?? 0,
+            isAvg: bioSyncObj.is?.value ?? 0,
+            cysTotal: bioSyncObj.ppi?.value ?? 0,
+            stability: bioSyncObj.ppi?.value ?? 0,
+            intensity: bioSyncObj.bio_sync?.value ?? 0,
+            metabolic: bioSyncObj.e3?.value ?? 0,
+            cardioYieldPerStep: [
+              {
+                date: labelDate,
+                morning: 0,
+                afternoon: 0,
+                evening: 0,
+                night: 0
+              }
+            ],
+            weeklyBioSyncEfficiencyScore: bioSyncObj.bio_sync?.value ?? 0,
+            eePerKmCharts: {
+              target: 10,
+              actual: bioSyncObj.e3?.value ?? 0,
+              performance: Math.round(bioSyncObj.e3?.percent ?? 0)
+            },
+            integratedStaminaCharts: {
+              target: 100,
+              actual: bioSyncObj.is?.value ?? 0,
+              performance: Math.round(bioSyncObj.is?.percent ?? 0)
+            },
+            weeklyTrendCharts: {
+              target: 100,
+              actual: bioSyncObj.bio_sync?.value ?? 0,
+              performance: Math.round(bioSyncObj.bio_sync?.percent ?? 0)
+            },
+            cardioYieldPerStepCharts: {
+              target: 100,
+              actual: bioSyncObj.ppi?.value ?? 0,
+              performance: Math.round(bioSyncObj.ppi?.percent ?? 0)
+            }
+          };
+
+          setFitnessTrend(mappedFitnessTrend);
+          setBioSyncTrend(mappedBioSyncTrend);
+        }
+      } catch (dailyChartsError) {
+        console.error('[Insights] daily-charts API ERROR:', dailyChartsError);
+      }
+    } catch (error) {
+      console.error('[Insights] Error fetching daily trend APIs:', error);
+    }
+  };
+
   const loadData = async () => {
+    setLoadingTrends(true);
     try {
       const logs = await apiService.getActivities();
       setActivities(logs);
+      await loadTrendsLogs();
     } catch (error) {
       console.error('Failed to load insights trends activities:', error);
     } finally {
       setRefreshing(false);
+      setLoadingTrends(false);
     }
   };
 
   useEffect(() => {
     loadData();
+
+    // Connect to backend WebSocket streaming service
+    healthReportWebSocketService.connect();
+
+    // Listen to real-time health report events
+    const unsubscribe = healthReportWebSocketService.subscribe((reportData) => {
+      console.log('[InsightsScreen] Real-time WebSocket report payload received:', reportData);
+      if (reportData) {
+        // Trigger smooth refresh of trend data upon receiving Kafka health report stream event
+        loadTrendsLogs();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleRefresh = () => {
@@ -228,82 +501,36 @@ export const InsightsScreen: React.FC = () => {
     loadData();
   };
 
-  // Compile active trends data
   const getTrendsData = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-
-    if (activeTimeframe === '7days') {
-      const compiled = BASE_7_DAYS.map(p => ({
-        ...p,
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-      
-      // Calculate today's steps/calories from user logs
-      const todayStart = new Date().setHours(0, 0, 0, 0);
-      const todayEnd = new Date().setHours(23, 59, 59, 999);
-      
-      const todayWalkActivities = activities.filter(
-        (a) => a.type === 'Walking' && new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todaySteps = todayWalkActivities.reduce((sum, a) => sum + a.value, 0);
-      
-      const todayAllActivities = activities.filter(
-        (a) => new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todayCalories = todayAllActivities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-      
-      // Heart Rate estimation
-      let todayHR = 70;
-      if (todayAllActivities.length > 0) {
-        todayHR = 80; // active heart rate average
-      }
-
-      compiled[6] = {
-        label: 'Sun', // today
-        steps: todaySteps ? Math.round(todaySteps * mult) : Math.round(4800 * mult),
-        calories: todayCalories ? Math.round(todayCalories * mult) : Math.round(210 * mult),
-        hr: todayHR,
-      };
-
-      return compiled;
-    } else if (activeTimeframe === '4weeks') {
-      const labels = ['Wk 01', 'Wk 02', 'Wk 03', 'Wk 04'];
-      const compiled = BASE_4_WEEKS.map((p, idx) => ({
-        label: labels[idx],
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-
-      // Add active logs to the last week if selectedMonth matches current month and activities are present
-      const currentYear = new Date().getFullYear();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentMonthName = monthNames[new Date().getMonth()];
-      const isCurrentMonth = selectedMonth === `${currentMonthName} ${currentYear}`;
-
-      if (isCurrentMonth) {
-        const week4Steps = activities.reduce((sum, a) => sum + (a.type === 'Walking' ? a.value : 0), 0);
-        const week4Calories = activities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-        if (week4Steps > 0 || week4Calories > 0) {
-          compiled[3] = {
-            label: labels[3],
-            steps: Math.round(Math.max(31000, week4Steps) * mult),
-            calories: Math.round(Math.max(1400, week4Calories) * mult),
-            hr: 75,
-          };
+    if (fitnessTrend && fitnessTrend.dailyStepsBreakdown && fitnessTrend.dailyStepsBreakdown.length > 0) {
+      return fitnessTrend.dailyStepsBreakdown.map((item: any, idx: number) => {
+        const steps = item.values ?? 0;
+        const hr = fitnessTrend.dailyHeartPoints?.[idx]?.values ?? 0;
+        const calories = fitnessTrend.energyExpanded?.[idx]?.values ?? 0;
+        
+        let label = '';
+        if (item.date) {
+          try {
+            if (item.date.length === 3 || isNaN(Date.parse(item.date))) {
+              label = item.date.slice(0, 3);
+            } else {
+              const d = new Date(item.date);
+              label = d.toLocaleDateString('en-US', { weekday: 'short' });
+            }
+          } catch {
+            label = item.date ? String(item.date).slice(0, 3) : '';
+          }
         }
-      }
-      return compiled;
-    } else {
-      let count = 3;
-      if (activeTimeframe === '6months') count = 6;
-      else if (activeTimeframe === '9months') count = 9;
-      else if (activeTimeframe === '12months') count = 12;
-
-      return getMonthsSequence(selectedMonth, count).map(item => getMonthlyDataPoint(item.label, item.year));
+        
+        return {
+          label,
+          steps,
+          calories,
+          hr
+        };
+      });
     }
+    return [];
   };
 
   const trendPoints = getTrendsData();
@@ -318,38 +545,20 @@ export const InsightsScreen: React.FC = () => {
   // Dynamic values based on selected index in chart
   const activePoint = trendPoints[selectedTrendIdx] || trendPoints[0];
 
-  // Helper values for distance & active minutes summary
   const getSummaryMetrics = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-    let totalDistance = 112.5;
-    let distanceDiff = '+12%';
-    let activeMinutes = 980;
-    let activeMinutesDiff = '+8%';
+    let totalDistance = 0.0;
+    let distanceDiff = '';
+    let activeMinutes = 0;
+    let activeMinutesDiff = '';
 
-    if (activeTimeframe === '7days') {
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026';
+
+    if (isDataAvailable && fitnessTrend && fitnessTrend.dailyStepsBreakdown) {
       const stepsSum = trendPoints.reduce((sum, p) => sum + p.steps, 0);
       totalDistance = parseFloat((stepsSum * 0.0008).toFixed(1));
-      distanceDiff = '+4%';
-      activeMinutes = activities.reduce((sum, a) => sum + a.durationMinutes, 0) || 180;
-      activeMinutesDiff = '+3%';
-    } else if (activeTimeframe === '4weeks') {
-      totalDistance = parseFloat((112.5 * mult).toFixed(1));
-      activeMinutes = Math.round(980 * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(12 * mult)}%` : `+${Math.round(12 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(8 * mult)}%` : `+${Math.round(8 * mult)}%`;
-    } else if (activeTimeframe === '3months' || activeTimeframe === '6months' || activeTimeframe === '9months' || activeTimeframe === '12months') {
-      let baseDistance = 384.2;
-      let baseMinutes = 3450;
-      let factor = 1.0;
       
-      if (activeTimeframe === '6months') factor = 2.0;
-      else if (activeTimeframe === '9months') factor = 3.0;
-      else if (activeTimeframe === '12months') factor = 4.0;
-
-      totalDistance = parseFloat((baseDistance * factor * mult).toFixed(1));
-      activeMinutes = Math.round(baseMinutes * factor * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(18 * mult)}%` : `+${Math.round(18 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(15 * mult)}%` : `+${Math.round(15 * mult)}%`;
+      const minsArray = fitnessTrend.dailyActiveMinutes || [];
+      activeMinutes = minsArray.reduce((sum: number, p: any) => sum + (p.values ?? 0), 0);
     }
 
     return { totalDistance, distanceDiff, activeMinutes, activeMinutesDiff };
@@ -359,6 +568,18 @@ export const InsightsScreen: React.FC = () => {
 
   // Draw Activity SVG Chart
   const renderActivityTrendsChart = () => {
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026' && trendPoints && trendPoints.length > 0;
+
+    if (!isDataAvailable) {
+      return (
+        <View style={[styles.chartOuterContainer, { height: CHART_HEIGHT, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16 }]}>
+          <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500' }}>
+            No data available for this selection.
+          </Text>
+        </View>
+      );
+    }
+
     const pL = scale(46);
     const pR = scale(34);
     const pT = verticalScale(34); // extra space at top for tooltip
@@ -759,32 +980,52 @@ export const InsightsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <CustomHeader title="Health Insights & Trends" showDrawerButton />
-
-      {/* Background Soft Glow Spots */}
+      <CustomHeader title="Fitness Insights & Trends" showDrawerButton />
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
-
-      {/* Screen Segment Selector */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('trends')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+      <View style={styles.tabScrollContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabContainer}
         >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
-            Activity Trends
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('transformation')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
-        >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
-            Health Transformation
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('fitness')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'fitness' && styles.tabActiveText]}>
+              Daily Metrics
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('bio-sync')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'bio-sync' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'bio-sync' && styles.tabActiveText]}>
+              Bio-Sync
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('trends')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
+              Activity Trends
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('transformation')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
+              Weekly Report
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -793,7 +1034,75 @@ export const InsightsScreen: React.FC = () => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} />
         }
       >
-        {activeScreenTab === 'trends' ? (
+        {activeScreenTab === 'fitness' && (
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading fitness insights...
+              </Text>
+            </View>
+          ) : (
+            <FitnessTab
+              chartWidth={CHART_WIDTH}
+              dailyStepsBreakdown={parseFitnessTrendArray(fitnessTrend?.dailyStepsBreakdown)}
+              dailyHeartPoints={parseFitnessTrendArray(fitnessTrend?.dailyHeartPoints)}
+              sdexActivity={parseFitnessTrendArray(fitnessTrend?.dailySdex)}
+              energyExpended={parseFitnessTrendArray(fitnessTrend?.energyExpanded)}
+              totalHeartPoint={fitnessTrend?.totalHeartPoint ?? 0}
+              totalDailySdex={fitnessTrend?.totalDailySdex ?? 0}
+              dailyHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyHeartPointsCharts)}
+              dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
+              dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
+              energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
+              dailyInsightText={fitnessTrend?.dailyInsightText}
+            />
+          )
+        )}
+
+        {activeScreenTab === 'bio-sync' && (
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading bio-sync data...
+              </Text>
+            </View>
+          ) : (
+            <BioSyncTab
+              chartWidth={CHART_WIDTH}
+              energyEfficiency={parseFitnessTrendArray(
+                bioSyncTrend?.weeklyTrend
+                  ? bioSyncTrend.weeklyTrend.map((item: any) => ({
+                      ...item,
+                      values: item.eeKm,
+                    }))
+                  : undefined
+              )}
+              integratedStamina={parseFitnessTrendArray(bioSyncTrend?.integratedStamina)}
+              weeklyPerformance={parseWeeklyPerformance(bioSyncTrend?.weeklyTrend)}
+              weeklyPerformanceSummary={{
+                eeKmAvg: bioSyncTrend?.eeKmAvg != null ? String(bioSyncTrend.eeKmAvg) : 'N/A',
+                isAvg: bioSyncTrend?.isAvg != null ? String(bioSyncTrend.isAvg) : 'N/A',
+                cysTotal: bioSyncTrend?.cysTotal != null ? String(bioSyncTrend.cysTotal) : 'N/A',
+              }}
+              pillarHealthData={[
+                { label: 'Stability', value: bioSyncTrend?.stability ?? 0, color: '#22C55E' },
+                { label: 'Intensity', value: bioSyncTrend?.intensity ?? 0, color: '#3B82F6' },
+                { label: 'Metabolic', value: bioSyncTrend?.metabolic ?? 0, color: '#F59E0B' },
+              ]}
+              cardioYieldData={parseCardioYieldData(bioSyncTrend?.cardioYieldPerStep)}
+              weeklyBioSyncEfficiencyScore={bioSyncTrend?.weeklyBioSyncEfficiencyScore ?? 0}
+              eePerKmCharts={formatChartSummary(bioSyncTrend?.eePerKmCharts)}
+              integratedStaminaCharts={formatChartSummary(bioSyncTrend?.integratedStaminaCharts)}
+              weeklyTrendCharts={formatChartSummary(bioSyncTrend?.weeklyTrendCharts)}
+              cardioYieldPerStepCharts={formatChartSummary(bioSyncTrend?.cardioYieldPerStepCharts)}
+              status={getBioSyncStatus(bioSyncTrend?.weeklyBioSyncEfficiencyScore)}
+            />
+          )
+        )}
+
+        {activeScreenTab === 'trends' && (
           /* View 1: Activity Trends Chart */
           <View>
             <View style={styles.sectionHeaderRow}>
@@ -895,9 +1204,11 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Total Distance</Text>
                   <Text style={styles.summaryValue}>{summary.totalDistance} km</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.distanceDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
 
@@ -912,14 +1223,18 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Active Minutes</Text>
                   <Text style={styles.summaryValue}>{summary.activeMinutes} min</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.activeMinutesDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
             </View>
           </View>
-        ) : (
+        )}
+
+        {activeScreenTab === 'transformation' && (
           /* View 2: Your 30-Day Health Transformation */
           <View>
             <Text style={styles.transformationHeaderTitle}>Your 30-Day Health Transformation</Text>
@@ -1103,21 +1418,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.secondary + '08',
     zIndex: -1,
   },
+  tabScrollContainer: {
+    paddingHorizontal: theme.spacing.containerPadding,
+    marginTop: theme.spacing.md,
+    height: 48,
+  },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(99, 102, 241, 0.06)',
     borderRadius: 12,
-    marginHorizontal: theme.spacing.containerPadding,
-    marginTop: theme.spacing.md,
     padding: 4,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.12)',
+    alignItems: 'center',
   },
   tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
+    marginRight: 4,
   },
   tabActiveBtn: {
     backgroundColor: theme.colors.primary,

@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Switch,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { getHealthConnectAccessState, requestHealthConnectPermissions, openHealthConnectAppSettings } from '../../../services/healthConnect';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { apiService } from '../../../services/api';
@@ -342,7 +347,7 @@ const ActivityCard: React.FC<{
     activityCardColorTheme.THEMES[time.toLowerCase() as keyof typeof activityCardColorTheme.THEMES] ||
     activityCardColorTheme.THEMES.night;
   
-  const progress = Math.min(hp / goal, 1);
+  const progress = isActive ? 0 : Math.min(hp / goal, 1);
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const timeScale = getScaleForTime(time);
 
@@ -429,19 +434,19 @@ const ActivityCard: React.FC<{
               />
             </Svg>
             <View style={cardStyles.centerText}>
-              <Text style={cardStyles.hpText}>{hp}</Text>
+              <Text style={cardStyles.hpText}>{isActive ? '--' : hp}</Text>
               <Text style={[cardStyles.goalText, { color: theme.iconColor }]}>HP</Text>
             </View>
           </View>
 
           <View style={cardStyles.statsColumn}>
             <View style={cardStyles.statsRow}>
-              <StatRow icon="run-fast" value={steps.toLocaleString()} label="Steps" theme={theme} />
-              <StatRow icon="map-marker-path" value={`${km} km`} label="Distance" theme={theme} />
+              <StatRow icon="run-fast" value={isActive ? '--' : steps.toLocaleString()} label="Steps" theme={theme} />
+              <StatRow icon="map-marker-path" value={isActive ? '--' : `${km} km`} label="Distance" theme={theme} />
             </View>
             <View style={[cardStyles.statsRow, { marginTop: 8 }]}>
-              <StatRow icon="clock" value={`${duration} min`} label="Duration" theme={theme} />
-              <StatRow icon="fire" value={`${cal} kcal`} label="Energy" theme={theme} />
+              <StatRow icon="clock" value={isActive ? '--' : `${duration} min`} label="Duration" theme={theme} />
+              <StatRow icon="fire" value={isActive ? '--' : `${cal} kcal`} label="Energy" theme={theme} />
             </View>
           </View>
         </View>
@@ -451,7 +456,15 @@ const ActivityCard: React.FC<{
 };
 
 const DailyQuestsCard: React.FC = () => {
-  const currentPhase = 'evening';
+  const getCurrentPhase = (): 'morning' | 'afternoon' | 'evening' | 'night' => {
+    const hrs = new Date().getHours();
+    if (hrs >= 6 && hrs < 12) return 'morning';
+    if (hrs >= 12 && hrs < 17) return 'afternoon';
+    if (hrs >= 17 && hrs < 21) return 'evening';
+    return 'night';
+  };
+
+  const currentPhase = getCurrentPhase();
   const theme = DailyQuestedCardThemes[currentPhase] ?? DailyQuestedCardThemes.night;
   const PHASES = ['morning', 'afternoon', 'evening', 'night'] as const;
   const currentIndex = PHASES.indexOf(currentPhase);
@@ -468,25 +481,24 @@ const DailyQuestsCard: React.FC = () => {
         style={questStyles.header}
       >
         <View style={questStyles.headerLeft}>
-          <View style={[questStyles.timeBadge, { backgroundColor: theme.dimColor, borderColor: theme.borderColor }]}>
-            <MiniIcon name={theme.icon} size={11} color={theme.accent} />
-            <Text style={[questStyles.timeBadgeText, { color: theme.accent }]}>
-              {currentPhase.toUpperCase()}
-            </Text>
+          <View style={[questStyles.circleIcon, { backgroundColor: theme.dimColor }]}>
+            <MiniIcon name={theme.icon} size={14} color={theme.accent} />
+          </View>
+          <View style={questStyles.titleContainer}>
+            <Text style={questStyles.sectionTitle}>{theme.label}</Text>
             <Text style={questStyles.timeBadgeRange}>{theme.timeRange}</Text>
           </View>
-          <Text style={questStyles.sectionTitle}>
-            {theme.label}
-          </Text>
         </View>
         
         <View style={questStyles.headerRight}>
           <View style={questStyles.goalBadge}>
             <Text style={[questStyles.goalBadgeText, { color: theme.accent }]}>
-              {currentIndex}/4
+              {currentIndex}/4 Done
             </Text>
           </View>
-          <MiniIcon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={theme.accent} />
+          <View style={[questStyles.chevronCircle, { borderColor: theme.borderColor }]}>
+            <MiniIcon name={expanded ? 'chevron-up' : 'chevron-down'} size={12} color={theme.accent} />
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -578,22 +590,79 @@ const DailyQuestsCard: React.FC = () => {
 };
 
 const FitnessActivityCard: React.FC<{
-  date: string;
-  distance: number;
-  totalEnergy: number;
-  steps: number;
-  hp: number;
-  duration: number;
-}> = ({ date, distance, totalEnergy, steps, hp, duration }) => {
+  summary: any;
+}> = ({ summary }) => {
+  if (!summary) {
+    return (
+      <View style={[detailStyles.container, { padding: 24, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="small" color="#14B8A6" />
+        <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 8 }}>
+          Loading previous day details...
+        </Text>
+      </View>
+    );
+  }
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Yesterday';
+    try {
+      const d = new Date(dateStr);
+      const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+      return `Yesterday, ${d.toLocaleDateString('en-US', options)}`;
+    } catch (e) {
+      return 'Yesterday';
+    }
+  };
+
+  const date = formatDate(summary.activityDate);
+  const steps = summary.totalSteps || 0;
+  const distance = summary.totalDistance || 0;
+  const totalEnergy = summary.totalEnergyExpended || 0;
+  const hp = summary.totalHeartPoint || 0;
+  const duration = summary.totalDuration ? parseInt(summary.totalDuration) || 0 : 0;
+  
   const hpGoal = 150;
   const goalReached = hp >= hpGoal;
 
-  const mockChartData = {
-    Morning: 45,
-    Afternoon: 30,
-    Evening: 65,
-    Night: 10,
+  const sessionList = summary.sessionList || [];
+  
+  // Calculate dynamic chartData map from sessionList
+  const chartData: Record<string, number> = {
+    Morning: 0,
+    Afternoon: 0,
+    Evening: 0,
+    Night: 0,
   };
+  
+  sessionList.forEach((s: any) => {
+    const key = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : '';
+    if (key in chartData) {
+      chartData[key] = s.heartPoint || 0;
+    }
+  });
+
+  // Calculate dynamic peak time block key based on highest heartPoint
+  let peakKey = 'Evening';
+  let maxHp = -1;
+  sessionList.forEach((s: any) => {
+    if (s.heartPoint > maxHp) {
+      maxHp = s.heartPoint;
+      peakKey = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : 'Evening';
+    }
+  });
+
+  // Dynamic max scale logic (min scale limit is 200, else round to nearest 50)
+  const maxSessionHp = Math.max(...sessionList.map((s: any) => s.heartPoint || 0), 200);
+  const maxScale = Math.ceil(maxSessionHp / 50) * 50;
+
+  // Let's divide Y labels based on maxScale
+  const yLabels = [
+    String(maxScale),
+    String(Math.round(maxScale * 0.75)),
+    String(Math.round(maxScale * 0.5)),
+    String(Math.round(maxScale * 0.25)),
+    '0'
+  ];
 
   return (
     <View style={detailStyles.container}>
@@ -649,13 +718,13 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.sectionRow}>
         <Text style={detailStyles.sectionLabel}>HEART POINTS BY TIME</Text>
-        <Text style={detailStyles.sectionSub}>MAX SCALE 200</Text>
+        <Text style={detailStyles.sectionSub}>MAX SCALE {maxScale}</Text>
       </View>
 
       {/* Bar Chart Representation */}
       <View style={detailStyles.chartWrapper}>
         <View style={detailStyles.yAxis}>
-          {['200', '150', '100', '50', '0'].map(v => (
+          {yLabels.map(v => (
             <Text key={v} style={detailStyles.yLabel}>{v}</Text>
           ))}
         </View>
@@ -666,9 +735,9 @@ const FitnessActivityCard: React.FC<{
           
           <View style={detailStyles.barsRow}>
             {FitnessActivityBlocks.map(block => {
-              const val = mockChartData[block.key];
-              const barPct = Math.min((val / 200) * 100, 100);
-              const isPeak = block.key === 'Evening';
+              const val = chartData[block.key] || 0;
+              const barPct = Math.min((val / maxScale) * 100, 100);
+              const isPeak = block.key === peakKey;
 
               return (
                 <View key={block.key} style={detailStyles.barCol}>
@@ -706,8 +775,17 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.detailList}>
         {FitnessActivityBlocks.map((block, idx) => {
-          const val = mockChartData[block.key];
-          const isPeak = block.key === 'Evening';
+          const val = chartData[block.key] || 0;
+          const isPeak = block.key === peakKey;
+
+          // Fetch dynamic stats for this block
+          const session = sessionList.find((s: any) => 
+            s.title?.toLowerCase() === block.key.toLowerCase()
+          );
+          const sSteps = session?.steps || 0;
+          const sDist = session?.distance || 0;
+          const sCal = session?.energyExpended || 0;
+
           return (
             <View
               key={block.key}
@@ -731,7 +809,9 @@ const FitnessActivityCard: React.FC<{
                     </View>
                   )}
                 </View>
-                <Text style={detailStyles.timeRange}>{block.timeRange}</Text>
+                <Text style={detailStyles.timeRange}>
+                  {block.timeRange} • {sSteps} steps • {sDist} km • {sCal} kcal
+                </Text>
               </View>
 
               <View style={detailStyles.detailStat}>
@@ -752,25 +832,106 @@ const FitnessActivityCard: React.FC<{
 export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
+  const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
+  const [previousDaySummary, setPreviousDaySummary] = useState<any>(null);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasPermissions, setHasPermissions] = useState<boolean>(true);
+  const [bypassCheck, setBypassCheck] = useState<boolean>(false);
+  const [dailyDisplayBlock, setDailyDisplayBlock] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchHealthActivities = async () => {
-      try {
-        const cachedProfile = await storageHelper.getItem<UserProfile>(
-          STORAGE_KEYS.USER_PROFILE,
-        );
-        const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-        setActiveUhid(targetUhid);
+  const fetchHealthActivities = useCallback(async (isRefresh = false, forceBypass = false) => {
+    if (!isRefresh) setLoadingLogs(true);
+    try {
+      const access = await getHealthConnectAccessState();
+      const hasPerms = access.hasAllPermissions || forceBypass;
+      setHasPermissions(hasPerms);
 
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      setActiveUhid(targetUhid);
+
+      if (hasPerms) {
         console.log(`Fetching Health Connect activities for ${targetUhid}...`);
         const response = await apiService.getHealthConnectActivities(targetUhid);
         console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
-      } catch (error) {
-        console.error('Error fetching Health Connect activities in StepsLogsTab:', error);
+
+        console.log(`Fetching Workout Logs for ${targetUhid}...`);
+        const workoutLogResponse = await apiService.getWorkoutLog(targetUhid);
+        console.log('GET Workout Log Response in StepsLogsTab:', JSON.stringify(workoutLogResponse, null, 2));
+
+        if (workoutLogResponse && workoutLogResponse.status === 'Success' && Array.isArray(workoutLogResponse.data)) {
+          setWorkoutLogs(workoutLogResponse.data);
+        } else {
+          setWorkoutLogs([]);
+        }
+
+        console.log(`Fetching Previous Day Summary for ${targetUhid}...`);
+        const previousDaySummaryResponse = await apiService.getPreviousDaySummary(targetUhid);
+        console.log('GET Previous Day Summary Response in StepsLogsTab:', JSON.stringify(previousDaySummaryResponse, null, 2));
+
+        if (previousDaySummaryResponse && previousDaySummaryResponse.status === 'Success' && previousDaySummaryResponse.data) {
+          setPreviousDaySummary(previousDaySummaryResponse.data);
+        } else {
+          setPreviousDaySummary(null);
+        }
+
+        try {
+          const sysDate = new Date();
+          const sysY = sysDate.getFullYear();
+          const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+          const sysD = String(sysDate.getDate()).padStart(2, '0');
+          const systemDateStr = `${sysY}-${sysM}-${sysD}`;
+
+          console.log(`Fetching getDailyDisplayBlock for ${targetUhid} on Date: ${systemDateStr}...`);
+          const displayBlockRes = await apiService.getDailyDisplayBlock(targetUhid, systemDateStr);
+          console.log('getDailyDisplayBlock Response in StepsLogsTab:', JSON.stringify(displayBlockRes, null, 2));
+          if (displayBlockRes) {
+            setDailyDisplayBlock(displayBlockRes);
+          } else {
+            setDailyDisplayBlock(null);
+          }
+        } catch (displayBlockErr) {
+          console.warn('Error fetching getDailyDisplayBlock in StepsLogsTab:', displayBlockErr);
+          setDailyDisplayBlock(null);
+        }
+      } else {
+        setWorkoutLogs([]);
+        setPreviousDaySummary(null);
+        setDailyDisplayBlock(null);
       }
-    };
-    fetchHealthActivities();
+    } catch (error) {
+      console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
+    } finally {
+      setLoadingLogs(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchHealthActivities(false, bypassCheck);
+    }, [fetchHealthActivities, bypassCheck])
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchHealthActivities(true, bypassCheck);
+  };
+
+  const handleGrantPermissions = async () => {
+    try {
+      const access = await requestHealthConnectPermissions();
+      setHasPermissions(access.hasAllPermissions);
+      if (access.hasAllPermissions) {
+        fetchHealthActivities(true);
+      }
+    } catch (err) {
+      console.warn('Failed to request permissions:', err);
+    }
+  };
 
   return (
     <View style={styles.mainWrapper}>
@@ -780,56 +941,166 @@ export const StepsLogsTab: React.FC = () => {
           <Text style={styles.userId}>UHID: {activeUhid}</Text>
         </View>
         <View style={styles.rightSection}>
-          <Text style={styles.dateText}>19 Jun, Friday</Text>
+          <Text style={styles.dateText}>
+            {(() => {
+              const sysDate = new Date();
+              const sysY = sysDate.getFullYear();
+              const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+              const sysD = String(sysDate.getDate()).padStart(2, '0');
+              
+              let hours = sysDate.getHours();
+              const ampm = hours >= 12 ? 'PM' : 'AM';
+              hours = hours % 12;
+              hours = hours ? hours : 12; // 0 should be 12
+              
+              const sysH = String(hours).padStart(2, '0');
+              const sysMin = String(sysDate.getMinutes()).padStart(2, '0');
+              return `${sysY}-${sysM}-${sysD} ${sysH}:${sysMin} ${ampm}`;
+            })()}
+          </Text>
         </View>
+        {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Bypass Check</Text>
+          <Switch
+            value={bypassCheck}
+            onValueChange={(val) => {
+              setBypassCheck(val);
+              fetchHealthActivities(true, val);
+            }}
+            trackColor={{ false: '#334155', true: '#6366f1' }}
+            thumbColor={bypassCheck ? '#ffffff' : '#94a3b8'}
+          />
+        </View> */}
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#6366f1']}
+            tintColor="#6366f1"
+          />
+        }
       >
         <View>
-          {/* Static Activity Logs */}
-          <ActivityCard
-            time="Morning"
-            hp={45}
-            goal={50}
-            steps={4850}
-            km={3.2}
-            cal={280}
-            duration={35}
-            isActive={false}
-          />
-          <ActivityCard
-            time="Afternoon"
-            hp={30}
-            goal={50}
-            steps={2120}
-            km={1.5}
-            cal={150}
-            duration={20}
-            isActive={false}
-          />
-          <ActivityCard
-            time="Evening"
-            hp={65}
-            goal={50}
-            steps={5240}
-            km={3.8}
-            cal={320}
-            duration={40}
-            isActive={true}
-          />
-          <ActivityCard
-            time="Night"
-            hp={10}
-            goal={50}
-            steps={980}
-            km={0.7}
-            cal={80}
-            duration={15}
-            isActive={false}
-          />
+          {/* Dynamic Activity Logs */}
+          {loadingLogs ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color="#6366f1" />
+              <Text style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontWeight: '500' }}>
+                Fetching dynamic time blocks...
+              </Text>
+            </View>
+          ) : !hasPermissions ? (
+            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                ⚠️ Health Connect Permissions Missing
+              </Text>
+              <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+                MoveHub is not authorized to access your fitness records. Please grant permissions to sync your steps and activities.
+              </Text>
+              <View style={{ flexDirection: 'row', marginTop: 18 }}>
+                <TouchableOpacity
+                  onPress={handleGrantPermissions}
+                  style={{
+                    backgroundColor: '#6366f1',
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 20,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '600' }}>Grant Permissions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={openHealthConnectAppSettings}
+                  style={{
+                    backgroundColor: '#334155',
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 20,
+                  }}
+                >
+                  <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600' }}>Open Settings</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : workoutLogs.length === 0 ? (
+            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+                No synced activities for today yet.
+              </Text>
+              <Text style={{ color: '#64748b', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                Ensure Google Fit integration is connected and active.
+              </Text>
+            </View>
+          ) : (
+            (() => {
+              const now = new Date();
+              const hrs = now.getHours();
+              
+              let activeBlock: 'morning' | 'afternoon' | 'evening' | 'night' = 'night';
+              if (hrs >= 6 && hrs < 12) activeBlock = 'morning';
+              else if (hrs >= 12 && hrs < 17) activeBlock = 'afternoon';
+              else if (hrs >= 17 && hrs < 21) activeBlock = 'evening';
+
+              const blockOrder = ['morning', 'afternoon', 'evening', 'night'];
+              const activeIndex = blockOrder.indexOf(activeBlock);
+
+              const sortedKeys: string[] = [];
+              for (let i = 0; i < 4; i++) {
+                const index = (activeIndex - i + 4) % 4;
+                sortedKeys.push(blockOrder[index]);
+              }
+
+              return sortedKeys.map((blockKey, index) => {
+                const formattedTime = blockKey.charAt(0).toUpperCase() + blockKey.slice(1).toLowerCase();
+                const block = blockKey;
+                const isActive = block === activeBlock;
+
+                // Find default log if exists
+                const defaultLog = workoutLogs.find(log => (log.title || '').toLowerCase() === block);
+
+                let hpVal = defaultLog?.heartPoint || 0;
+                let stepsVal = defaultLog?.steps || 0;
+                let distanceVal = defaultLog?.distance ? parseFloat(parseFloat(defaultLog.distance).toFixed(1)) || 0 : 0;
+                let calVal = defaultLog?.energyExpended || 0;
+                let durationVal = defaultLog?.duration ? parseInt(defaultLog.duration) || 0 : 0;
+
+                const displayBlock = dailyDisplayBlock?.time_block_breakdown?.[block as 'morning' | 'afternoon' | 'evening' | 'night'];
+                if (displayBlock) {
+                  stepsVal = typeof displayBlock.steps === 'number' ? displayBlock.steps : stepsVal;
+                  hpVal = typeof displayBlock.heart_points === 'number' ? displayBlock.heart_points : hpVal;
+                  
+                  const dist = displayBlock.km;
+                  if (dist !== undefined && dist !== null) {
+                    const distFloat = typeof dist === 'string' ? parseFloat(dist) : dist;
+                    distanceVal = distFloat > 0 && distFloat < 0.1 ? parseFloat(distFloat.toFixed(4)) : parseFloat(distFloat.toFixed(1));
+                  }
+
+                  calVal = typeof displayBlock.energy_expended_kcal === 'number' ? Math.round(displayBlock.energy_expended_kcal) : calVal;
+                  durationVal = typeof displayBlock.min === 'number' ? displayBlock.min : durationVal;
+                }
+
+                return (
+                  <ActivityCard
+                    key={block || index}
+                    time={formattedTime}
+                    hp={hpVal}
+                    goal={defaultLog?.targetHeartPoint || 50}
+                    steps={stepsVal}
+                    km={distanceVal}
+                    cal={calVal}
+                    duration={durationVal}
+                    isActive={isActive}
+                  />
+                );
+              });
+            })()
+          )}
 
           {/* Daily Quests progression */}
           <DailyQuestsCard />
@@ -851,12 +1122,7 @@ export const StepsLogsTab: React.FC = () => {
 
           {showDetail && (
             <FitnessActivityCard
-              date="Yesterday, 18 Jun"
-              distance={9.2}
-              totalEnergy={830}
-              steps={13190}
-              hp={150}
-              duration={110}
+              summary={previousDaySummary}
             />
           )}
         </View>
@@ -1118,48 +1384,54 @@ const questStyles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    flex: 1,
   },
-  timeBadge: {
-    flexDirection: 'row',
+  circleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
   },
-  timeBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+  titleContainer: {
+    flexDirection: 'column',
   },
   timeBadgeRange: {
     color: '#94A3B8',
-    fontSize: 9,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: 10.5,
+    fontWeight: '500',
+    marginTop: 2,
   },
   sectionTitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    marginLeft: 8,
   },
   goalBadge: {
     borderRadius: 8,
     backgroundColor: '#1E293B',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
   goalBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  chevronCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   progressWrap: {
     marginVertical: 14,

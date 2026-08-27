@@ -237,7 +237,7 @@ export const LeaderboardScreen: React.FC = () => {
 
   // Modals visible and data states
   const [rankUpVisible, setRankUpVisible] = useState(false);
-  const [rankUpData, setRankUpData] = useState({ oldRank: 8, newRank: 7, aheadOfName: '', nextRankTargetText: '' });
+  const [rankUpData, setRankUpData] = useState({ oldRank: 8, newRank: 7, aheadOfName: '', nextRankTargetText: '', top3RankTargetText: '' });
   
   const [refreshing, setRefreshing] = useState(false);
   const [celebrationVisible, setCelebrationVisible] = useState(false);
@@ -492,25 +492,54 @@ export const LeaderboardScreen: React.FC = () => {
         // Calculate next rank target steps/points dynamically for the modal
         const nextPlayer = sortedPlayers.find(p => p.rank === currentRank - 1);
         let targetText = '';
+        let u = 'steps';
+        if (selectedMetric === 'Steps') {
+          u = 'steps';
+        } else if (selectedMetric === 'Heart Points') {
+          u = 'Heart Points';
+        } else if (selectedMetric === 'Bio sync Efficiency') {
+          u = '% Bio Sync';
+        } else {
+          u = 'Vitality points';
+        }
+
         if (nextPlayer) {
           let diff = 0;
-          let u = 'steps';
           if (selectedMetric === 'Steps') {
             diff = nextPlayer.steps - userPlayer.steps;
-            u = 'steps';
           } else if (selectedMetric === 'Heart Points') {
             diff = nextPlayer.heartPoints - userPlayer.heartPoints;
-            u = 'Heart Points';
           } else if (selectedMetric === 'Bio sync Efficiency') {
             diff = nextPlayer.bioSync - userPlayer.bioSync;
-            u = '% Bio Sync';
           } else {
             diff = nextPlayer.vitality - userPlayer.vitality;
-            u = 'Vitality points';
           }
           const toBeat = diff + 1;
           const nextPlayerName = nextPlayer.name.replace(' (You)', '');
           targetText = `🔥 You need only ${toBeat.toLocaleString()} ${u} more to beat ${nextPlayerName} (Rank #${nextPlayer.rank})!`;
+        }
+
+        // Top 3 Comparison Logic
+        let top3TargetText = '';
+        if (currentRank <= 3) {
+          top3TargetText = '🏆 You are already in the TOP 3! Keep pushing to reach the #1 spot!';
+        } else {
+          const rank3Player = sortedPlayers.find(p => p.rank === 3);
+          if (rank3Player) {
+            let diffTop3 = 0;
+            if (selectedMetric === 'Steps') {
+              diffTop3 = rank3Player.steps - userPlayer.steps;
+            } else if (selectedMetric === 'Heart Points') {
+              diffTop3 = rank3Player.heartPoints - userPlayer.heartPoints;
+            } else if (selectedMetric === 'Bio sync Efficiency') {
+              diffTop3 = rank3Player.bioSync - userPlayer.bioSync;
+            } else {
+              diffTop3 = rank3Player.vitality - userPlayer.vitality;
+            }
+            const toBeatTop3 = diffTop3 + 1;
+            const rank3Name = rank3Player.name.replace(' (You)', '');
+            top3TargetText = `🏆 To enter the TOP 3, you need only ${toBeatTop3.toLocaleString()} ${u} more to beat ${rank3Name} (Rank #3)!`;
+          }
         }
 
         if (currentRank === 1) {
@@ -527,6 +556,7 @@ export const LeaderboardScreen: React.FC = () => {
             newRank: currentRank,
             aheadOfName: passedName,
             nextRankTargetText: targetText,
+            top3RankTargetText: top3TargetText,
           });
           setRankUpVisible(true);
         }
@@ -563,25 +593,54 @@ export const LeaderboardScreen: React.FC = () => {
       // Find next competitor ahead of the simulated rank (i.e. newRank - 1)
       const nextPlayer = sortedPlayers.find(p => p.rank === newRank - 1);
       let targetText = '';
+      let u = 'steps';
+      if (selectedMetric === 'Steps') {
+        u = 'steps';
+      } else if (selectedMetric === 'Heart Points') {
+        u = 'Heart Points';
+      } else if (selectedMetric === 'Bio sync Efficiency') {
+        u = '% Bio Sync';
+      } else {
+        u = 'Vitality points';
+      }
+
       if (nextPlayer) {
-        let u = 'steps';
         let diff = 0;
         if (selectedMetric === 'Steps') {
           diff = Math.max(120, nextPlayer.steps - (userPlayer ? userPlayer.steps : 0));
-          u = 'steps';
         } else if (selectedMetric === 'Heart Points') {
           diff = Math.max(2, nextPlayer.heartPoints - (userPlayer ? userPlayer.heartPoints : 0));
-          u = 'Heart Points';
         } else if (selectedMetric === 'Bio sync Efficiency') {
           diff = Math.max(1, nextPlayer.bioSync - (userPlayer ? userPlayer.bioSync : 0));
-          u = '% Bio Sync';
         } else {
           diff = Math.max(1, nextPlayer.vitality - (userPlayer ? userPlayer.vitality : 0));
-          u = 'Vitality points';
         }
         const toBeat = diff + 1;
         const nextPlayerName = nextPlayer.name.replace(' (You)', '');
         targetText = `🔥 You need only ${toBeat.toLocaleString()} ${u} more to beat ${nextPlayerName} (Rank #${nextPlayer.rank})!`;
+      }
+
+      // Top 3 Comparison Logic
+      let top3TargetText = '';
+      if (newRank <= 3) {
+        top3TargetText = '🏆 You are already in the TOP 3! Keep pushing to reach the #1 spot!';
+      } else {
+        const rank3Player = sortedPlayers.find(p => p.rank === 3);
+        if (rank3Player) {
+          let diffTop3 = 0;
+          if (selectedMetric === 'Steps') {
+            diffTop3 = Math.max(120, rank3Player.steps - (userPlayer ? userPlayer.steps : 0));
+          } else if (selectedMetric === 'Heart Points') {
+            diffTop3 = Math.max(2, rank3Player.heartPoints - (userPlayer ? userPlayer.heartPoints : 0));
+          } else if (selectedMetric === 'Bio sync Efficiency') {
+            diffTop3 = Math.max(1, rank3Player.bioSync - (userPlayer ? userPlayer.bioSync : 0));
+          } else {
+            diffTop3 = Math.max(1, rank3Player.vitality - (userPlayer ? userPlayer.vitality : 0));
+          }
+          const toBeatTop3 = diffTop3 + 1;
+          const rank3Name = rank3Player.name.replace(' (You)', '');
+          top3TargetText = `🏆 To enter the TOP 3, you need only ${toBeatTop3.toLocaleString()} ${u} more to beat ${rank3Name} (Rank #3)!`;
+        }
       }
 
       setRankUpData({
@@ -589,6 +648,7 @@ export const LeaderboardScreen: React.FC = () => {
         newRank,
         aheadOfName: passedName,
         nextRankTargetText: targetText,
+        top3RankTargetText: top3TargetText,
       });
       setRankUpVisible(true);
     }
@@ -983,16 +1043,38 @@ export const LeaderboardScreen: React.FC = () => {
                 <Text style={styles.rankPillNewText}>Rank #{rankUpData.newRank}</Text>
               </View>
             </View>
+
+            {rankUpData.newRank > 3 && (
+              <View style={styles.top3ComparisonRow}>
+                <View style={styles.rankPill}>
+                  <Text style={styles.rankPillOld}>Rank #{rankUpData.newRank}</Text>
+                </View>
+                <Text style={styles.comparisonArrow}>➔</Text>
+                <View style={styles.rankPillTop3}>
+                  <Text style={styles.rankPillTop3Text}>Top 3rd (#3)</Text>
+                </View>
+              </View>
+            )}
             
-            <Text style={styles.rankUpMessage}>
-              Awesome effort! You pushed ahead of <Text style={{ fontWeight: 'bold', color: '#FFFFFF' }}>{rankUpData.aheadOfName}</Text> to claim Rank #{rankUpData.newRank}. Keep moving!
+             <Text style={styles.rankUpMessage}>
+              Awesome effort! You pushed ahead of <Text style={styles.boldWhiteText}>{rankUpData.aheadOfName}</Text> to claim Rank #{rankUpData.newRank}. Keep moving!
             </Text>
 
-            {!!rankUpData.nextRankTargetText && (
+            {(!!rankUpData.nextRankTargetText || !!rankUpData.top3RankTargetText) && (
               <View style={styles.modalMotivateContainer}>
-                <Text style={styles.modalMotivateText}>
-                  {rankUpData.nextRankTargetText}
-                </Text>
+                {!!rankUpData.nextRankTargetText && (
+                  <Text style={styles.modalMotivateText}>
+                    {rankUpData.nextRankTargetText}
+                  </Text>
+                )}
+                {!!rankUpData.nextRankTargetText && !!rankUpData.top3RankTargetText && (
+                  <View style={styles.motivateSeparator} />
+                )}
+                {!!rankUpData.top3RankTargetText && (
+                  <Text style={styles.top3MotivateText}>
+                    {rankUpData.top3RankTargetText}
+                  </Text>
+                )}
               </View>
             )}
             
@@ -1501,6 +1583,26 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontWeight: 'bold',
   },
+  top3ComparisonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+    marginTop: -8,
+  },
+  rankPillTop3: {
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderColor: '#38BDF8',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  rankPillTop3Text: {
+    fontSize: 14,
+    color: '#38BDF8',
+    fontWeight: 'bold',
+  },
   comparisonArrow: {
     fontSize: 16,
     color: '#64748B',
@@ -1589,6 +1691,20 @@ const styles = StyleSheet.create({
     color: '#FBBF24', // Highlighted gold/amber
     textAlign: 'center',
     lineHeight: 16,
+  },
+  motivateSeparator: {
+    height: 8,
+  },
+  top3MotivateText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#38BDF8', // Highlighted light blue/sky
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  boldWhiteText: {
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   headerOvertakeHighlight: {
     fontSize: 12,

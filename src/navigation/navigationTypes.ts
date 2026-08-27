@@ -17,6 +17,34 @@ export type RootStackParamList = {
   WellnessPacingProfile: undefined;
   WellnessPrescription: undefined;
   DrawerNavigator: NavigatorScreenParams<DrawerParamList>;
+  DemoSearchHub: undefined;
+  DemoWorkoutLog: {
+    activityCode?: string;
+    activityName: string;
+    category: string;
+    baseMet: number;
+    cardio: number;
+    strength: number;
+    balance: number;
+    recovery: number;
+  };
+  DemoWearableSync: {
+    activityName: string;
+    baseMet?: number;
+    cardio?: number;
+    strength?: number;
+    balance?: number;
+    recovery?: number;
+  };
+  DemoPostWorkoutSummary: {
+    activityName?: string;
+    baseMet?: number;
+    cardio?: number;
+    strength?: number;
+    balance?: number;
+    recovery?: number;
+    duration?: number;
+  };
 };
 
 declare global {
