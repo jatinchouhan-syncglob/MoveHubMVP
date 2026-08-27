@@ -670,10 +670,12 @@ export const apiService = {
   },
 
   async runTier1Window(uhid: string): Promise<any> {
+    const url = 'http://13.204.123.149:8001/tier1/run-window';
+    const body = `uhid=${encodeURIComponent(uhid)}`;
+    console.log(`[API Request] POST ${url} | Body: ${body}`);
     try {
-      const body = `uhid=${encodeURIComponent(uhid)}`;
       const response = await axios.post(
-        'http://13.204.123.149:8001/tier1/run-window',
+        url,
         body,
         {
           headers: {
@@ -681,9 +683,10 @@ export const apiService = {
           },
         },
       );
+      console.log(`[API Response] POST runTier1Window SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('Error in runTier1Window:', error);
+      console.error(`[API Error] POST runTier1Window FAILED for UHID: ${uhid}`, error);
       throw error;
     }
   },

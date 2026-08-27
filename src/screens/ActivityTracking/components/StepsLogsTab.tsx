@@ -838,6 +838,7 @@ export const StepsLogsTab: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean>(true);
   const [bypassCheck, setBypassCheck] = useState<boolean>(false);
+  const [runWindowData, setRunWindowData] = useState<any>(null);
 
   const fetchHealthActivities = useCallback(async (isRefresh = false, forceBypass = false) => {
     if (!isRefresh) setLoadingLogs(true);
@@ -876,9 +877,24 @@ export const StepsLogsTab: React.FC = () => {
         } else {
           setPreviousDaySummary(null);
         }
+
+        try {
+          console.log(`Fetching runTier1Window for ${targetUhid}...`);
+          const runWindowRes = await apiService.runTier1Window(targetUhid);
+          console.log('runTier1Window Response in StepsLogsTab:', JSON.stringify(runWindowRes, null, 2));
+          if (runWindowRes) {
+            setRunWindowData(runWindowRes);
+          } else {
+            setRunWindowData(null);
+          }
+        } catch (runWinErr) {
+          console.warn('Error fetching runTier1Window in StepsLogsTab:', runWinErr);
+          setRunWindowData(null);
+        }
       } else {
         setWorkoutLogs([]);
         setPreviousDaySummary(null);
+        setRunWindowData(null);
       }
     } catch (error) {
       console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
@@ -918,7 +934,7 @@ export const StepsLogsTab: React.FC = () => {
         <View style={styles.leftSection}>
           <Text style={styles.userId}>UHID: {activeUhid}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Bypass Check</Text>
           <Switch
             value={bypassCheck}
@@ -929,7 +945,7 @@ export const StepsLogsTab: React.FC = () => {
             trackColor={{ false: '#334155', true: '#6366f1' }}
             thumbColor={bypassCheck ? '#ffffff' : '#94a3b8'}
           />
-        </View>
+        </View> */}
       </View>
 
       <ScrollView
@@ -997,38 +1013,78 @@ export const StepsLogsTab: React.FC = () => {
               </Text>
             </View>
           ) : (
-            workoutLogs.map((item, index) => {
-              const formattedTime = item.title 
-                ? item.title.charAt(0).toUpperCase() + item.title.slice(1).toLowerCase() 
-                : 'Night';
-              
-              // Dynamic isActive determination based on system hour
+            (() => {
               const now = new Date();
               const hrs = now.getHours();
-              const block = formattedTime.toLowerCase();
-              let isActive = false;
-              if (block === 'morning') isActive = hrs >= 6 && hrs < 12;
-              else if (block === 'afternoon') isActive = hrs >= 12 && hrs < 17;
-              else if (block === 'evening') isActive = hrs >= 17 && hrs < 21;
-              else if (block === 'night') isActive = hrs >= 21 || hrs < 6;
+              
+              let activeBlock: 'morning' | 'afternoon' | 'evening' | 'night' = 'night';
+              if (hrs >= 6 && hrs < 12) activeBlock = 'morning';
+              else if (hrs >= 12 && hrs < 17) activeBlock = 'afternoon';
+              else if (hrs >= 17 && hrs < 21) activeBlock = 'evening';
 
-              const durationVal = item.duration ? parseInt(item.duration) || 0 : 0;
-              const distanceVal = item.distance ? parseFloat(parseFloat(item.distance).toFixed(1)) || 0 : 0;
+              const blockOrder = ['morning', 'afternoon', 'evening', 'night'];
+              const activeIndex = blockOrder.indexOf(activeBlock);
 
-              return (
-                <ActivityCard
-                  key={item.title || index}
-                  time={formattedTime}
-                  hp={item.heartPoint || 0}
-                  goal={item.targetHeartPoint || 50}
-                  steps={item.steps || 0}
-                  km={distanceVal}
-                  cal={item.energyExpended || 0}
-                  duration={durationVal}
-                  isActive={isActive}
-                />
-              );
-            })
+              const sortedKeys: string[] = [];
+              for (let i = 0; i < 4; i++) {
+                const index = (activeIndex - i + 4) % 4;
+                sortedKeys.push(blockOrder[index]);
+              }
+
+              const sortedLogs = [...workoutLogs].sort((a, b) => {
+                const aBlock = (a.title || '').toLowerCase();
+                const bBlock = (b.title || '').toLowerCase();
+                const aIndex = sortedKeys.indexOf(aBlock);
+                const bIndex = sortedKeys.indexOf(bBlock);
+                return aIndex - bIndex;
+              });
+
+              return sortedLogs.map((item, index) => {
+                const formattedTime = item.title 
+                  ? item.title.charAt(0).toUpperCase() + item.title.slice(1).toLowerCase() 
+                  : 'Night';
+                
+                const block = formattedTime.toLowerCase();
+                const isActive = block === activeBlock;
+
+                let hpVal = item.heartPoint || 0;
+                let stepsVal = item.steps || 0;
+                let distanceVal = item.distance ? parseFloat(parseFloat(item.distance).toFixed(1)) || 0 : 0;
+                let calVal = item.energyExpended || 0;
+                let durationVal = item.duration ? parseInt(item.duration) || 0 : 0;
+
+                if (runWindowData && runWindowData.block_schedule_window && runWindowData.activity_blocks) {
+                  const windowStr = runWindowData.block_schedule_window.toUpperCase();
+                  if (windowStr.includes(block.toUpperCase())) {
+                    const blocks = runWindowData.activity_blocks;
+                    hpVal = typeof blocks.aha_heart_points_earned === 'number' ? blocks.aha_heart_points_earned : hpVal;
+                    stepsVal = typeof blocks.steps_completed === 'number' ? blocks.steps_completed : stepsVal;
+                    
+                    if (blocks.distance_traveled_km !== undefined && blocks.distance_traveled_km !== null) {
+                      const distFloat = typeof blocks.distance_traveled_km === 'string' ? parseFloat(blocks.distance_traveled_km) : blocks.distance_traveled_km;
+                      distanceVal = distFloat > 0 && distFloat < 0.1 ? parseFloat(distFloat.toFixed(4)) : parseFloat(distFloat.toFixed(1));
+                    }
+                    
+                    calVal = typeof blocks.energy_expenditure_ee_kcal === 'number' ? Math.round(blocks.energy_expenditure_ee_kcal) : calVal;
+                    durationVal = typeof blocks.active_minutes_total === 'number' ? blocks.active_minutes_total : durationVal;
+                  }
+                }
+
+                return (
+                  <ActivityCard
+                    key={item.title || index}
+                    time={formattedTime}
+                    hp={hpVal}
+                    goal={item.targetHeartPoint || 50}
+                    steps={stepsVal}
+                    km={distanceVal}
+                    cal={calVal}
+                    duration={durationVal}
+                    isActive={isActive}
+                  />
+                );
+              });
+            })()
           )}
 
           {/* Daily Quests progression */}
