@@ -1,15 +1,20 @@
 package com.movehubmvp
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -35,6 +40,13 @@ class HealthConnectSyncWorker(
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "Background sync worker started execution")
+        
+        try {
+            setForeground(createForegroundInfo())
+            Log.d(TAG, "Foreground service elevation active for health sync")
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not elevate to foreground service: ${e.message}")
+        }
         
         val attempt = inputData.getInt("attempt", 0)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -123,7 +135,6 @@ class HealthConnectSyncWorker(
             val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
             val requestBodyJson = JSONObject().apply {
                 put("uhid", uhid ?: "")
-                put("deviceId", deviceId ?: "")
                 put("device_id", deviceId ?: "")
             }
             val requestBody = RequestBody.create(mediaType, requestBodyJson.toString())
@@ -593,6 +604,42 @@ class HealthConnectSyncWorker(
             putString("lastStatus", "Failure")
             putString("lastReason", reason)
             apply()
+        }
+    }
+
+    private fun createForegroundInfo(): ForegroundInfo {
+        val channelId = "health_sync_channel"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Health Data Synchronization",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Synchronizing steps and activity data with MoveHub"
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setContentTitle("MoveHub Health Sync")
+            .setContentText("Syncing your health activity in background...")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val serviceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            }
+            ForegroundInfo(1001, notification, serviceType)
+        } else {
+            ForegroundInfo(1001, notification)
         }
     }
 }

@@ -465,7 +465,7 @@ const getDistanceInKm = async (
     timeRangeFilter,
   });
 
-  return roundToOneDecimal(distance.DISTANCE?.inKilometers ?? 0);
+  return roundToOneDecimal((distance as any).DISTANCE?.inKilometers ?? 0);
 };
 
 const getActiveCaloriesInKcal = async (
@@ -477,7 +477,7 @@ const getActiveCaloriesInKcal = async (
   });
 
   return roundToOneDecimal(
-    activeCalories.ACTIVE_CALORIES_TOTAL?.inKilocalories ?? 0,
+    (activeCalories as any).ACTIVE_CALORIES_TOTAL?.inKilocalories ?? 0,
   );
 };
 
@@ -489,7 +489,7 @@ const getTotalCaloriesInKcal = async (
     timeRangeFilter,
   });
 
-  return roundToOneDecimal(totalCalories.ENERGY_TOTAL?.inKilocalories ?? 0);
+  return roundToOneDecimal((totalCalories as any).ENERGY_TOTAL?.inKilocalories ?? 0);
 };
 
 const mergeRecordTotalsByDate = <
@@ -1164,7 +1164,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
       const res = await axios.post(
         lastSyncUrl,
-        { uhid, deviceId, device_id: deviceId },
+        { uhid, device_id: deviceId },
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (res.data) {

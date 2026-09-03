@@ -23,66 +23,11 @@ import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
-import {
-  getHealthConnectWorkManagerStatus,
-  openHealthConnectExactAlarmSettings,
-  openHealthConnectBatteryOptimizationSettings,
-} from '../../services/healthConnect';
+import { syncHealthConnectAnalytics } from '../../services/healthConnect';
 import ReactNativeBiometrics from 'react-native-biometrics';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-
-  React.useEffect(() => {
-    const checkNativePermissions = async () => {
-      if (Platform.OS !== 'android') return;
-      try {
-        const nativeStatus = await getHealthConnectWorkManagerStatus();
-        if (!nativeStatus) return;
-
-        const { exactAlarmAllowed, batteryOptimizationIgnored } = nativeStatus;
-        
-        if (!batteryOptimizationIgnored || !exactAlarmAllowed) {
-          let message = 'To ensure your health data is synchronized automatically in the background, please:\n\n';
-          if (!batteryOptimizationIgnored) {
-            message += '• Disable battery restrictions (Select "Don\'t Restrict" / "Ignore Battery Optimization")\n';
-          }
-          if (!exactAlarmAllowed) {
-            message += '• Allow scheduling exact alarms\n';
-          }
-          
-          Alert.alert(
-            'Background Sync Settings Required',
-            message,
-            [
-              {
-                text: 'Configure Settings',
-                onPress: async () => {
-                  if (!batteryOptimizationIgnored) {
-                    await openHealthConnectBatteryOptimizationSettings();
-                  } else if (!exactAlarmAllowed) {
-                    await openHealthConnectExactAlarmSettings();
-                  }
-                }
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel'
-              }
-            ]
-          );
-        }
-      } catch (err) {
-        console.warn('Failed to check background sync permissions:', err);
-      }
-    };
-    
-    const timer = setTimeout(() => {
-      checkNativePermissions();
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, []);
   
   // Input fields
   const [email, setEmail] = useState('');
@@ -189,6 +134,7 @@ export const LoginScreen: React.FC = () => {
               email: userData.email || savedCredentials.email,
             };
             await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+            syncHealthConnectAnalytics().catch(() => {});
 
             if (userProfile.isSetupComplete) {
               navigation.replace(ROUTES.DRAWER);
@@ -264,6 +210,7 @@ export const LoginScreen: React.FC = () => {
           email: userData.email || email.trim(),
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+        syncHealthConnectAnalytics().catch(() => {});
 
         // Check if user has biometric opt-in already enabled
         const isBiometricOptedIn = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);

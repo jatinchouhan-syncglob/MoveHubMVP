@@ -146,7 +146,11 @@ const FitnessTab = ({
     outputRange: [CIRCUMFERENCE, CIRCUMFERENCE * (1 - progress)],
   });
 
-  const percentage = Math.round((totalHeartPoint / 150) * 100);
+  const percentage =
+    dailyHeartPointsCharts?.performance !== undefined &&
+    dailyHeartPointsCharts?.performance !== null
+      ? dailyHeartPointsCharts.performance
+      : Number(((totalHeartPoint / 150) * 100).toFixed(2));
 
   const activeColor = getHeartPointColor(totalHeartPoint);
 
@@ -299,19 +303,31 @@ const FitnessTab = ({
 
         <Text style={styles.caption}>Total daily steps across the week.</Text>
 
-        {dailyStepsBreakdownCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {dailyStepsBreakdownCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {dailyStepsBreakdownCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {dailyStepsBreakdownCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {dailyStepsBreakdownCharts &&
+          (dailyStepsBreakdownCharts.target !== undefined ||
+            dailyStepsBreakdownCharts.actual !== undefined ||
+            dailyStepsBreakdownCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {dailyStepsBreakdownCharts.target !== undefined &&
+                dailyStepsBreakdownCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {dailyStepsBreakdownCharts.target}
+                  </Text>
+                )}
+              {dailyStepsBreakdownCharts.actual !== undefined &&
+                dailyStepsBreakdownCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {dailyStepsBreakdownCharts.actual}
+                  </Text>
+                )}
+              {dailyStepsBreakdownCharts.performance !== undefined &&
+                dailyStepsBreakdownCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {dailyStepsBreakdownCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
 
       <View style={[styles.card, styles.heartPointsCard]}>
@@ -351,19 +367,31 @@ const FitnessTab = ({
 
         <Text style={styles.caption}>Heart point progress for each day.</Text>
 
-        {dailyHeartPointsCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {dailyHeartPointsCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {dailyHeartPointsCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {dailyHeartPointsCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {dailyHeartPointsCharts &&
+          (dailyHeartPointsCharts.target !== undefined ||
+            dailyHeartPointsCharts.actual !== undefined ||
+            dailyHeartPointsCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {dailyHeartPointsCharts.target !== undefined &&
+                dailyHeartPointsCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {dailyHeartPointsCharts.target}
+                  </Text>
+                )}
+              {dailyHeartPointsCharts.actual !== undefined &&
+                dailyHeartPointsCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {dailyHeartPointsCharts.actual}
+                  </Text>
+                )}
+              {dailyHeartPointsCharts.performance !== undefined &&
+                dailyHeartPointsCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {dailyHeartPointsCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
       {!isINOXuser && (
         <>
@@ -406,19 +434,31 @@ const FitnessTab = ({
               Energy expended performance across the week.
             </Text>
 
-            {energyExpandedCharts && (
-              <View style={styles.summaryMetricsRow}>
-                <Text style={styles.summaryMetricTarget}>
-                  Target: {energyExpandedCharts.target}
-                </Text>
-                <Text style={styles.summaryMetricActual}>
-                  Actual: {energyExpandedCharts.actual}
-                </Text>
-                <Text style={styles.summaryMetricPerformance}>
-                  Performance: {energyExpandedCharts.performance}%
-                </Text>
-              </View>
-            )}
+            {energyExpandedCharts &&
+              (energyExpandedCharts.target !== undefined ||
+                energyExpandedCharts.actual !== undefined ||
+                energyExpandedCharts.performance !== undefined) && (
+                <View style={styles.summaryMetricsRow}>
+                  {energyExpandedCharts.target !== undefined &&
+                    energyExpandedCharts.target !== null && (
+                      <Text style={styles.summaryMetricTarget}>
+                        Target: {energyExpandedCharts.target}
+                      </Text>
+                    )}
+                  {energyExpandedCharts.actual !== undefined &&
+                    energyExpandedCharts.actual !== null && (
+                      <Text style={styles.summaryMetricActual}>
+                        Actual: {energyExpandedCharts.actual}
+                      </Text>
+                    )}
+                  {energyExpandedCharts.performance !== undefined &&
+                    energyExpandedCharts.performance !== null && (
+                      <Text style={styles.summaryMetricPerformance}>
+                        Performance: {energyExpandedCharts.performance}%
+                      </Text>
+                    )}
+                </View>
+              )}
           </View>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Insights & Alerts</Text>

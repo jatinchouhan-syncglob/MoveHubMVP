@@ -150,15 +150,39 @@ const getStatusDetails = (
         text: 'Metabolic Stall Risk',
       };
     case 'amber':
-    case 'yellow':
     default:
       return {
         color: '#F59E0B',
         bgColor: 'rgba(245, 158, 11, 0.1)',
         textColor: '#B45309',
-        text: 'Adjustment Recommended',
+        text: 'Moderate Fluctuations',
       };
   }
+};
+
+const renderTrendIndicator = (trend?: string, value?: number | string) => {
+  const numVal = typeof value === 'string' ? parseFloat(value) : value;
+  if (!trend || numVal === 0 || isNaN(numVal as number)) {
+    return null;
+  }
+  const trendLower = trend.toLowerCase();
+  if (trendLower === 'increase') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
+        <Text style={[styles.metricArrow, { color: '#22c55e', fontSize: 13 }]}>▲</Text>
+        <Text style={{ color: '#22c55e', fontSize: 10, fontWeight: '700', marginLeft: 2 }}>Increase</Text>
+      </View>
+    );
+  }
+  if (trendLower === 'decrease') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
+        <Text style={[styles.metricArrow, styles.metricArrowDown, { color: '#ef4444', fontSize: 13 }]}>▼</Text>
+        <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', marginLeft: 2 }}>Decrease</Text>
+      </View>
+    );
+  }
+  return null;
 };
 
 const BioSyncTab = ({
@@ -175,6 +199,7 @@ const BioSyncTab = ({
   weeklyTrendCharts,
   cardioYieldPerStepCharts,
   status,
+  dailyInsightText,
 }: IBioSyncTabProps) => {
   const energyEfficiencyMax = getDynamicMax(energyEfficiency?.values || []);
   const integratedStaminaMax = getDynamicMax(integratedStamina?.values || []);
@@ -211,12 +236,12 @@ const BioSyncTab = ({
               trackColor={DC.indigoLight}
             />
             <View style={styles.donutScoreContainer}>
-              <View
+              {/* <View
                 style={[
                   styles.trafficLightDot,
                   {backgroundColor: statusDetails.color},
                 ]}
-              />
+              /> */}
               <Text style={styles.donutScoreValue}>
                 {weeklyBioSyncEfficiencyScore}
               </Text>
@@ -224,7 +249,7 @@ const BioSyncTab = ({
             </View>
           </View>
           <View style={{flex: 1}}>
-            <View
+            {/* <View
               style={[
                 styles.statusBadge,
                 {
@@ -235,7 +260,7 @@ const BioSyncTab = ({
               <Text style={[styles.statusText, {color: statusDetails.textColor}]}>
                 STATUS: {statusDetails.text.toUpperCase()}
               </Text>
-            </View>
+            </View> */}
             <Spacing top={8} />
             <Text
               style={[
@@ -295,26 +320,15 @@ const BioSyncTab = ({
             ))}
           </View>
 
-          <Text style={styles.pillarHealthText}>
+          {/* <Text style={styles.pillarHealthText}>
             Pillar Health{' '}
-            {Math.round(
-              (pillarHealthData.reduce((acc, curr) => acc + curr.value, 0) ||
-                0) / (pillarHealthData.length || 1),
+            {Number(
+              ((pillarHealthData.reduce((acc, curr) => acc + curr.value, 0) ||
+                0) / (pillarHealthData.length || 1)).toFixed(2),
             )}
             %
-          </Text>
+          </Text> */}
         </Card>
-
-        <Spacing top={10} />
-
-        <View style={styles.circadianCard}>
-          <Text style={styles.circadianTitle}>CIRCADIAN DRIFT DETECTED</Text>
-
-          <Text style={styles.circadianDescription}>
-            Your routine is fluctuating based on your weekly activity and
-            recovery trends.
-          </Text>
-        </View>
       </View>
 
       <View style={[styles.card, {backgroundColor: DC.emeraldLight}]}>
@@ -353,19 +367,31 @@ const BioSyncTab = ({
           Lower energy per km means better efficiency.
         </Text>
 
-        {eePerKmCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {eePerKmCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {eePerKmCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {eePerKmCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {eePerKmCharts &&
+          (eePerKmCharts.target !== undefined ||
+            eePerKmCharts.actual !== undefined ||
+            eePerKmCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {eePerKmCharts.target !== undefined &&
+                eePerKmCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {eePerKmCharts.target}
+                  </Text>
+                )}
+              {eePerKmCharts.actual !== undefined &&
+                eePerKmCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {eePerKmCharts.actual}
+                  </Text>
+                )}
+              {eePerKmCharts.performance !== undefined &&
+                eePerKmCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {eePerKmCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
       <View style={[styles.card, {backgroundColor: DC.skyLight}]}>
         <View style={styles.cardTitleRow}>
@@ -476,19 +502,31 @@ const BioSyncTab = ({
           <EmptyChart title="Cardio Yield" />
         )}
 
-        {cardioYieldPerStepCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {cardioYieldPerStepCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {cardioYieldPerStepCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {cardioYieldPerStepCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {cardioYieldPerStepCharts &&
+          (cardioYieldPerStepCharts.target !== undefined ||
+            cardioYieldPerStepCharts.actual !== undefined ||
+            cardioYieldPerStepCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {cardioYieldPerStepCharts.target !== undefined &&
+                cardioYieldPerStepCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {cardioYieldPerStepCharts.target}
+                  </Text>
+                )}
+              {cardioYieldPerStepCharts.actual !== undefined &&
+                cardioYieldPerStepCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {cardioYieldPerStepCharts.actual}
+                  </Text>
+                )}
+              {cardioYieldPerStepCharts.performance !== undefined &&
+                cardioYieldPerStepCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {cardioYieldPerStepCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
       <View style={[styles.card, {backgroundColor: DC.amberLight}]}>
         <View style={styles.cardTitleRow}>
@@ -588,19 +626,31 @@ const BioSyncTab = ({
           </View>
         </View>
 
-        {integratedStaminaCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {integratedStaminaCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {integratedStaminaCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {integratedStaminaCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {integratedStaminaCharts &&
+          (integratedStaminaCharts.target !== undefined ||
+            integratedStaminaCharts.actual !== undefined ||
+            integratedStaminaCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {integratedStaminaCharts.target !== undefined &&
+                integratedStaminaCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {integratedStaminaCharts.target}
+                  </Text>
+                )}
+              {integratedStaminaCharts.actual !== undefined &&
+                integratedStaminaCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {integratedStaminaCharts.actual}
+                  </Text>
+                )}
+              {integratedStaminaCharts.performance !== undefined &&
+                integratedStaminaCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {integratedStaminaCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
       <View style={[styles.card, {backgroundColor: DC.slateLight}]}>
         <View style={styles.cardTitleRow}>
@@ -619,21 +669,21 @@ const BioSyncTab = ({
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.eeKmAvg}
             </Text>
-            <Text style={styles.metricArrow}>▲</Text>
+            {renderTrendIndicator(weeklyPerformanceSummary.eeKmTrend, weeklyPerformanceSummary.eeKmAvg)}
             <Text style={styles.metricLabel}>EE/KM Avg</Text>
           </View>
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.isAvg}
             </Text>
-            <Text style={[styles.metricArrow, styles.metricArrowDown]}>▼</Text>
+            {renderTrendIndicator(weeklyPerformanceSummary.isTrend, weeklyPerformanceSummary.isAvg)}
             <Text style={styles.metricLabel}>IS Avg</Text>
           </View>
           <View style={[styles.metricItem, styles.metricItemLast]}>
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.cysTotal}
             </Text>
-            <Text style={styles.metricArrow}>▲</Text>
+            {renderTrendIndicator(weeklyPerformanceSummary.cysTrend, weeklyPerformanceSummary.cysTotal)}
             <Text style={styles.metricLabel}>CYS Total</Text>
           </View>
         </View>
@@ -688,27 +738,39 @@ const BioSyncTab = ({
           Weekly trend for EE/KM, IS and CYS performance.
         </Text>
 
-        {weeklyTrendCharts && (
-          <View style={styles.summaryMetricsRow}>
-            <Text style={styles.summaryMetricTarget}>
-              Target: {weeklyTrendCharts.target}
-            </Text>
-            <Text style={styles.summaryMetricActual}>
-              Actual: {weeklyTrendCharts.actual}
-            </Text>
-            <Text style={styles.summaryMetricPerformance}>
-              Performance: {weeklyTrendCharts.performance}%
-            </Text>
-          </View>
-        )}
+        {weeklyTrendCharts &&
+          (weeklyTrendCharts.target !== undefined ||
+            weeklyTrendCharts.actual !== undefined ||
+            weeklyTrendCharts.performance !== undefined) && (
+            <View style={styles.summaryMetricsRow}>
+              {weeklyTrendCharts.target !== undefined &&
+                weeklyTrendCharts.target !== null && (
+                  <Text style={styles.summaryMetricTarget}>
+                    Target: {weeklyTrendCharts.target}
+                  </Text>
+                )}
+              {weeklyTrendCharts.actual !== undefined &&
+                weeklyTrendCharts.actual !== null && (
+                  <Text style={styles.summaryMetricActual}>
+                    Actual: {weeklyTrendCharts.actual}
+                  </Text>
+                )}
+              {weeklyTrendCharts.performance !== undefined &&
+                weeklyTrendCharts.performance !== null && (
+                  <Text style={styles.summaryMetricPerformance}>
+                    Performance: {weeklyTrendCharts.performance}%
+                  </Text>
+                )}
+            </View>
+          )}
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Future Insights & Recommendations</Text>
         <View style={styles.recommendationContainer}>
-          <Text style={[styles.cardSub, styles.recommendationText]}>
-            Personalized sleep, recovery and nutrition recommendations will
-            appear here based on your Bio-Sync trends.
+          <Text style={[styles.cardSub, styles.recommendationText, { color: DC.skyBrand, fontWeight: '500' }]}>
+            {dailyInsightText ||
+              'Personalized sleep, recovery and nutrition recommendations will appear here based on your Bio-Sync trends.'}
           </Text>
         </View>
       </View>

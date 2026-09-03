@@ -465,6 +465,17 @@ const StepsTrackingTab = () => {
     checkStatusAndData();
     checkNativePermissions();
 
+    // Auto-sync Health Connect data with backend based on lastSyncTime
+    syncHealthConnectAnalytics()
+      .then(async success => {
+        if (success) {
+          await checkStatusAndData(true);
+        }
+      })
+      .catch(err => {
+        console.warn('[StepsTrackingTab] Auto-sync on focus failed:', err);
+      });
+
     hasMountedRef.current = true;
 
     const subscription = AppState.addEventListener('change', nextState => {
@@ -477,6 +488,7 @@ const StepsTrackingTab = () => {
         setTimeout(() => {
           checkStatusAndData(true);
           checkNativePermissions();
+          syncHealthConnectAnalytics().catch(() => {});
         }, 800);
       }
     });
@@ -501,7 +513,10 @@ const StepsTrackingTab = () => {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      await syncHealthConnectAnalytics();
       await checkStatusAndData();
+    } catch (err) {
+      console.warn('[StepsTrackingTab] Refresh sync failed:', err);
     } finally {
       setIsRefreshing(false);
     }

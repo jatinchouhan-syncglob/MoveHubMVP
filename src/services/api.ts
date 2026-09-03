@@ -417,19 +417,6 @@ export const apiService = {
     }
   },
 
-  async getPreviousDaySummary(uhid: string): Promise<any> {
-    const url = `${BACKEND_8081_URL}/backend/health-connect/getPreviousDaySummary?uhid=${uhid}`;
-    console.log(`[API Request] GET getPreviousDaySummary: ${url}`);
-    try {
-      const response = await axios.get(url);
-      console.log(`[API Response] GET getPreviousDaySummary SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
-      return response.data;
-    } catch (error) {
-      console.error(`[API Error] GET getPreviousDaySummary FAILED: ${url}`, error);
-      throw error;
-    }
-  },
-
   async getDailyFitnessTrend(uhId: string, challengeId: string): Promise<any> {
     try {
       const response = await axios.get(
@@ -624,6 +611,50 @@ export const apiService = {
       return response.data;
     } catch (error) {
       console.error('Error in signup:', error);
+      throw error;
+    }
+  },
+
+  async getPullStepsLogs(uhid?: string): Promise<any> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `https://6r6hg7qfs3.execute-api.ap-south-1.amazonaws.com/api/v1/pull?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+
+      const response = await axios.get(url);
+      console.log(
+        '[apiService] GET Pull Steps Logs Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getPullStepsLogs:', error);
+      throw error;
+    }
+  },
+
+  async getWeeklyReport(uhid?: string): Promise<any> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `http://13.204.123.149:8001/api/v1/reports/weekly?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+
+      const response = await axios.get(url);
+      console.log(
+        '[apiService] GET Weekly Report Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error in getWeeklyReport:', error);
       throw error;
     }
   },

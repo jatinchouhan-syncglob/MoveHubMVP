@@ -76,24 +76,24 @@ export interface IFitnessTabProps {
   totalHeartPoint?: number;
   totalDailySdex?: number;
   dailyHeartPointsCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   dailySdexCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   dailyStepsBreakdownCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   energyExpandedCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   dailyInsightText?: string;
 }
@@ -122,8 +122,11 @@ export interface IBioSyncTabProps {
   };
   weeklyPerformanceSummary: {
     eeKmAvg: number | string;
+    eeKmTrend?: string;
     isAvg: number | string;
+    isTrend?: string;
     cysTotal: number | string;
+    cysTrend?: string;
   };
   pillarHealthData: PillarHealthItem[];
   cardioYieldData: {
@@ -133,25 +136,26 @@ export interface IBioSyncTabProps {
   }[];
   weeklyBioSyncEfficiencyScore: number;
   eePerKmCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   integratedStaminaCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   weeklyTrendCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   cardioYieldPerStepCharts?: {
-    target: number | string;
-    actual: number | string;
-    performance: number | string;
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
   };
   status?: string;
+  dailyInsightText?: string;
 }
 

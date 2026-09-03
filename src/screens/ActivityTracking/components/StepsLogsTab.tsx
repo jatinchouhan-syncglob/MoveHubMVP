@@ -10,7 +10,12 @@ import {
   Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getHealthConnectAccessState, requestHealthConnectPermissions, openHealthConnectAppSettings } from '../../../services/healthConnect';
+import {
+  getHealthConnectAccessState,
+  requestHealthConnectPermissions,
+  openHealthConnectAppSettings,
+  syncHealthConnectAnalytics,
+} from '../../../services/healthConnect';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { apiService } from '../../../services/api';
@@ -334,22 +339,72 @@ const StatRow = ({ icon, value, label, theme }: any) => (
 );
 
 const ActivityCard: React.FC<{
-  hp: number;
+  hp: number | string;
   goal: number;
-  steps: number;
-  km: number;
-  cal: number;
+  steps: number | string;
+  km: number | string;
+  cal: number | string;
   time: string;
   isActive: boolean;
-  duration: number;
-}> = ({ hp, goal, steps, km, cal, time, isActive, duration }) => {
+  duration: number | string;
+  cardTierLabel?: string;
+  timeRangeHint?: string;
+  status?: string;
+}> = ({
+  hp,
+  goal,
+  steps,
+  km,
+  cal,
+  time,
+  isActive,
+  duration,
+  cardTierLabel,
+  timeRangeHint,
+  status,
+}) => {
   const theme =
     activityCardColorTheme.THEMES[time.toLowerCase() as keyof typeof activityCardColorTheme.THEMES] ||
     activityCardColorTheme.THEMES.night;
   
-  const progress = isActive ? 0 : Math.min(hp / goal, 1);
+  const hpNum = typeof hp === 'number' ? hp : parseFloat(String(hp)) || 0;
+  const progress = isActive ? 0 : Math.min(hpNum / goal, 1);
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
-  const timeScale = getScaleForTime(time);
+  const timeScale = timeRangeHint || getScaleForTime(time);
+
+  // Status badge display
+  const isRunning = status === 'IN_PROGRESS' || isActive;
+  const statusLabel = status === 'IN_PROGRESS' ? 'IN PROGRESS' : isActive ? 'ACTIVE' : status;
+
+  // Format steps
+  const stepsDisplay = typeof steps === 'number' ? steps.toLocaleString() : (steps || '--');
+  // Format distance
+  const kmDisplay =
+    typeof km === 'number'
+      ? `${km} km`
+      : km
+      ? String(km).endsWith('km')
+        ? String(km)
+        : `${km} km`
+      : '--';
+  // Format duration
+  const durationDisplay =
+    typeof duration === 'number'
+      ? `${duration} min`
+      : duration
+      ? String(duration).endsWith('min')
+        ? String(duration)
+        : `${duration} min`
+      : '--';
+  // Format cal / E3
+  const calDisplay =
+    typeof cal === 'number'
+      ? `${cal} kcal`
+      : cal
+      ? String(cal)
+      : '--';
+  // Format hp
+  const hpDisplay = hp !== undefined && hp !== null && hp !== '' ? hp : '--';
 
   return (
     <View style={cardStyles.wrapper}>
@@ -358,7 +413,7 @@ const ActivityCard: React.FC<{
         borderColorOverride={theme.border}
         style={[
           cardStyles.container,
-          isActive && {
+          isRunning && {
             shadowColor: theme.shadow,
             shadowOpacity: 0.25,
             shadowRadius: 10,
@@ -385,14 +440,14 @@ const ActivityCard: React.FC<{
               color={theme.iconColor}
             />
             <Text style={[cardStyles.timeText, { color: theme.iconColor }]}>
-              {time} Activity
+              {cardTierLabel || `${time} Activity`}
             </Text>
           </View>
 
-          {isActive && (
+          {isRunning && (
             <View style={cardStyles.activeIndicator}>
               <View style={cardStyles.pulseDot} />
-              <Text style={cardStyles.activeText}>ACTIVE</Text>
+              <Text style={cardStyles.activeText}>{statusLabel}</Text>
             </View>
           )}
         </View>
@@ -419,7 +474,7 @@ const ActivityCard: React.FC<{
                 strokeWidth={STROKE}
               />
               <Circle
-                stroke={isActive ? `url(#ringGrad-${time})` : theme.ring}
+                stroke={isRunning ? `url(#ringGrad-${time})` : theme.ring}
                 fill="none"
                 cx={SIZE / 2}
                 cy={SIZE / 2}
@@ -430,23 +485,23 @@ const ActivityCard: React.FC<{
                 strokeLinecap="round"
                 rotation="-90"
                 origin={`${SIZE / 2}, ${SIZE / 2}`}
-                opacity={isActive ? 1 : 0.55}
+                opacity={isRunning ? 1 : 0.55}
               />
             </Svg>
             <View style={cardStyles.centerText}>
-              <Text style={cardStyles.hpText}>{isActive ? '--' : hp}</Text>
+              <Text style={cardStyles.hpText}>{hpDisplay}</Text>
               <Text style={[cardStyles.goalText, { color: theme.iconColor }]}>HP</Text>
             </View>
           </View>
 
           <View style={cardStyles.statsColumn}>
             <View style={cardStyles.statsRow}>
-              <StatRow icon="run-fast" value={isActive ? '--' : steps.toLocaleString()} label="Steps" theme={theme} />
-              <StatRow icon="map-marker-path" value={isActive ? '--' : `${km} km`} label="Distance" theme={theme} />
+              <StatRow icon="run-fast" value={stepsDisplay} label="Steps" theme={theme} />
+              <StatRow icon="map-marker-path" value={kmDisplay} label="Distance" theme={theme} />
             </View>
             <View style={[cardStyles.statsRow, { marginTop: 8 }]}>
-              <StatRow icon="clock" value={isActive ? '--' : `${duration} min`} label="Duration" theme={theme} />
-              <StatRow icon="fire" value={isActive ? '--' : `${cal} kcal`} label="Energy" theme={theme} />
+              <StatRow icon="clock" value={durationDisplay} label="Duration" theme={theme} />
+              <StatRow icon="fire" value={calDisplay} label="Energy" theme={theme} />
             </View>
           </View>
         </View>
@@ -603,10 +658,13 @@ const FitnessActivityCard: React.FC<{
     );
   }
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Yesterday';
+  const formatDate = (hintOrDate?: string) => {
+    if (!hintOrDate) return 'Yesterday';
     try {
+      const match = hintOrDate.match(/\d{4}-\d{2}-\d{2}/);
+      const dateStr = match ? match[0] : hintOrDate;
       const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return hintOrDate;
       const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
       return `Yesterday, ${d.toLocaleDateString('en-US', options)}`;
     } catch (e) {
@@ -614,54 +672,121 @@ const FitnessActivityCard: React.FC<{
     }
   };
 
-  const date = formatDate(summary.activityDate);
-  const steps = summary.totalSteps || 0;
-  const distance = summary.totalDistance || 0;
-  const totalEnergy = summary.totalEnergyExpended || 0;
-  const hp = summary.totalHeartPoint || 0;
-  const duration = summary.totalDuration ? parseInt(summary.totalDuration) || 0 : 0;
-  
-  const hpGoal = 150;
-  const goalReached = hp >= hpGoal;
+  const date = formatDate(summary.time_range_hint || summary.activityDate);
 
-  const sessionList = summary.sessionList || [];
-  
-  // Calculate dynamic chartData map from sessionList
+  // Parse sessions from new Pull API (`sessions` array) or fallback to legacy `sessionList`
+  const rawSessions = summary.sessions || summary.sessionList || [];
+
+  const parsedSessions = rawSessions.map((s: any) => {
+    const sessionName = s.session || s.title || '';
+    const m = s.metrics || {};
+    
+    // Heart points
+    let hp: number | string = 0;
+    if (m['Heart Points'] !== undefined) {
+      hp = m['Heart Points'] === '--' ? '--' : (typeof m['Heart Points'] === 'number' ? m['Heart Points'] : parseFloat(m['Heart Points']) || 0);
+    } else if (s.heartPoint !== undefined) {
+      hp = typeof s.heartPoint === 'number' ? s.heartPoint : parseFloat(s.heartPoint) || 0;
+    }
+
+    // Steps
+    let steps: number | string = 0;
+    const rawSteps: any = m.steps !== undefined ? m.steps : s.steps;
+    if (rawSteps !== undefined) {
+      steps = rawSteps === '--' ? '--' : (typeof rawSteps === 'number' ? rawSteps : parseInt(rawSteps, 10) || 0);
+    }
+
+    // Distance (km)
+    let km: number | string = 0;
+    const rawKm: any = m.km !== undefined ? m.km : s.distance;
+    if (rawKm !== undefined) {
+      km = rawKm === '--' ? '--' : (typeof rawKm === 'number' ? rawKm : parseFloat(rawKm) || 0);
+    }
+
+    // Duration (min)
+    let duration: number | string = 0;
+    const rawMin: any = m.min !== undefined ? m.min : s.duration;
+    if (rawMin !== undefined) {
+      duration = rawMin === '--' ? '--' : (typeof rawMin === 'number' ? rawMin : parseFloat(rawMin) || 0);
+    }
+
+    // Energy (E3/kcal)
+    let energy: number | string = 0;
+    const rawE3: any = m.E3 !== undefined ? m.E3 : (m.energy_expended_kcal !== undefined ? m.energy_expended_kcal : s.energyExpended);
+    if (rawE3 !== undefined) {
+      energy = rawE3 === '--' ? '--' : (typeof rawE3 === 'number' ? rawE3 : parseFloat(rawE3) || 0);
+    }
+
+    const hpNum = typeof hp === 'number' ? hp : 0;
+    const stepsNum = typeof steps === 'number' ? steps : 0;
+    const kmNum = typeof km === 'number' ? km : 0;
+    const durationNum = typeof duration === 'number' ? duration : 0;
+    const energyNum = typeof energy === 'number' ? energy : 0;
+
+    return {
+      session: sessionName,
+      hp,
+      hpNum,
+      steps,
+      stepsNum,
+      km,
+      kmNum,
+      duration,
+      durationNum,
+      energy,
+      energyNum,
+      rawMetrics: m,
+    };
+  });
+
+  // Calculate totals
+  let totalSteps = parsedSessions.reduce((acc: number, curr: any) => acc + curr.stepsNum, 0);
+  let totalDistance = parseFloat(parsedSessions.reduce((acc: number, curr: any) => acc + curr.kmNum, 0).toFixed(2));
+  let totalEnergy = parseFloat(parsedSessions.reduce((acc: number, curr: any) => acc + curr.energyNum, 0).toFixed(1));
+  let totalHp = parsedSessions.reduce((acc: number, curr: any) => acc + curr.hpNum, 0);
+  let totalDuration = Math.round(parsedSessions.reduce((acc: number, curr: any) => acc + curr.durationNum, 0));
+
+  if (typeof summary.totalSteps === 'number' && summary.totalSteps > 0) totalSteps = summary.totalSteps;
+  if (typeof summary.totalDistance === 'number' && summary.totalDistance > 0) totalDistance = summary.totalDistance;
+  if (typeof summary.totalEnergyExpended === 'number' && summary.totalEnergyExpended > 0) totalEnergy = summary.totalEnergyExpended;
+  if (typeof summary.totalHeartPoint === 'number' && summary.totalHeartPoint > 0) totalHp = summary.totalHeartPoint;
+
+  const hpGoal = 150;
+  const goalReached = totalHp >= hpGoal;
+
+  // Calculate dynamic chartData map from parsedSessions
   const chartData: Record<string, number> = {
     Morning: 0,
     Afternoon: 0,
     Evening: 0,
     Night: 0,
   };
-  
-  sessionList.forEach((s: any) => {
-    const key = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : '';
+
+  parsedSessions.forEach((s: any) => {
+    const key = s.session ? s.session.charAt(0).toUpperCase() + s.session.slice(1).toLowerCase() : '';
     if (key in chartData) {
-      chartData[key] = s.heartPoint || 0;
+      chartData[key] = s.hpNum;
     }
   });
 
   // Calculate dynamic peak time block key based on highest heartPoint
   let peakKey = 'Evening';
-  let maxHp = -1;
-  sessionList.forEach((s: any) => {
-    if (s.heartPoint > maxHp) {
-      maxHp = s.heartPoint;
-      peakKey = s.title ? s.title.charAt(0).toUpperCase() + s.title.slice(1).toLowerCase() : 'Evening';
+  let maxHp = 0;
+  parsedSessions.forEach((s: any) => {
+    if (s.hpNum > maxHp) {
+      maxHp = s.hpNum;
+      peakKey = s.session ? s.session.charAt(0).toUpperCase() + s.session.slice(1).toLowerCase() : 'Evening';
     }
   });
 
-  // Dynamic max scale logic (min scale limit is 200, else round to nearest 50)
-  const maxSessionHp = Math.max(...sessionList.map((s: any) => s.heartPoint || 0), 200);
-  const maxScale = Math.ceil(maxSessionHp / 50) * 50;
+  const maxScale = Math.max(Math.ceil(maxHp / 25) * 25, 50);
 
-  // Let's divide Y labels based on maxScale
   const yLabels = [
     String(maxScale),
     String(Math.round(maxScale * 0.75)),
     String(Math.round(maxScale * 0.5)),
     String(Math.round(maxScale * 0.25)),
-    '0'
+    '0',
   ];
 
   return (
@@ -687,18 +812,18 @@ const FitnessActivityCard: React.FC<{
       <View style={detailStyles.statsCol}>
         <View style={detailStyles.statRow}>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#10B981' }]}>{hp} HP</Text>
+            <Text style={[detailStyles.statVal, { color: '#10B981' }]}>{totalHp} HP</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#F59E0B' }]}>{duration} Min</Text>
+            <Text style={[detailStyles.statVal, { color: '#F59E0B' }]}>{totalDuration} Min</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(20, 184, 166, 0.1)', borderColor: 'rgba(20, 184, 166, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#14B8A6' }]}>{steps.toLocaleString()} Steps</Text>
+            <Text style={[detailStyles.statVal, { color: '#14B8A6' }]}>{totalSteps.toLocaleString()} Steps</Text>
           </View>
         </View>
         <View style={[detailStyles.statRow, { marginTop: 8 }]}>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#3B82F6' }]}>{distance} Km</Text>
+            <Text style={[detailStyles.statVal, { color: '#3B82F6' }]}>{totalDistance} Km</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }]}>
             <Text style={[detailStyles.statVal, { color: '#EF4444' }]}>{totalEnergy} Kcal</Text>
@@ -708,7 +833,7 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.summaryRow}>
         <View style={detailStyles.hpBlock}>
-          <Text style={detailStyles.hpNumber}>{hp}</Text>
+          <Text style={detailStyles.hpNumber}>{totalHp}</Text>
           <View style={detailStyles.hpMeta}>
             <Text style={detailStyles.hpUnit}>HEART POINTS</Text>
           </View>
@@ -737,7 +862,7 @@ const FitnessActivityCard: React.FC<{
             {FitnessActivityBlocks.map(block => {
               const val = chartData[block.key] || 0;
               const barPct = Math.min((val / maxScale) * 100, 100);
-              const isPeak = block.key === peakKey;
+              const isPeak = block.key === peakKey && maxHp > 0;
 
               return (
                 <View key={block.key} style={detailStyles.barCol}>
@@ -775,16 +900,17 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.detailList}>
         {FitnessActivityBlocks.map((block, idx) => {
-          const val = chartData[block.key] || 0;
-          const isPeak = block.key === peakKey;
+          const isPeak = block.key === peakKey && maxHp > 0;
 
           // Fetch dynamic stats for this block
-          const session = sessionList.find((s: any) => 
-            s.title?.toLowerCase() === block.key.toLowerCase()
+          const session = parsedSessions.find((s: any) => 
+            s.session?.toLowerCase() === block.key.toLowerCase()
           );
-          const sSteps = session?.steps || 0;
-          const sDist = session?.distance || 0;
-          const sCal = session?.energyExpended || 0;
+
+          const sStepsDisplay = session ? (session.steps === '--' ? '--' : `${session.steps.toLocaleString()} steps`) : '0 steps';
+          const sDistDisplay = session ? (session.km === '--' ? '--' : `${session.km} km`) : '0 km';
+          const sCalDisplay = session ? (session.energy === '--' ? '--' : `${session.energy} kcal`) : '0 kcal';
+          const sHpDisplay = session ? (session.hp === '--' ? '--' : `${session.hp}`) : '0';
 
           return (
             <View
@@ -810,12 +936,12 @@ const FitnessActivityCard: React.FC<{
                   )}
                 </View>
                 <Text style={detailStyles.timeRange}>
-                  {block.timeRange} • {sSteps} steps • {sDist} km • {sCal} kcal
+                  {block.timeRange} • {sStepsDisplay} • {sDistDisplay} • {sCalDisplay}
                 </Text>
               </View>
 
               <View style={detailStyles.detailStat}>
-                <Text style={[detailStyles.detailStatVal, { color: block.color }]}>{val}</Text>
+                <Text style={[detailStyles.detailStatVal, { color: block.color }]}>{sHpDisplay}</Text>
                 <Text style={[detailStyles.detailStatUnit, { color: block.color }]}>HP</Text>
               </View>
             </View>
@@ -833,7 +959,7 @@ export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
-  const [previousDaySummary, setPreviousDaySummary] = useState<any>(null);
+  const [pullStepsLogs, setPullStepsLogs] = useState<any>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean>(true);
@@ -854,6 +980,27 @@ export const StepsLogsTab: React.FC = () => {
       setActiveUhid(targetUhid);
 
       if (hasPerms) {
+        try {
+          console.log('[StepsLogsTab] Performing fast foreground Health Connect sync...');
+          await syncHealthConnectAnalytics();
+        } catch (syncErr) {
+          console.warn('[StepsLogsTab] Foreground sync before fetching logs failed:', syncErr);
+        }
+
+        try {
+          console.log(`Fetching getPullStepsLogs for ${targetUhid}...`);
+          const pullRes = await apiService.getPullStepsLogs(targetUhid);
+          console.log('getPullStepsLogs Response in StepsLogsTab:', JSON.stringify(pullRes, null, 2));
+          if (pullRes && pullRes.data?.steplogs?.data) {
+            setPullStepsLogs(pullRes.data.steplogs.data);
+          } else {
+            setPullStepsLogs(null);
+          }
+        } catch (pullErr) {
+          console.warn('Error fetching getPullStepsLogs in StepsLogsTab:', pullErr);
+          setPullStepsLogs(null);
+        }
+
         console.log(`Fetching Health Connect activities for ${targetUhid}...`);
         const response = await apiService.getHealthConnectActivities(targetUhid);
         console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
@@ -866,16 +1013,6 @@ export const StepsLogsTab: React.FC = () => {
           setWorkoutLogs(workoutLogResponse.data);
         } else {
           setWorkoutLogs([]);
-        }
-
-        console.log(`Fetching Previous Day Summary for ${targetUhid}...`);
-        const previousDaySummaryResponse = await apiService.getPreviousDaySummary(targetUhid);
-        console.log('GET Previous Day Summary Response in StepsLogsTab:', JSON.stringify(previousDaySummaryResponse, null, 2));
-
-        if (previousDaySummaryResponse && previousDaySummaryResponse.status === 'Success' && previousDaySummaryResponse.data) {
-          setPreviousDaySummary(previousDaySummaryResponse.data);
-        } else {
-          setPreviousDaySummary(null);
         }
 
         try {
@@ -899,11 +1036,11 @@ export const StepsLogsTab: React.FC = () => {
         }
       } else {
         setWorkoutLogs([]);
-        setPreviousDaySummary(null);
         setDailyDisplayBlock(null);
+        setPullStepsLogs(null);
       }
     } catch (error) {
-      console.error('Error fetching Health Connect / Workout logs / Previous Day Summary in StepsLogsTab:', error);
+      console.error('Error fetching Health Connect / Workout logs in StepsLogsTab:', error);
     } finally {
       setLoadingLogs(false);
       setRefreshing(false);
@@ -1028,103 +1165,159 @@ export const StepsLogsTab: React.FC = () => {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : workoutLogs.length === 0 ? (
-            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
-                No synced activities for today yet.
-              </Text>
-              <Text style={{ color: '#64748b', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
-                Ensure Google Fit integration is connected and active.
-              </Text>
-            </View>
-          ) : (
-            (() => {
-              const now = new Date();
-              const hrs = now.getHours();
-              
-              let activeBlock: 'morning' | 'afternoon' | 'evening' | 'night' = 'night';
-              if (hrs >= 6 && hrs < 12) activeBlock = 'morning';
-              else if (hrs >= 12 && hrs < 17) activeBlock = 'afternoon';
-              else if (hrs >= 17 && hrs < 21) activeBlock = 'evening';
+          ) : (() => {
+            const cardsStack = pullStepsLogs?.cards_stack || [];
+            const timeCards = cardsStack.filter((c: any) => {
+              const label = (c.card_tier_label || '').toLowerCase();
+              return !label.includes('previous day') && !label.includes('accordion');
+            });
 
-              const blockOrder = ['morning', 'afternoon', 'evening', 'night'];
-              const activeIndex = blockOrder.indexOf(activeBlock);
+            if (timeCards.length === 0 && workoutLogs.length === 0) {
+              return (
+                <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
+                    No synced activities for today yet.
+                  </Text>
+                  <Text style={{ color: '#64748b', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                    Ensure Google Fit integration is connected and active.
+                  </Text>
+                </View>
+              );
+            }
 
-              const sortedKeys: string[] = [];
-              for (let i = 0; i < 4; i++) {
-                const index = (activeIndex - i + 4) % 4;
-                sortedKeys.push(blockOrder[index]);
-              }
+            const getTimeFromCard = (card: any): string => {
+              const label = (card.card_tier_label || '').toLowerCase();
+              if (label.includes('morning')) return 'Morning';
+              if (label.includes('afternoon')) return 'Afternoon';
+              if (label.includes('evening')) return 'Evening';
+              if (label.includes('night')) return 'Night';
+              return 'Morning';
+            };
 
-              return sortedKeys.map((blockKey, index) => {
-                const formattedTime = blockKey.charAt(0).toUpperCase() + blockKey.slice(1).toLowerCase();
-                const block = blockKey;
-                const isActive = block === activeBlock;
+            // Sort so newest block is on top (Night > Evening > Afternoon > Morning)
+            const blockWeights: Record<string, number> = {
+              night: 4,
+              evening: 3,
+              afternoon: 2,
+              morning: 1,
+            };
 
-                // Find default log if exists
-                const defaultLog = workoutLogs.find(log => (log.title || '').toLowerCase() === block);
+            const sortedTimeCards = [...timeCards].sort((a: any, b: any) => {
+              const getWeight = (c: any) => {
+                const l = (c.card_tier_label || '').toLowerCase();
+                if (l.includes('night')) return blockWeights.night;
+                if (l.includes('evening')) return blockWeights.evening;
+                if (l.includes('afternoon')) return blockWeights.afternoon;
+                if (l.includes('morning')) return blockWeights.morning;
+                return 0;
+              };
+              return getWeight(b) - getWeight(a);
+            });
 
-                let hpVal = defaultLog?.heartPoint || 0;
-                let stepsVal = defaultLog?.steps || 0;
-                let distanceVal = defaultLog?.distance ? parseFloat(parseFloat(defaultLog.distance).toFixed(1)) || 0 : 0;
-                let calVal = defaultLog?.energyExpended || 0;
-                let durationVal = defaultLog?.duration ? parseInt(defaultLog.duration) || 0 : 0;
+            if (sortedTimeCards.length > 0) {
+              return sortedTimeCards.map((card: any, index: number) => {
+                const formattedTime = getTimeFromCard(card);
+                const isRunning = card.status === 'IN_PROGRESS' || card.status === 'RUNNING';
+                const metrics = card.metrics || {};
 
-                const displayBlock = dailyDisplayBlock?.time_block_breakdown?.[block as 'morning' | 'afternoon' | 'evening' | 'night'];
-                if (displayBlock) {
-                  stepsVal = typeof displayBlock.steps === 'number' ? displayBlock.steps : stepsVal;
-                  hpVal = typeof displayBlock.heart_points === 'number' ? displayBlock.heart_points : hpVal;
-                  
-                  const dist = displayBlock.km;
-                  if (dist !== undefined && dist !== null) {
-                    const distFloat = typeof dist === 'string' ? parseFloat(dist) : dist;
-                    distanceVal = distFloat > 0 && distFloat < 0.1 ? parseFloat(distFloat.toFixed(4)) : parseFloat(distFloat.toFixed(1));
-                  }
-
-                  calVal = typeof displayBlock.energy_expended_kcal === 'number' ? Math.round(displayBlock.energy_expended_kcal) : calVal;
-                  durationVal = typeof displayBlock.min === 'number' ? displayBlock.min : durationVal;
-                }
+                const hpVal =
+                  metrics['Heart Points'] !== undefined
+                    ? metrics['Heart Points']
+                    : metrics['heart_points'] ?? '--';
+                const stepsVal = metrics['steps'] !== undefined ? metrics['steps'] : '--';
+                const distanceVal = metrics['km'] !== undefined ? metrics['km'] : '--';
+                const durationVal = metrics['min'] !== undefined ? metrics['min'] : '--';
+                const calVal =
+                  metrics['E3'] !== undefined
+                    ? metrics['E3']
+                    : metrics['energy_expended_kcal'] ?? metrics['cal'] ?? '--';
 
                 return (
                   <ActivityCard
-                    key={block || index}
+                    key={card.card_tier_label || index}
                     time={formattedTime}
                     hp={hpVal}
-                    goal={defaultLog?.targetHeartPoint || 50}
+                    goal={50}
                     steps={stepsVal}
                     km={distanceVal}
                     cal={calVal}
                     duration={durationVal}
-                    isActive={isActive}
+                    isActive={isRunning}
+                    cardTierLabel={card.card_tier_label}
+                    timeRangeHint={card.time_range_hint}
+                    status={card.status}
                   />
                 );
               });
-            })()
-          )}
+            }
+
+            // Fallback to active workout log if cards_stack was empty
+            const now = new Date();
+            const hrs = now.getHours();
+            let activeBlock: 'morning' | 'afternoon' | 'evening' | 'night' = 'night';
+            if (hrs >= 6 && hrs < 12) activeBlock = 'morning';
+            else if (hrs >= 12 && hrs < 17) activeBlock = 'afternoon';
+            else if (hrs >= 17 && hrs < 21) activeBlock = 'evening';
+
+            const defaultLog = workoutLogs.find(log => (log.title || '').toLowerCase() === activeBlock);
+            const formattedTime = activeBlock.charAt(0).toUpperCase() + activeBlock.slice(1);
+
+            return (
+              <ActivityCard
+                key={activeBlock}
+                time={formattedTime}
+                hp={defaultLog?.heartPoint ?? '--'}
+                goal={defaultLog?.targetHeartPoint || 50}
+                steps={defaultLog?.steps ?? '--'}
+                km={defaultLog?.distance ?? '--'}
+                cal={defaultLog?.energyExpended ?? '--'}
+                duration={defaultLog?.duration ?? '--'}
+                isActive={true}
+              />
+            );
+          })()}
 
           {/* Daily Quests progression */}
           <DailyQuestsCard />
 
           {/* Toggleable Previous Day Details */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.previousButton}
-            onPress={() => setShowDetail(!showDetail)}
-          >
-            <View style={styles.buttonContent}>
-              <MiniIcon name={showDetail ? 'eye-off-outline' : 'history'} size={15} color="#FFFFFF" />
-              <Text style={styles.buttonText}>
-                {showDetail ? 'Hide Activity Detail' : 'Previous Day Detail'}
-              </Text>
-              <MiniIcon name={showDetail ? 'chevron-up' : 'chevron-right'} size={15} color="#FFFFFF" />
-            </View>
-          </TouchableOpacity>
+          {(() => {
+            const prevDayCard = (pullStepsLogs?.cards_stack || []).find((c: any) =>
+              (c.card_tier_label || '').toLowerCase().includes('previous day')
+            );
+            const prevHint = prevDayCard?.time_range_hint;
+            const prevTitle = prevDayCard?.card_tier_label || (showDetail ? 'Hide Activity Detail' : 'Previous Day Detail');
 
-          {showDetail && (
-            <FitnessActivityCard
-              summary={previousDaySummary}
-            />
-          )}
+            return (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.previousButton}
+                  onPress={() => setShowDetail(!showDetail)}
+                >
+                  <View style={styles.buttonContent}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.buttonText}>
+                        {showDetail ? 'Hide Activity Detail' : prevTitle}
+                      </Text>
+                      {prevHint ? (
+                        <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 2, fontWeight: '600' }}>
+                          {prevHint}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <MiniIcon name={showDetail ? 'chevron-up' : 'chevron-down'} size={18} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+
+                {showDetail && (
+                  <FitnessActivityCard
+                    summary={prevDayCard}
+                  />
+                )}
+              </>
+            );
+          })()}
         </View>
 
 
@@ -1215,7 +1408,9 @@ const styles = StyleSheet.create({
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 16,
   },
   buttonText: {
     color: '#FFFFFF',
