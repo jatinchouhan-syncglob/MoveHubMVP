@@ -224,7 +224,7 @@ const BioSyncTab = ({
             <Text style={styles.emptyChartIcon}>✨</Text>
           </View>
           <Text style={[styles.cardTitle, {color: DC.indigoBrand}]}>
-            Weekly Bio-Sync Efficiency Score
+            Bio Sync Efficiency (BSE)
           </Text>
         </View>
         <View style={styles.donutContainer}>
@@ -267,7 +267,7 @@ const BioSyncTab = ({
                 styles.cardSub,
                 {color: DC.indigoBrand, opacity: 0.8, fontSize: 13},
               ]}>
-              Bio-sync performance based on your weekly health trends.
+              Bio Sync Efficiency (BSE) performance based on your weekly health trends.
             </Text>
           </View>
         </View>
@@ -340,7 +340,7 @@ const BioSyncTab = ({
             ]}>
             <Text style={styles.emptyChartIcon}>⚡</Text>
           </View>
-          <Text style={styles.cardTitle}>EE/KM: Energy Efficiency</Text>
+          <Text style={styles.cardTitle}>Energy Expenditure Economy (EE/KM) - E3</Text>
         </View>
 
         <View style={styles.chartWrapper}>
@@ -360,11 +360,11 @@ const BioSyncTab = ({
               )}
             </ScrollableChart>
           ) : (
-            <EmptyChart title="EE/KM" />
+            <EmptyChart title="Energy Expenditure Economy (EE/KM)" />
           )}
         </View>
         <Text style={styles.caption}>
-          Lower energy per km means better efficiency.
+          Lower energy per km (EE/KM - E3) indicates higher metabolic economy.
         </Text>
 
         {eePerKmCharts &&
@@ -399,7 +399,7 @@ const BioSyncTab = ({
             style={[styles.cardIconContainer, {backgroundColor: DC.blueLight}]}>
             <Text style={styles.emptyChartIcon}>🏃</Text>
           </View>
-          <Text style={styles.cardTitle}>Cardio Yield Per Step</Text>
+          <Text style={styles.cardTitle}>Pulse Pace Index (PPI) - Intensity</Text>
         </View>
 
         {cardioYieldData?.length ? (
@@ -499,7 +499,7 @@ const BioSyncTab = ({
             </View>
           </>
         ) : (
-          <EmptyChart title="Cardio Yield" />
+          <EmptyChart title="Pulse Pace Index (PPI)" />
         )}
 
         {cardioYieldPerStepCharts &&
@@ -534,7 +534,7 @@ const BioSyncTab = ({
             style={[styles.cardIconContainer, {backgroundColor: DC.amberDark}]}>
             <Text style={styles.emptyChartIcon}>🔋</Text>
           </View>
-          <Text style={styles.cardTitle}>IS: Interdaily Stability</Text>
+          <Text style={styles.cardTitle}>Interdaily Stamina (IS)</Text>
         </View>
 
         <View style={styles.chartWrapper}>
@@ -554,10 +554,10 @@ const BioSyncTab = ({
               )}
             </ScrollableChart>
           ) : (
-            <EmptyChart title="Interdaily Stability" />
+            <EmptyChart title="Interdaily Stamina (IS)" />
           )}
         </View>
-        <Text style={styles.caption}>Stamina is tracked across the week.</Text>
+        <Text style={styles.caption}>Interdaily Stamina (IS) is tracked across the week.</Text>
 
         <Text style={styles.consistencyGuideTitle}>
           CONSISTENCY RATING GUIDE
@@ -670,21 +670,21 @@ const BioSyncTab = ({
               {weeklyPerformanceSummary.eeKmAvg}
             </Text>
             {renderTrendIndicator(weeklyPerformanceSummary.eeKmTrend, weeklyPerformanceSummary.eeKmAvg)}
-            <Text style={styles.metricLabel}>EE/KM Avg</Text>
+            <Text style={styles.metricLabel}>EE/KM (E3) Avg</Text>
           </View>
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.isAvg}
             </Text>
             {renderTrendIndicator(weeklyPerformanceSummary.isTrend, weeklyPerformanceSummary.isAvg)}
-            <Text style={styles.metricLabel}>IS Avg</Text>
+            <Text style={styles.metricLabel}>IS (Stamina) Avg</Text>
           </View>
           <View style={[styles.metricItem, styles.metricItemLast]}>
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.cysTotal}
             </Text>
             {renderTrendIndicator(weeklyPerformanceSummary.cysTrend, weeklyPerformanceSummary.cysTotal)}
-            <Text style={styles.metricLabel}>CYS Total</Text>
+            <Text style={styles.metricLabel}>PPI (Intensity) Total</Text>
           </View>
         </View>
         <View style={styles.chartWrapper}>
@@ -727,15 +727,15 @@ const BioSyncTab = ({
         </View>
 
         <View style={styles.legendRow}>
-          <LegendItem color={speedometerColor.base} label="EE/KM" dashed />
+          <LegendItem color={speedometerColor.base} label="EE/KM (E3)" dashed />
 
-          <LegendItem color={speedometerColor.medium} label="IS" />
+          <LegendItem color={speedometerColor.medium} label="IS (Stamina)" />
 
-          <LegendItem color={speedometerColor.main} label="CYS" />
+          <LegendItem color={speedometerColor.main} label="PPI (Intensity)" />
         </View>
 
         <Text style={styles.caption}>
-          Weekly trend for EE/KM, IS and CYS performance.
+          Weekly trend for EE/KM (E3), IS (Stamina) and PPI (Intensity) performance.
         </Text>
 
         {weeklyTrendCharts &&

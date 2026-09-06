@@ -104,9 +104,12 @@ const FitnessTab = ({
   chartWidth,
   dailyStepsBreakdown,
   dailyHeartPoints,
+  sdexActivity,
   energyExpended,
   totalHeartPoint = 0,
+  totalDailySdex = 0,
   dailyHeartPointsCharts,
+  dailySdexCharts,
   dailyStepsBreakdownCharts,
   energyExpandedCharts,
   dailyInsightText,
@@ -125,6 +128,10 @@ const FitnessTab = ({
   const stepsMax = getDynamicMax(dailyStepsBreakdown?.values || []);
 
   const heartPointsMax = getDynamicMax(dailyHeartPoints?.values || []);
+
+  const sdexMax = getDynamicMax(sdexActivity?.values || []);
+
+  const energyExpendedMax = getDynamicMax(energyExpended?.values || []);
 
   const isINOXuser = false;
 
@@ -172,7 +179,7 @@ const FitnessTab = ({
         <View style={styles.hpCardRow}>
           <View style={styles.hpCard}>
             <Text style={styles.speedometerLabel}>
-              Heart Points{`\n`}(Weekly Target: 150)
+              Heart Points (HP){`\n`}(Weekly Target: 150)
             </Text>
 
             <View style={styles.ringContainer}>
@@ -340,7 +347,7 @@ const FitnessTab = ({
           >
             <Text style={styles.emptyChartIcon}>❤️</Text>
           </View>
-          <Text style={styles.cardTitle}>Daily Heart Points Breakdown</Text>
+          <Text style={styles.cardTitle}>Daily Heart Points (HP) Breakdown</Text>
         </View>
 
         <View style={styles.chartWrapper}>
@@ -361,11 +368,11 @@ const FitnessTab = ({
               )}
             </ScrollableChart>
           ) : (
-            <EmptyChart title="heart point" />
+            <EmptyChart title="Heart Points (HP)" />
           )}
         </View>
 
-        <Text style={styles.caption}>Heart point progress for each day.</Text>
+        <Text style={styles.caption}>Heart Points (HP) progress for each day.</Text>
 
         {dailyHeartPointsCharts &&
           (dailyHeartPointsCharts.target !== undefined ||
@@ -396,7 +403,17 @@ const FitnessTab = ({
       {!isINOXuser && (
         <>
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Energy Expended</Text>
+            <View style={styles.cardTitleRow}>
+              <View
+                style={[
+                  styles.cardIconContainer,
+                  { backgroundColor: DC.amberLight },
+                ]}
+              >
+                <Text style={styles.emptyChartIcon}>🔥</Text>
+              </View>
+              <Text style={styles.cardTitle}>Daily Energy Expended Breakdown</Text>
+            </View>
 
             <View style={styles.chartWrapper}>
               {energyExpended?.values && energyExpended.values.length > 0 ? (
@@ -404,27 +421,46 @@ const FitnessTab = ({
                   dataLength={energyExpended?.values?.length || 0}
                   visibleWidth={chartWidth}
                 >
-                  {computedWidth => (
-                    <SingleLineChart
-                      values={
-                        energyExpended.values?.length
-                          ? energyExpended.values
-                          : [0]
-                      }
-                      labels={
-                        energyExpended.labels?.length
-                          ? energyExpended.labels
-                          : ['No Data']
-                      }
-                      width={computedWidth}
-                      height={180}
-                      color={C.primary}
-                      filled={
-                        energyExpended.values?.length > 1 &&
-                        energyExpended.values?.some(v => v > 0)
-                      }
-                    />
-                  )}
+                  {computedWidth =>
+                    (energyExpended.values?.length || 0) >= 5 ? (
+                      <SingleLineChart
+                        values={
+                          energyExpended.values?.length
+                            ? energyExpended.values
+                            : [0]
+                        }
+                        labels={
+                          energyExpended.labels?.length
+                            ? energyExpended.labels
+                            : ['No Data']
+                        }
+                        width={computedWidth}
+                        height={180}
+                        color={C.primary}
+                        filled={
+                          energyExpended.values?.length > 1 &&
+                          energyExpended.values?.some(v => v > 0)
+                        }
+                      />
+                    ) : (
+                      <BarChart
+                        values={
+                          energyExpended.values?.length
+                            ? energyExpended.values
+                            : [0]
+                        }
+                        labels={
+                          energyExpended.labels?.length
+                            ? energyExpended.labels
+                            : ['No Data']
+                        }
+                        width={computedWidth}
+                        height={180}
+                        maxY={energyExpendedMax}
+                        yTicks={getDynamicTicks(energyExpendedMax)}
+                      />
+                    )
+                  }
                 </ScrollableChart>
               ) : (
                 <EmptyChart title="energy expended" />
@@ -455,6 +491,74 @@ const FitnessTab = ({
                     energyExpandedCharts.performance !== null && (
                       <Text style={styles.summaryMetricPerformance}>
                         Performance: {energyExpandedCharts.performance}%
+                      </Text>
+                    )}
+                </View>
+              )}
+          </View>
+          <View style={[styles.card, styles.sdexCard]}>
+            <View style={styles.cardTitleRow}>
+              <View
+                style={[
+                  styles.cardIconContainer,
+                  { backgroundColor: DC.tealLight },
+                ]}
+              >
+                <Text style={styles.emptyChartIcon}>⚡</Text>
+              </View>
+              <Text style={styles.cardTitle}>
+                Daily S-DEX Activity Breakdown
+              </Text>
+            </View>
+
+            <View style={styles.chartWrapper}>
+              {sdexActivity?.values && sdexActivity.values.length > 0 ? (
+                <ScrollableChart
+                  dataLength={sdexActivity?.values?.length || 0}
+                  visibleWidth={chartWidth}
+                >
+                  {computedWidth => (
+                    <BarChart
+                      values={
+                        sdexActivity.values?.length ? sdexActivity.values : [0]
+                      }
+                      labels={sdexActivity.labels}
+                      width={computedWidth}
+                      height={180}
+                      maxY={sdexMax}
+                      yTicks={getDynamicTicks(sdexMax)}
+                    />
+                  )}
+                </ScrollableChart>
+              ) : (
+                <EmptyChart title="S-DEX" />
+              )}
+            </View>
+            <Text style={styles.caption}>
+              S-DEX activity trend across the week.
+            </Text>
+
+            {dailySdexCharts &&
+              (dailySdexCharts.target !== undefined ||
+                dailySdexCharts.actual !== undefined ||
+                dailySdexCharts.performance !== undefined) && (
+                <View style={styles.summaryMetricsRow}>
+                  {dailySdexCharts.target !== undefined &&
+                    dailySdexCharts.target !== null && (
+                      <Text style={styles.summaryMetricTarget}>
+                        Target: {dailySdexCharts.target}
+                      </Text>
+                    )}
+                  {dailySdexCharts.actual !== undefined &&
+                    dailySdexCharts.actual !== null && (
+                      <Text style={styles.summaryMetricActual}>
+                        Actual: {dailySdexCharts.actual}
+                      </Text>
+                    )}
+                  {dailySdexCharts.performance !== undefined &&
+                    dailySdexCharts.performance !== null && (
+                      <Text style={styles.summaryMetricPerformance}>
+                        Performance: {dailySdexCharts.performance}%
                       </Text>
                     )}
                 </View>

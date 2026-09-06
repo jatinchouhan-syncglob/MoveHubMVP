@@ -72,11 +72,15 @@ export const styles = ScaledSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: '10@ms',
+    flexShrink: 0,
   },
   cardTitle: {
-    fontSize: '15@ms',
+    flex: 1,
+    flexShrink: 1,
+    fontSize: '14@ms',
     fontWeight: '700',
     color: '#0F172A',
+    flexWrap: 'wrap',
   },
   speedometerRow: {
     flexDirection: 'row',

@@ -377,34 +377,20 @@ const ActivityCard: React.FC<{
   const statusLabel = status === 'IN_PROGRESS' ? 'IN PROGRESS' : isActive ? 'ACTIVE' : status;
 
   // Format steps
-  const stepsDisplay = typeof steps === 'number' ? steps.toLocaleString() : (steps || '--');
+  const stepsNum = typeof steps === 'number' ? steps : (steps !== '--' && steps !== '' && steps !== null && steps !== undefined ? parseFloat(String(steps)) : NaN);
+  const stepsDisplay = !isNaN(stepsNum) ? Math.round(stepsNum).toLocaleString() : (steps || '--');
   // Format distance
-  const kmDisplay =
-    typeof km === 'number'
-      ? `${km} km`
-      : km
-      ? String(km).endsWith('km')
-        ? String(km)
-        : `${km} km`
-      : '--';
+  const kmNum = typeof km === 'number' ? km : (km !== '--' && km !== '' && km !== null && km !== undefined ? parseFloat(String(km)) : NaN);
+  const kmDisplay = !isNaN(kmNum) ? `${kmNum.toFixed(1)} km` : (km || '--');
   // Format duration
-  const durationDisplay =
-    typeof duration === 'number'
-      ? `${duration} min`
-      : duration
-      ? String(duration).endsWith('min')
-        ? String(duration)
-        : `${duration} min`
-      : '--';
+  const durNum = typeof duration === 'number' ? duration : (duration !== '--' && duration !== '' && duration !== null && duration !== undefined ? parseFloat(String(duration)) : NaN);
+  const durationDisplay = !isNaN(durNum) ? `${Math.round(durNum)} min` : (duration || '--');
   // Format cal / E3
-  const calDisplay =
-    typeof cal === 'number'
-      ? `${cal} kcal`
-      : cal
-      ? String(cal)
-      : '--';
+  const calNum = typeof cal === 'number' ? cal : (cal !== '--' && cal !== '' && cal !== null && cal !== undefined ? parseFloat(String(cal)) : NaN);
+  const calDisplay = !isNaN(calNum) ? `${Math.round(calNum)} kcal` : (cal || '--');
   // Format hp
-  const hpDisplay = hp !== undefined && hp !== null && hp !== '' ? hp : '--';
+  const hpNumVal = typeof hp === 'number' ? hp : (hp !== '--' && hp !== '' && hp !== null && hp !== undefined ? parseFloat(String(hp)) : NaN);
+  const hpDisplay = !isNaN(hpNumVal) ? String(Math.round(hpNumVal)) : (hp !== undefined && hp !== null && hp !== '' ? hp : '--');
 
   return (
     <View style={cardStyles.wrapper}>
@@ -740,16 +726,23 @@ const FitnessActivityCard: React.FC<{
   });
 
   // Calculate totals
-  let totalSteps = parsedSessions.reduce((acc: number, curr: any) => acc + curr.stepsNum, 0);
-  let totalDistance = parseFloat(parsedSessions.reduce((acc: number, curr: any) => acc + curr.kmNum, 0).toFixed(2));
-  let totalEnergy = parseFloat(parsedSessions.reduce((acc: number, curr: any) => acc + curr.energyNum, 0).toFixed(1));
-  let totalHp = parsedSessions.reduce((acc: number, curr: any) => acc + curr.hpNum, 0);
+  let totalSteps = Math.round(parsedSessions.reduce((acc: number, curr: any) => acc + curr.stepsNum, 0));
+  let totalDistance = parseFloat(parsedSessions.reduce((acc: number, curr: any) => acc + curr.kmNum, 0).toFixed(1));
+  let totalEnergy = Math.round(parsedSessions.reduce((acc: number, curr: any) => acc + curr.energyNum, 0));
+  let totalHp = Math.round(parsedSessions.reduce((acc: number, curr: any) => acc + curr.hpNum, 0));
   let totalDuration = Math.round(parsedSessions.reduce((acc: number, curr: any) => acc + curr.durationNum, 0));
 
-  if (typeof summary.totalSteps === 'number' && summary.totalSteps > 0) totalSteps = summary.totalSteps;
-  if (typeof summary.totalDistance === 'number' && summary.totalDistance > 0) totalDistance = summary.totalDistance;
-  if (typeof summary.totalEnergyExpended === 'number' && summary.totalEnergyExpended > 0) totalEnergy = summary.totalEnergyExpended;
-  if (typeof summary.totalHeartPoint === 'number' && summary.totalHeartPoint > 0) totalHp = summary.totalHeartPoint;
+  if (typeof summary.totalSteps === 'number' && summary.totalSteps > 0) totalSteps = Math.round(summary.totalSteps);
+  else if (summary.totalSteps && !isNaN(Number(summary.totalSteps))) totalSteps = Math.round(Number(summary.totalSteps));
+
+  if (typeof summary.totalDistance === 'number' && summary.totalDistance > 0) totalDistance = parseFloat(summary.totalDistance.toFixed(1));
+  else if (summary.totalDistance && !isNaN(Number(summary.totalDistance))) totalDistance = parseFloat(Number(summary.totalDistance).toFixed(1));
+
+  if (typeof summary.totalEnergyExpended === 'number' && summary.totalEnergyExpended > 0) totalEnergy = Math.round(summary.totalEnergyExpended);
+  else if (summary.totalEnergyExpended && !isNaN(Number(summary.totalEnergyExpended))) totalEnergy = Math.round(Number(summary.totalEnergyExpended));
+
+  if (typeof summary.totalHeartPoint === 'number' && summary.totalHeartPoint > 0) totalHp = Math.round(summary.totalHeartPoint);
+  else if (summary.totalHeartPoint && !isNaN(Number(summary.totalHeartPoint))) totalHp = Math.round(Number(summary.totalHeartPoint));
 
   const hpGoal = 150;
   const goalReached = totalHp >= hpGoal;
@@ -812,28 +805,28 @@ const FitnessActivityCard: React.FC<{
       <View style={detailStyles.statsCol}>
         <View style={detailStyles.statRow}>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#10B981' }]}>{totalHp} HP</Text>
+            <Text style={[detailStyles.statVal, { color: '#10B981' }]}>{Math.round(totalHp)} HP</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#F59E0B' }]}>{totalDuration} Min</Text>
+            <Text style={[detailStyles.statVal, { color: '#F59E0B' }]}>{Math.round(totalDuration)} Min</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(20, 184, 166, 0.1)', borderColor: 'rgba(20, 184, 166, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#14B8A6' }]}>{totalSteps.toLocaleString()} Steps</Text>
+            <Text style={[detailStyles.statVal, { color: '#14B8A6' }]}>{Math.round(totalSteps).toLocaleString()} Steps</Text>
           </View>
         </View>
         <View style={[detailStyles.statRow, { marginTop: 8 }]}>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#3B82F6' }]}>{totalDistance} Km</Text>
+            <Text style={[detailStyles.statVal, { color: '#3B82F6' }]}>{totalDistance.toFixed(1)} Km</Text>
           </View>
           <View style={[detailStyles.statPill, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#EF4444' }]}>{totalEnergy} Kcal</Text>
+            <Text style={[detailStyles.statVal, { color: '#EF4444' }]}>{Math.round(totalEnergy)} Kcal</Text>
           </View>
         </View>
       </View>
 
       <View style={detailStyles.summaryRow}>
         <View style={detailStyles.hpBlock}>
-          <Text style={detailStyles.hpNumber}>{totalHp}</Text>
+          <Text style={detailStyles.hpNumber}>{Math.round(totalHp)}</Text>
           <View style={detailStyles.hpMeta}>
             <Text style={detailStyles.hpUnit}>HEART POINTS</Text>
           </View>
@@ -867,7 +860,7 @@ const FitnessActivityCard: React.FC<{
               return (
                 <View key={block.key} style={detailStyles.barCol}>
                   <Text style={[detailStyles.barVal, { color: isPeak ? block.color : '#FFFFFF' }]}>
-                    {val}
+                    {Math.round(val)}
                   </Text>
                   <View style={detailStyles.barTrack}>
                     <View
@@ -907,10 +900,11 @@ const FitnessActivityCard: React.FC<{
             s.session?.toLowerCase() === block.key.toLowerCase()
           );
 
-          const sStepsDisplay = session ? (session.steps === '--' ? '--' : `${session.steps.toLocaleString()} steps`) : '0 steps';
-          const sDistDisplay = session ? (session.km === '--' ? '--' : `${session.km} km`) : '0 km';
-          const sCalDisplay = session ? (session.energy === '--' ? '--' : `${session.energy} kcal`) : '0 kcal';
-          const sHpDisplay = session ? (session.hp === '--' ? '--' : `${session.hp}`) : '0';
+          const sMinDisplay = session ? (session.duration === '--' ? '-- min' : `${Math.round(session.durationNum)} min`) : '0 min';
+          const sStepsDisplay = session ? (session.steps === '--' ? '-- steps' : `${Math.round(session.stepsNum).toLocaleString()} steps`) : '0 steps';
+          const sDistDisplay = session ? (session.km === '--' ? '-- km' : `${session.kmNum.toFixed(1)} km`) : '0.0 km';
+          const sCalDisplay = session ? (session.energy === '--' ? '-- kcal' : `${Math.round(session.energyNum)} kcal`) : '0 kcal';
+          const sHpDisplay = session ? (session.hp === '--' ? '--' : `${Math.round(session.hpNum)}`) : '0';
 
           return (
             <View
@@ -929,6 +923,9 @@ const FitnessActivityCard: React.FC<{
                   <Text style={[detailStyles.detailLabel, { color: block.color }]}>
                     {block.fullLabel}
                   </Text>
+                  <Text style={detailStyles.timeRangeInline}>
+                    ({block.timeRange})
+                  </Text>
                   {isPeak && (
                     <View style={[detailStyles.peakBadge, { backgroundColor: block.dimColor, borderColor: block.borderColor }]}>
                       <Text style={[detailStyles.peakBadgeText, { color: block.color }]}>PEAK</Text>
@@ -936,7 +933,7 @@ const FitnessActivityCard: React.FC<{
                   )}
                 </View>
                 <Text style={detailStyles.timeRange}>
-                  {block.timeRange} • {sStepsDisplay} • {sDistDisplay} • {sCalDisplay}
+                  {sMinDisplay} • {sStepsDisplay} • {sDistDisplay} • {sCalDisplay}
                 </Text>
               </View>
 
@@ -1047,9 +1044,61 @@ export const StepsLogsTab: React.FC = () => {
     }
   }, []);
 
+  // Scheduled Auto-Refresh Times (6:00:05 AM, 12:00:05 PM, 5:00:05 PM, 9:00:05 PM)
+  const SCHEDULED_REFRESH_TIMES = [
+    '06:00:05', // Morning (06:00:05 AM)
+    '12:00:05', // Afternoon (12:00:05 PM)
+    '17:00:05', // Evening (05:00:05 PM)
+    '21:00:05', // Night (09:00:05 PM)
+  ];
+
   useFocusEffect(
     useCallback(() => {
+      // 1. Initial fetch on screen focus
       fetchHealthActivities(false, bypassCheck);
+
+      // 2. Setup timers for scheduled auto-refresh when user stays on this screen
+      const timeouts: ReturnType<typeof setTimeout>[] = [];
+      const executedTimes = new Set<string>();
+
+      SCHEDULED_REFRESH_TIMES.forEach(timeStr => {
+        const [h, m, s] = timeStr.split(':').map(Number);
+        const now = new Date();
+        const target = new Date();
+        target.setHours(h, m, s, 0);
+
+        const delay = target.getTime() - now.getTime();
+        // If the target time is in the future today
+        if (delay > 0) {
+          console.log(`[StepsLogsTab] Scheduled auto-refresh for ${timeStr} in ${(delay / 1000).toFixed(1)}s`);
+          const timeoutId = setTimeout(() => {
+            console.log(`[StepsLogsTab] ⏰ Auto-triggering scheduled API hit at ${timeStr}`);
+            fetchHealthActivities(true, bypassCheck);
+            executedTimes.add(timeStr);
+          }, delay);
+          timeouts.push(timeoutId);
+        }
+      });
+
+      // 3. Fallback interval check every 1 second to ensure exact second precision even if device sleep/wake happens
+      const intervalId = setInterval(() => {
+        const now = new Date();
+        const currentH = String(now.getHours()).padStart(2, '0');
+        const currentM = String(now.getMinutes()).padStart(2, '0');
+        const currentS = String(now.getSeconds()).padStart(2, '0');
+        const currentTimeKey = `${currentH}:${currentM}:${currentS}`;
+
+        if (SCHEDULED_REFRESH_TIMES.includes(currentTimeKey) && !executedTimes.has(currentTimeKey)) {
+          console.log(`[StepsLogsTab] ⏰ Interval detected target time: ${currentTimeKey}. Triggering auto-fetch...`);
+          executedTimes.add(currentTimeKey);
+          fetchHealthActivities(true, bypassCheck);
+        }
+      }, 1000);
+
+      return () => {
+        timeouts.forEach(t => clearTimeout(t));
+        clearInterval(intervalId);
+      };
     }, [fetchHealthActivities, bypassCheck])
   );
 
@@ -1276,9 +1325,6 @@ export const StepsLogsTab: React.FC = () => {
               />
             );
           })()}
-
-          {/* Daily Quests progression */}
-          <DailyQuestsCard />
 
           {/* Toggleable Previous Day Details */}
           {(() => {
@@ -1987,6 +2033,11 @@ const detailStyles = StyleSheet.create({
   detailLabel: {
     fontSize: 11,
     fontWeight: '800',
+  },
+  timeRangeInline: {
+    color: '#94A3B8',
+    fontSize: 9.5,
+    fontWeight: '600',
   },
   timeRange: {
     color: '#94A3B8',

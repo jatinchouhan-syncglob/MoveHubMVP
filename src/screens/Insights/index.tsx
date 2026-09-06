@@ -421,9 +421,9 @@ export const InsightsScreen: React.FC = () => {
             isTrend: bioSyncObj.weekly_avg_is?.trend,
             cysTotal: bioSyncObj.weekly_avg_ppi?.value ?? ppiVal,
             cysTrend: bioSyncObj.weekly_avg_ppi?.trend,
-            stability: isVal,
-            intensity: bioSyncScore,
-            metabolic: bioSyncObj.e3?.percent ?? bioSyncObj.e3?.performance_percent ?? 0,
+            stability: bioSyncObj.is?.performance_percent ?? bioSyncObj.is?.percent ?? isVal,
+            intensity: bioSyncObj.ppi?.performance_percent ?? bioSyncObj.ppi?.percent ?? ppiVal,
+            metabolic: bioSyncObj.e3?.performance_percent ?? bioSyncObj.e3?.percent ?? 0,
             cardioYieldPerStep: [
               {
                 date: labelDate,
@@ -1075,9 +1075,9 @@ export const InsightsScreen: React.FC = () => {
                 cysTrend: bioSyncTrend?.cysTrend,
               }}
               pillarHealthData={[
-                { label: 'Stability', value: bioSyncTrend?.stability ?? 0, color: '#22C55E' },
-                { label: 'Intensity', value: bioSyncTrend?.intensity ?? 0, color: '#3B82F6' },
-                { label: 'Metabolic', value: bioSyncTrend?.metabolic ?? 0, color: '#F59E0B' },
+                { label: 'Stamina (IS)', value: bioSyncTrend?.stability ?? 0, color: '#22C55E' },
+                { label: 'Intensity (PPI)', value: bioSyncTrend?.intensity ?? 0, color: '#3B82F6' },
+                { label: 'Metabolic (E3)', value: bioSyncTrend?.metabolic ?? 0, color: '#F59E0B' },
               ]}
               cardioYieldData={parseCardioYieldData(bioSyncTrend?.cardioYieldPerStep)}
               weeklyBioSyncEfficiencyScore={bioSyncTrend?.weeklyBioSyncEfficiencyScore ?? 0}
