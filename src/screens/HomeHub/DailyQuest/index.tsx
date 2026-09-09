@@ -371,7 +371,7 @@ export const MyQuestScreen: React.FC = () => {
             {surveySubmitted ? (
               <View style={[styles.successInsightBox, { marginTop: 12 }]}>
                 <Text style={styles.successTitle}>✔️ Survey Ingested Successfully</Text>
-                <Text style={styles.successDesc}>Turnstile unlocked. Amit's active shift parameters are now configured.</Text>
+                <Text style={styles.successDesc}>Turnstile unlocked. Active shift parameters are now configured.</Text>
               </View>
             ) : (
               <View style={styles.questSubmitRow}>

@@ -135,17 +135,10 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        if (biometricsRequiredRef.current) {
-          setLockKey(Date.now());
-        }
         // Immediate check when returning from Settings or background
         setTimeout(() => {
           checkNativeBackgroundPermissions();
         }, 500);
-      } else if (nextAppState.match(/inactive|background/)) {
-        if (biometricsRequiredRef.current) {
-          setIsAppLocked(true);
-        }
       }
       appState.current = nextAppState;
     });
@@ -178,14 +171,13 @@ function App(): React.JSX.Element {
         <SafeAreaProvider>
           <NavigationContainer>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-            {isAppLocked ? (
+            <RootNavigator />
+            {isAppLocked && (
               <AppLockOverlay
                 key={lockKey}
                 onUnlock={() => setIsAppLocked(false)}
                 biometricsTypeLabel={biometricsTypeLabel}
               />
-            ) : (
-              <RootNavigator />
             )}
           </NavigationContainer>
         </SafeAreaProvider>
