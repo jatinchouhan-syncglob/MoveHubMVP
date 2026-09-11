@@ -469,6 +469,7 @@ export const apiService = {
     sleepHours: number;
     mood: number;
     sleepQuality?: string;
+    bodyStatus?: string;
     rpe: number | null;
     notes?: string;
   }): Promise<any> {
@@ -489,6 +490,26 @@ export const apiService = {
     } catch (error) {
       console.error('Error in saveWorkoutFeedback:', error);
       throw error;
+    }
+  },
+
+  async postStatusFlare(uhid: string, flareToken: string): Promise<any> {
+    try {
+      const url = `https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/api/v1/user/status/flare`;
+      const payload = {
+        uhid,
+        flare_token: flareToken,
+        status: [flareToken],
+        timestamp: new Date().toISOString(),
+      };
+      console.log('[apiService] POST postStatusFlare Payload:', JSON.stringify(payload, null, 2));
+      const response = await axios.post(url, payload).catch(err => {
+        console.warn('[apiService] POST postStatusFlare non-blocking warning:', err?.message);
+        return null;
+      });
+      return response?.data;
+    } catch (err) {
+      console.warn('Error in postStatusFlare:', err);
     }
   },
 

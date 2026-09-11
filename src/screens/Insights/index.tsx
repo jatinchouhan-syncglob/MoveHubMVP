@@ -165,7 +165,7 @@ const FITNESS_ENERGY_EXPENDED = {
   values: [240, 310, 210, 290, 350, 420, 180],
   labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 };
-const FITNESS_HEART_POINTS_CHARTS = { target: '150', actual: '217', performance: '144' };
+const FITNESS_HEART_POINTS_CHARTS = { target: '21.4', actual: '22', performance: '103' };
 const FITNESS_SDEX_CHARTS = { target: '50', actual: '57', performance: '114' };
 const FITNESS_STEPS_CHARTS = { target: '45,000', actual: '52,900', performance: '117' };
 const FITNESS_ENERGY_EXPANDED_CHARTS = { target: '1,800', actual: '2,000', performance: '111' };
@@ -377,9 +377,9 @@ export const InsightsScreen: React.FC = () => {
             totalDailySdex: metrics.sdex ?? 0,
             dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
             dailyHeartPointsCharts: {
-              target: heartPointsObj.target,
-              actual: heartPointsObj.value,
-              performance: heartPointsObj.performance_percent ?? heartPointsObj.percent
+              target: 21.4,
+              actual: heartPointsObj.value ?? 0,
+              performance: Math.round(((heartPointsObj.value ?? 0) / 21.4) * 100),
             },
             dailySdexCharts: {
               target: metrics.sdex_target,

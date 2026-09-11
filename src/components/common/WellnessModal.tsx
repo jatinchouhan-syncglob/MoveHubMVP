@@ -22,6 +22,7 @@ import { getDynamicDeviceId } from '../../utils/device';
 interface WellnessModalProps {
   visible: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 
@@ -42,19 +43,59 @@ const restedOptions = [
   { value: 5, label: 'Completely rested' },
 ];
 
-export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }) => {
+const bodyFeelingOptions = [
+  {
+    value: 'Ready_Unloaded_No_Pain',
+    label: 'Ready & Unloaded (No pain)',
+    icon: '🔘',
+    color: '#10B981',
+    bgColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: '#10B981',
+  },
+  {
+    value: 'Knee_Inflammation_Flare_up',
+    label: 'Knee Pain / Swelling Flare-up',
+    icon: '💥',
+    color: '#EF4444',
+    bgColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#EF4444',
+  },
+  {
+    value: 'Lower_Back_Stiffness_Spasm',
+    label: 'Lower Back Stiffness / Spasm',
+    icon: '⚡',
+    color: '#F59E0B',
+    bgColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: '#F59E0B',
+  },
+  {
+    value: 'Shoulder_Upper_Body_Strain',
+    label: 'Shoulder / Upper Body Strain',
+    icon: '🦾',
+    color: '#A855F7',
+    bgColor: 'rgba(168, 85, 247, 0.1)',
+    borderColor: '#A855F7',
+  },
+];
+
+export const WellnessModal: React.FC<WellnessModalProps> = ({
+  visible,
+  onClose,
+  onSuccess,
+}) => {
   const [sleepHours, setSleepHours] = useState<number>(7);
   const [mood, setMood] = useState(0);
   const [rested, setRested] = useState(0);
+  const [bodyFeeling, setBodyFeeling] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ mood?: string; rested?: string }>({});
+  const [errors, setErrors] = useState<{ mood?: string; rested?: string; bodyFeeling?: string }>({});
   const [trackWidth, setTrackWidth] = useState(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = async () => {
-    const newErrors: { mood?: string; rested?: string } = {};
+    const newErrors: { mood?: string; rested?: string; bodyFeeling?: string } = {};
 
     if (mood <= 0) {
       newErrors.mood = 'Please select your mood rating.';
@@ -62,6 +103,10 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
 
     if (rested <= 0) {
       newErrors.rested = 'Please select how rested you felt.';
+    }
+
+    if (!bodyFeeling) {
+      newErrors.bodyFeeling = 'Please select how your body is feeling today.';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -88,6 +133,7 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
         sleepHours: sleepHours,
         mood: mood,
         sleepQuality: sleepQualityStr,
+        bodyStatus: bodyFeeling,
         rpe: null,
         notes: notes.trim() || undefined,
       };
@@ -96,10 +142,19 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
       const response = await apiService.saveWorkoutFeedback(payload);
       console.log('[WellnessModal] saveWorkoutFeedback Response:', JSON.stringify(response, null, 2));
 
+      // Post status flare token to API Gateway
+      apiService.postStatusFlare(targetUhid, bodyFeeling);
+
       // Reset state and show custom success screen
+      const now = new Date();
+      const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      await storageHelper.setItem(STORAGE_KEYS.LAST_WELLNESS_CHECKIN_DATE, todayDateStr);
+      onSuccess?.();
+
       setSleepHours(7);
       setMood(0);
       setRested(0);
+      setBodyFeeling('');
       setNotes('');
       setShowSuccess(true);
     } catch (error) {
@@ -114,6 +169,7 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
     setSleepHours(7);
     setMood(0);
     setRested(0);
+    setBodyFeeling('');
     setNotes('');
     setErrors({});
     setShowSuccess(false);
@@ -301,6 +357,83 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({ visible, onClose }
                 </View>
                 {errors.mood ? (
                   <Text style={styles.errorText}>{errors.mood}</Text>
+                ) : null}
+              </View>
+
+              {/* 4th Question: How is your body feeling today? */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  How is your body feeling today? *
+                </Text>
+                <View style={styles.bodyFeelingColumn}>
+                  {bodyFeelingOptions.map(item => {
+                    const isSelected = bodyFeeling === item.value;
+                    return (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={[
+                          styles.bodyFeelingOptionRow,
+                          isSelected && {
+                            borderColor: item.borderColor,
+                            backgroundColor: item.bgColor,
+                          },
+                          errors.bodyFeeling ? styles.borderError : null,
+                        ]}
+                        onPress={() => {
+                          setBodyFeeling(item.value);
+                          if (errors.bodyFeeling) {
+                            setErrors(prev => ({ ...prev, bodyFeeling: undefined }));
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <View
+                          style={[
+                            styles.bodyFeelingIconBadge,
+                            {
+                              backgroundColor: isSelected
+                                ? item.bgColor
+                                : 'rgba(255, 255, 255, 0.04)',
+                              borderColor: isSelected ? item.borderColor : '#334155',
+                            },
+                          ]}
+                        >
+                          <Text style={styles.bodyFeelingEmoji}>{item.icon}</Text>
+                        </View>
+
+                        <Text
+                          style={[
+                            styles.bodyFeelingOptionText,
+                            isSelected && {
+                              color: '#FFFFFF',
+                              fontWeight: '700',
+                            },
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+
+                        <View
+                          style={[
+                            styles.radioButton,
+                            isSelected && { borderColor: item.borderColor },
+                          ]}
+                        >
+                          {isSelected && (
+                            <View
+                              style={[
+                                styles.radioButtonInner,
+                                { backgroundColor: item.color },
+                              ]}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {errors.bodyFeeling ? (
+                  <Text style={styles.errorText}>{errors.bodyFeeling}</Text>
                 ) : null}
               </View>
 
@@ -559,6 +692,38 @@ const styles = StyleSheet.create({
   restedOptionTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  bodyFeelingColumn: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  bodyFeelingOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: theme.spacing.borderRadiusMd,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  bodyFeelingIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bodyFeelingEmoji: {
+    fontSize: 16,
+  },
+  bodyFeelingOptionText: {
+    flex: 1,
+    fontSize: 13.5,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
   modalFooter: {
     flexDirection: 'row',

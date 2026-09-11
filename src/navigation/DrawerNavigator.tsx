@@ -99,12 +99,56 @@ const DrawerNavigatorContent: React.FC = () => {
     }, 400);
   };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setWellnessModalVisible(true);
-    }, 30 * 60 * 60 * 1000); // 30 hours (108,000,000 milliseconds)
+  const getCheckinCycleDate = (): string | null => {
+    const now = new Date();
+    const currentHours = now.getHours();
+    // Daily morning check-in starts at or after 06:00 AM
+    if (currentHours < 6) {
+      return null;
+    }
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
-    return () => clearInterval(timer);
+  const checkAndTriggerWellnessModal = async () => {
+    const cycleDate = getCheckinCycleDate();
+    if (!cycleDate) return;
+
+    try {
+      const lastSubmittedDate = await storageHelper.getItem<string>(
+        STORAGE_KEYS.LAST_WELLNESS_CHECKIN_DATE,
+      );
+
+      if (lastSubmittedDate === cycleDate) {
+        // Already submitted for today's cycle -> do not show again
+        setWellnessModalVisible(false);
+        return;
+      }
+
+      // Not yet submitted for today -> trigger modal
+      setWellnessModalVisible(true);
+    } catch (err) {
+      console.warn('[WellnessCheckIn] Error checking last submission:', err);
+    }
+  };
+
+  useEffect(() => {
+    // 1. Initial trigger 1.5 seconds after app opens (if after 6 AM and not submitted)
+    const initialTimer = setTimeout(() => {
+      checkAndTriggerWellnessModal();
+    }, 1500);
+
+    // 2. Retry every 1 minute if user cancelled/skipped without submitting
+    const retryInterval = setInterval(() => {
+      checkAndTriggerWellnessModal();
+    }, 60 * 1000); // 1 minute (60,000 ms)
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(retryInterval);
+    };
   }, []);
 
   useEffect(() => {
@@ -1018,6 +1062,7 @@ const DrawerNavigatorContent: React.FC = () => {
       <WellnessModal
         visible={wellnessModalVisible}
         onClose={() => setWellnessModalVisible(false)}
+        onSuccess={() => setWellnessModalVisible(false)}
       />
     </View>
   );

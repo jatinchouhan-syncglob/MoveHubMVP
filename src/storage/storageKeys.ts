@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   LAST_GOOGLE_FIT_SYNC: '@movehub_last_google_fit_sync',
   BIOMETRICS_ENABLED: '@movehub_biometrics_enabled',
   BIOMETRICS_CREDENTIALS: '@movehub_biometrics_credentials',
+  LAST_WELLNESS_CHECKIN_DATE: '@movehub_last_wellness_checkin_date',
 } as const;
 
 export type StorageKeyType = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

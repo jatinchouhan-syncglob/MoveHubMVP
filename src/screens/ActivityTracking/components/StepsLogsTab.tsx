@@ -352,7 +352,7 @@ const ActivityCard: React.FC<{
   status?: string;
 }> = ({
   hp,
-  goal,
+  goal = 5.4,
   steps,
   km,
   cal,
@@ -368,7 +368,8 @@ const ActivityCard: React.FC<{
     activityCardColorTheme.THEMES.night;
   
   const hpNum = typeof hp === 'number' ? hp : parseFloat(String(hp)) || 0;
-  const progress = isActive ? 0 : Math.min(hpNum / goal, 1);
+  const targetGoal = goal || 5.4;
+  const progress = Math.min(hpNum / targetGoal, 1);
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const timeScale = timeRangeHint || getScaleForTime(time);
 
@@ -744,7 +745,7 @@ const FitnessActivityCard: React.FC<{
   if (typeof summary.totalHeartPoint === 'number' && summary.totalHeartPoint > 0) totalHp = Math.round(summary.totalHeartPoint);
   else if (summary.totalHeartPoint && !isNaN(Number(summary.totalHeartPoint))) totalHp = Math.round(Number(summary.totalHeartPoint));
 
-  const hpGoal = 150;
+  const hpGoal = 21.4;
   const goalReached = totalHp >= hpGoal;
 
   // Calculate dynamic chartData map from parsedSessions
@@ -1286,7 +1287,7 @@ export const StepsLogsTab: React.FC = () => {
                     key={card.card_tier_label || index}
                     time={formattedTime}
                     hp={hpVal}
-                    goal={50}
+                    goal={5.4}
                     steps={stepsVal}
                     km={distanceVal}
                     cal={calVal}
@@ -1316,7 +1317,7 @@ export const StepsLogsTab: React.FC = () => {
                 key={activeBlock}
                 time={formattedTime}
                 hp={defaultLog?.heartPoint ?? '--'}
-                goal={defaultLog?.targetHeartPoint || 50}
+                goal={defaultLog?.targetHeartPoint || 5.4}
                 steps={defaultLog?.steps ?? '--'}
                 km={defaultLog?.distance ?? '--'}
                 cal={defaultLog?.energyExpended ?? '--'}

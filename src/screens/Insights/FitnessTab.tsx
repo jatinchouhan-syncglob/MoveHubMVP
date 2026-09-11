@@ -135,10 +135,12 @@ const FitnessTab = ({
 
   const isINOXuser = false;
 
+  const DAILY_HP_TARGET = 21.4;
+
   const getHeartPointColor = (points: number) => {
-    if (points <= 74) return speedometerColor.light;
-    if (points <= 159) return speedometerColor.base;
-    if (points <= 299) return speedometerColor.light100;
+    if (points < 10.7) return speedometerColor.light;
+    if (points < 21.4) return speedometerColor.base;
+    if (points < 42.8) return speedometerColor.light100;
     return speedometerColor.medium;
   };
 
@@ -147,7 +149,7 @@ const FitnessTab = ({
   const RADIUS = 50;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-  const progress = Math.min(totalHeartPoint / 150, 1);
+  const progress = Math.min(totalHeartPoint / DAILY_HP_TARGET, 1);
   const strokeDashoffset = animValue.interpolate({
     inputRange: [0, 1],
     outputRange: [CIRCUMFERENCE, CIRCUMFERENCE * (1 - progress)],
@@ -157,7 +159,7 @@ const FitnessTab = ({
     dailyHeartPointsCharts?.performance !== undefined &&
     dailyHeartPointsCharts?.performance !== null
       ? dailyHeartPointsCharts.performance
-      : Number(((totalHeartPoint / 150) * 100).toFixed(2));
+      : Math.round((totalHeartPoint / DAILY_HP_TARGET) * 100);
 
   const activeColor = getHeartPointColor(totalHeartPoint);
 
@@ -179,7 +181,7 @@ const FitnessTab = ({
         <View style={styles.hpCardRow}>
           <View style={styles.hpCard}>
             <Text style={styles.speedometerLabel}>
-              Heart Points (HP){`\n`}(Weekly Target: 150)
+              Heart Points (HP){`\n`}(Daily Target: 21.4)
             </Text>
 
             <View style={styles.ringContainer}>
@@ -227,7 +229,7 @@ const FitnessTab = ({
                     { backgroundColor: speedometerColor.light },
                   ]}
                 />
-                <Text style={styles.legendText}>0-74 Bronze / High Risk</Text>
+                <Text style={styles.legendText}>0-10.6 Bronze / High Risk</Text>
               </View>
 
               <View style={styles.legendRows}>
@@ -237,7 +239,7 @@ const FitnessTab = ({
                     { backgroundColor: speedometerColor.base },
                   ]}
                 />
-                <Text style={styles.legendText}>75-159 Silver / Moderate Risk</Text>
+                <Text style={styles.legendText}>10.7-21.3 Silver / Moderate Risk</Text>
               </View>
 
               <View style={styles.legendRows}>
@@ -247,7 +249,7 @@ const FitnessTab = ({
                     { backgroundColor: speedometerColor.light100 },
                   ]}
                 />
-                <Text style={styles.legendText}>150-299 Gold / Low Risk</Text>
+                <Text style={styles.legendText}>21.4-42.8 Gold / Low Risk</Text>
               </View>
 
               <View style={styles.legendRows}>
@@ -257,15 +259,14 @@ const FitnessTab = ({
                     { backgroundColor: speedometerColor.medium },
                   ]}
                 />
-                <Text style={styles.legendText}>300+ Platinum / Very Low Risk</Text>
+                <Text style={styles.legendText}>42.9+ Platinum / Very Low Risk</Text>
               </View>
             </View>
 
             {/* Recommendation footer */}
             <View style={styles.recommendationFooter}>
               <Text style={styles.recommendationFooterText}>
-                WHO recommendation: 150 minutes of moderate activity weekly to
-                improve cardiovascular health.
+                Daily target: 21.4 HP (equivalent to WHO recommendation of 150 weekly Heart Points to improve cardiovascular health).
               </Text>
             </View>
           </View>
