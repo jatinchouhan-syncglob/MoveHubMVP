@@ -87,6 +87,7 @@ const healthConnectWorkManagerModule =
 
 export const HEALTH_CONNECT_RECORD_TYPES: RecordType[] = [
   'ActiveCaloriesBurned',
+  'BasalMetabolicRate',
   'TotalCaloriesBurned',
   'Distance',
   'Steps',
@@ -370,65 +371,96 @@ const getHeartRateSummary = (
 const createDetailedMetricRecords = ({
   stepsRecords,
   distanceRecords,
+  activeCaloriesRecords,
+  basalCaloriesRecords,
   totalCaloriesRecords,
   speedRecords,
 }: {
   stepsRecords: ReadRecordsResult<'Steps'>['records'];
   distanceRecords: ReadRecordsResult<'Distance'>['records'];
   activeCaloriesRecords: ReadRecordsResult<'ActiveCaloriesBurned'>['records'];
+  basalCaloriesRecords?: ReadRecordsResult<'BasalMetabolicRate'>['records'];
   totalCaloriesRecords: ReadRecordsResult<'TotalCaloriesBurned'>['records'];
   speedRecords: ReadRecordsResult<'Speed'>['records'];
-}): IHealthConnectDetailedAnalyticsRecords => ({
-  stepsObject: stepsRecords.map(record => ({
-    count: Math.round(record.count),
-    distanceKm: null,
-    energyKcal: null,
-    speed: null,
-    startTime: record.startTime,
-    endTime: record.endTime,
-  })),
-  distanceObject: distanceRecords.map((record: any) => ({
-    count: null,
-    distanceKm: record.distance?.inKilometers ?? null,
-    energyKcal: null,
-    speed: null,
-    startTime: record.startTime,
-    endTime: record.endTime,
-  })),
-  caloriesObject: totalCaloriesRecords.map((record: any) => ({
+}): IHealthConnectDetailedAnalyticsRecords => {
+  const activeCalItems = (activeCaloriesRecords || []).map((record: any) => ({
+    type: 'ACTIVE',
     count: null,
     distanceKm: null,
     energyKcal: record.energy?.inKilocalories ?? null,
     speed: null,
     startTime: record.startTime,
     endTime: record.endTime,
-  })),
-  speedObject: speedRecords.flatMap((record: any) => {
-    const samples = Array.isArray(record.samples) ? record.samples : [];
+  }));
 
-    if (!samples.length) {
-      return [
-        {
+  const basalCalItems = (basalCaloriesRecords || []).map((record: any) => ({
+    type: 'BMR',
+    count: null,
+    distanceKm: null,
+    energyKcal: record.basalMetabolicRate?.inKilocaloriesPerDay ?? null,
+    speed: null,
+    startTime: record.time,
+    endTime: record.time,
+  }));
+
+  const fallbackCalItems =
+    activeCalItems.length === 0 && basalCalItems.length === 0
+      ? totalCaloriesRecords.map((record: any) => ({
+          type: 'ACTIVE',
           count: null,
           distanceKm: null,
-          energyKcal: null,
+          energyKcal: record.energy?.inKilocalories ?? null,
           speed: null,
           startTime: record.startTime,
           endTime: record.endTime,
-        },
-      ];
-    }
+        }))
+      : [];
 
-    return samples.map((sample: any) => ({
-      count: null,
+  return {
+    stepsObject: stepsRecords.map(record => ({
+      count: Math.round(record.count),
       distanceKm: null,
       energyKcal: null,
-      speed: sample.speed?.inKilometersPerHour ?? sample.speed ?? null,
-      startTime: sample.time ?? record.startTime,
-      endTime: sample.time ?? record.endTime,
-    }));
-  }),
-});
+      speed: null,
+      startTime: record.startTime,
+      endTime: record.endTime,
+    })),
+    distanceObject: distanceRecords.map((record: any) => ({
+      count: null,
+      distanceKm: record.distance?.inKilometers ?? null,
+      energyKcal: null,
+      speed: null,
+      startTime: record.startTime,
+      endTime: record.endTime,
+    })),
+    caloriesObject: [...activeCalItems, ...basalCalItems, ...fallbackCalItems],
+    speedObject: speedRecords.flatMap((record: any) => {
+      const samples = Array.isArray(record.samples) ? record.samples : [];
+
+      if (!samples.length) {
+        return [
+          {
+            count: null,
+            distanceKm: null,
+            energyKcal: null,
+            speed: null,
+            startTime: record.startTime,
+            endTime: record.endTime,
+          },
+        ];
+      }
+
+      return samples.map((sample: any) => ({
+        count: null,
+        distanceKm: null,
+        energyKcal: null,
+        speed: sample.speed?.inKilometersPerHour ?? sample.speed ?? null,
+        startTime: sample.time ?? record.startTime,
+        endTime: sample.time ?? record.endTime,
+      }));
+    }),
+  };
+};
 
 const safeReadRecords = async <T extends RecordType>(
   recordType: T,
@@ -743,6 +775,7 @@ export const loadHealthConnectSnapshot = async (
     _todayVo2MaxRecords,
     rawDistanceRecords,
     rawActiveCaloriesRecords,
+    rawBasalCaloriesRecords,
     rawTotalCaloriesRecords,
     rawSpeedRecords,
   ] = await Promise.all([
@@ -839,6 +872,14 @@ export const loadHealthConnectSnapshot = async (
       : Promise.resolve({
           records: [],
         } as ReadRecordsResult<'ActiveCaloriesBurned'>),
+    canRead('BasalMetabolicRate')
+      ? safeReadRecords('BasalMetabolicRate', {
+          timeRangeFilter: todayTimeRange,
+          pageSize: RECORDS_PAGE_SIZE,
+        })
+      : Promise.resolve({
+          records: [],
+        } as ReadRecordsResult<'BasalMetabolicRate'>),
     canRead('TotalCaloriesBurned')
       ? safeReadRecords('TotalCaloriesBurned', {
           timeRangeFilter: sleepTodayTimeRange,
@@ -880,6 +921,14 @@ export const loadHealthConnectSnapshot = async (
   const activeCaloriesRecordsFiltered = (
     rawActiveCaloriesRecords?.records ?? []
   ).filter(isRecordInSession);
+  const basalCaloriesRecordsFiltered = (
+    rawBasalCaloriesRecords?.records ?? []
+  ).filter((record: any) => {
+    const timeMs = dayjs(record.time).valueOf();
+    const startMs = sessionStartTime.valueOf();
+    const endLimitMs = sessionEndTime.valueOf();
+    return timeMs >= startMs && timeMs <= endLimitMs;
+  });
   const totalCaloriesRecordsFiltered = (
     rawTotalCaloriesRecords?.records ?? []
   ).filter(isRecordInSession);
@@ -937,13 +986,14 @@ export const loadHealthConnectSnapshot = async (
     stepsRecords: stepsRecordsFiltered,
     distanceRecords: distanceRecordsFiltered,
     activeCaloriesRecords: activeCaloriesRecordsFiltered,
+    basalCaloriesRecords: basalCaloriesRecordsFiltered,
     totalCaloriesRecords: totalCaloriesRecordsFiltered,
     speedRecords: speedRecordsFiltered,
   });
 
   const summary = {
     activeCaloriesInKcal: resolvedCaloriesInKcal,
-    heartPoints: exerciseHeartPoints + stepsHeartPoints,
+    heartPoints: 0,
     totalCaloriesInKcal: roundToOneDecimal(rawTotalCaloriesSum),
     distanceInKm: resolvedDistanceInKm,
     steps: sumSteps(stepsRecordsFiltered),
@@ -1265,6 +1315,14 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
       const isPastSession = sessionEndTime.isBefore(now);
 
+      // Skip if session ended before remote lastSyncTimeVal (already fully synced on server)
+      if (lastSyncTimeVal !== null && (sessionEndTime.isBefore(lastSyncTimeVal) || sessionEndTime.isSame(lastSyncTimeVal))) {
+        if (isPastSession) {
+          syncedIntervalsSet.add(intervalKey);
+        }
+        continue;
+      }
+
       // Skip already synced completed past sessions
       if (isPastSession && syncedIntervalsSet.has(intervalKey)) {
         continue;
@@ -1279,25 +1337,37 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           continue;
         }
 
-        // Apply strict key-based deduplication and filters
+        // Apply strict key-based deduplication, time filtering, and local interval overlap prevention
         const sessionSyncedKeys: string[] = [];
 
         const filterDetailedRecords = (arr: any[], dataType: string) => {
-          if (!arr) return [];
-          return arr.filter(record => {
-            const key = `${dataType}|${record.startTime}|${record.endTime}`;
+          if (!arr || !arr.length) return [];
+          const sorted = [...arr].sort((a, b) => dayjs(a.startTime).valueOf() - dayjs(b.startTime).valueOf());
+          const result: any[] = [];
+          const lastEndTimeByType: Record<string, dayjs.Dayjs> = {};
+
+          for (const record of sorted) {
+            const recType = record.type || 'DEFAULT';
+            const key = `${dataType}|${record.type || ''}|${record.startTime}|${record.endTime}`;
             if (syncedKeysSet.has(key)) {
-              return false; // Filter out
+              continue;
             }
+            const recordStart = dayjs(record.startTime);
+            const recordEnd = dayjs(record.endTime);
             if (lastSyncTimeVal !== null) {
-              const recordStart = dayjs(record.startTime);
               if (recordStart.isBefore(lastSyncTimeVal) || recordStart.isSame(lastSyncTimeVal)) {
-                return false; // Filter out
+                continue;
               }
             }
+            const lastEndTime = lastEndTimeByType[recType];
+            if (lastEndTime && recordStart.isBefore(lastEndTime)) {
+              continue; // Skip overlapping intervals within same type locally
+            }
+            lastEndTimeByType[recType] = recordEnd;
             sessionSyncedKeys.push(key);
-            return true; // Keep
-          });
+            result.push(record);
+          }
+          return result;
         };
 
         const filteredSteps = filterDetailedRecords(summary.detailedRecords?.stepsObject, 'steps');
@@ -1305,10 +1375,24 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
         const filteredCalories = filterDetailedRecords(summary.detailedRecords?.caloriesObject, 'calories');
         const filteredSpeed = filterDetailedRecords(summary.detailedRecords?.speedObject, 'speed');
 
+        const filteredExercises = (summary.todayExerciseRecords || []).filter((record: any) => {
+          const key = `exercise|${record.startTime}|${record.endTime}`;
+          if (syncedKeysSet.has(key)) return false;
+          if (lastSyncTimeVal !== null) {
+            const recordStart = dayjs(record.startTime);
+            if (recordStart.isBefore(lastSyncTimeVal) || recordStart.isSame(lastSyncTimeVal)) {
+              return false;
+            }
+          }
+          sessionSyncedKeys.push(key);
+          return true;
+        });
+
         const hasNewData = filteredSteps.length > 0 ||
                            filteredDistance.length > 0 ||
                            filteredCalories.length > 0 ||
-                           filteredSpeed.length > 0;
+                           filteredSpeed.length > 0 ||
+                           filteredExercises.length > 0;
 
         if (!hasNewData) {
           console.log(`[JS Sync] No new detailed data for session ${intervalKey}. Skipping upload.`);
@@ -1327,7 +1411,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           session: sessionName,
           date: dateStr,
           steps: summary.steps || 0,
-          heartPoint: summary.heartPoints || 0,
+          heartPoint: 0,
           activeCaloriesInKcal: summary.activeCaloriesInKcal || summary.totalCaloriesInKcal || 0,
           averageHeartRate: summary.averageHeartRate || 0,
           heartRateMeasurements: summary.heartRateMeasurements || 0,
@@ -1335,7 +1419,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           distanceInKm: summary.distanceInKm || 0,
           createdOn: now.toISOString(),
           lastSyncTime: now.toISOString(),
-          todayExerciseRecords: summary.todayExerciseRecords || [],
+          todayExerciseRecords: filteredExercises,
           stepsObject: filteredSteps,
           distanceObject: filteredDistance,
           caloriesObject: filteredCalories,

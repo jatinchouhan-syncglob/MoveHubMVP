@@ -236,6 +236,14 @@ class HealthConnectSyncWorker(
 
             val isPastSession = endInstant.isBefore(now)
 
+            // Skip if session ended before remote lastSyncInstant (already fully synced on server)
+            if (lastSyncInstant != null && !endInstant.isAfter(lastSyncInstant)) {
+                if (isPastSession) {
+                    syncedIntervalsSet.add(intervalKey)
+                }
+                continue
+            }
+
             // Skip already synced completed past sessions
             if (isPastSession && syncedIntervalsSet.contains(intervalKey)) {
                 continue
@@ -245,8 +253,21 @@ class HealthConnectSyncWorker(
                 // Query Health Connect records
                 val steps = client.readRecords(ReadRecordsRequest(StepsRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
                 val distance = client.readRecords(ReadRecordsRequest(DistanceRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
-                val activeCal = client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
-                val totalCal = client.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
+                val activeCal = try {
+                    client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                val basalCal = try {
+                    client.readRecords(ReadRecordsRequest(BasalMetabolicRateRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                val totalCal = try {
+                    client.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
+                } catch (e: Exception) {
+                    emptyList()
+                }
                 val heartRate = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
                 val sleep = client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
                 val exercises = client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.between(startInstant, endInstant))).records
@@ -272,44 +293,25 @@ class HealthConnectSyncWorker(
                 }
                 val avgHeartRate = if (heartRateSamplesCount > 0) totalHeartRateBpm.toDouble() / heartRateSamplesCount else 0.0
 
-                // Heart Points
-                var exerciseHeartPoints = 0.0
-                for (ex in exercises) {
-                    val durationMin = java.time.Duration.between(ex.startTime, ex.endTime).toMinutes().toDouble()
-                    if (durationMin > 0) {
-                        if (VIGOROUS_TYPES.contains(ex.exerciseType)) {
-                            exerciseHeartPoints += durationMin * 2
-                        } else {
-                            exerciseHeartPoints += durationMin
-                        }
-                    }
-                }
-
-                var stepsHeartPoints = 0.0
-                for (step in steps) {
-                    if (!isStepOverlappingExercise(step.startTime, step.endTime, exercises)) {
-                        val durationMin = java.time.Duration.between(step.startTime, step.endTime).toMillis() / 60000.0
-                        if (durationMin > 0) {
-                            val stepsPerMin = step.count / durationMin
-                            if (stepsPerMin >= 130) {
-                                stepsHeartPoints += durationMin * 2
-                            } else if (stepsPerMin >= 100) {
-                                stepsHeartPoints += durationMin
-                            }
-                        }
-                    }
-                }
-                val finalHeartPoints = Math.round(exerciseHeartPoints + stepsHeartPoints).toInt()
+                // Heart Points are computed by backend Python service
+                val finalHeartPoints = 0
 
                 // Deduplicated granular metrics lists
                 val newlySyncedKeys = mutableListOf<String>()
 
-                // 1. Steps Record Deduplication
+                // 1. Steps Record Deduplication & Overlap Prevention
                 val stepsObjectArray = JSONArray()
-                for (record in steps) {
+                var lastStepEndTime: Instant? = null
+                val sortedSteps = steps.sortedBy { it.startTime }
+                for (record in sortedSteps) {
                     val key = "steps|${record.startTime}|${record.endTime}"
                     if (syncedKeysSet.contains(key)) continue
-                    if (isCacheEmpty && lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+                    if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+                    
+                    if (lastStepEndTime != null && record.startTime.isBefore(lastStepEndTime)) {
+                        continue // Skip overlapping intervals locally
+                    }
+                    lastStepEndTime = record.endTime
                     
                     stepsObjectArray.put(JSONObject().apply {
                         put("count", record.count.toInt())
@@ -322,13 +324,20 @@ class HealthConnectSyncWorker(
                     newlySyncedKeys.add(key)
                 }
 
-                // 2. Distance Record Deduplication
+                // 2. Distance Record Deduplication & Overlap Prevention
                 val distanceObjectArray = JSONArray()
-                for (record in distance) {
+                var lastDistEndTime: Instant? = null
+                val sortedDistance = distance.sortedBy { it.startTime }
+                for (record in sortedDistance) {
                     val key = "distance|${record.startTime}|${record.endTime}"
                     if (syncedKeysSet.contains(key)) continue
-                    if (isCacheEmpty && lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
-                    
+                    if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+
+                    if (lastDistEndTime != null && record.startTime.isBefore(lastDistEndTime)) {
+                        continue // Skip overlapping intervals locally
+                    }
+                    lastDistEndTime = record.endTime
+
                     distanceObjectArray.put(JSONObject().apply {
                         put("count", JSONObject.NULL)
                         put("distanceKm", record.distance.inKilometers)
@@ -340,14 +349,22 @@ class HealthConnectSyncWorker(
                     newlySyncedKeys.add(key)
                 }
 
-                // 3. Calories Record Deduplication
+                // 3. Calories Record Deduplication & Overlap Prevention (ACTIVE & BMR)
                 val caloriesObjectArray = JSONArray()
-                for (record in totalCal) {
-                    val key = "calories|${record.startTime}|${record.endTime}"
+                var lastActiveCalEndTime: Instant? = null
+                val sortedActiveCal = activeCal.sortedBy { it.startTime }
+                for (record in sortedActiveCal) {
+                    val key = "calories|ACTIVE|${record.startTime}|${record.endTime}"
                     if (syncedKeysSet.contains(key)) continue
-                    if (isCacheEmpty && lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
-                    
+                    if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+
+                    if (lastActiveCalEndTime != null && record.startTime.isBefore(lastActiveCalEndTime)) {
+                        continue // Skip overlapping intervals locally
+                    }
+                    lastActiveCalEndTime = record.endTime
+
                     caloriesObjectArray.put(JSONObject().apply {
+                        put("type", "ACTIVE")
                         put("count", JSONObject.NULL)
                         put("distanceKm", JSONObject.NULL)
                         put("energyKcal", record.energy.inKilocalories)
@@ -358,13 +375,62 @@ class HealthConnectSyncWorker(
                     newlySyncedKeys.add(key)
                 }
 
-                // 4. Speed Record Deduplication
+                val sortedBasalCal = basalCal.sortedBy { it.time }
+                for (record in sortedBasalCal) {
+                    val key = "calories|BMR|${record.time}|${record.time}"
+                    if (syncedKeysSet.contains(key)) continue
+                    if (lastSyncInstant != null && !record.time.isAfter(lastSyncInstant)) continue
+
+                    caloriesObjectArray.put(JSONObject().apply {
+                        put("type", "BMR")
+                        put("count", JSONObject.NULL)
+                        put("distanceKm", JSONObject.NULL)
+                        put("energyKcal", record.basalMetabolicRate.inKilocaloriesPerDay)
+                        put("speed", JSONObject.NULL)
+                        put("startTime", record.time.toString())
+                        put("endTime", record.time.toString())
+                    })
+                    newlySyncedKeys.add(key)
+                }
+
+                // Fallback to totalCal as ACTIVE if activeCal and basalCal were both empty
+                if (activeCal.isEmpty() && basalCal.isEmpty()) {
+                    var lastTotalCalEndTime: Instant? = null
+                    val sortedTotalCal = totalCal.sortedBy { it.startTime }
+                    for (record in sortedTotalCal) {
+                        val key = "calories|ACTIVE|${record.startTime}|${record.endTime}"
+                        if (syncedKeysSet.contains(key)) continue
+                        if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+
+                        if (lastTotalCalEndTime != null && record.startTime.isBefore(lastTotalCalEndTime)) {
+                            continue
+                        }
+                        lastTotalCalEndTime = record.endTime
+
+                        caloriesObjectArray.put(JSONObject().apply {
+                            put("type", "ACTIVE")
+                            put("count", JSONObject.NULL)
+                            put("distanceKm", JSONObject.NULL)
+                            put("energyKcal", record.energy.inKilocalories)
+                            put("speed", JSONObject.NULL)
+                            put("startTime", record.startTime.toString())
+                            put("endTime", record.endTime.toString())
+                        })
+                        newlySyncedKeys.add(key)
+                    }
+                }
+
+                // 4. Speed Record Deduplication & Overlap Prevention
                 val speedObjectArray = JSONArray()
-                for (record in speed) {
+                var lastSpeedEndTime: Instant? = null
+                val sortedSpeed = speed.sortedBy { it.startTime }
+                for (record in sortedSpeed) {
                     if (record.samples.isEmpty()) {
                         val key = "speed|${record.startTime}|${record.endTime}"
                         if (syncedKeysSet.contains(key)) continue
-                        if (isCacheEmpty && lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+                        if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+                        if (lastSpeedEndTime != null && record.startTime.isBefore(lastSpeedEndTime)) continue
+                        lastSpeedEndTime = record.endTime
                         
                         speedObjectArray.put(JSONObject().apply {
                             put("count", JSONObject.NULL)
@@ -376,10 +442,13 @@ class HealthConnectSyncWorker(
                         })
                         newlySyncedKeys.add(key)
                     } else {
-                        for (sample in record.samples) {
+                        val sortedSamples = record.samples.sortedBy { it.time }
+                        for (sample in sortedSamples) {
                             val key = "speed|${sample.time}|${sample.time}"
                             if (syncedKeysSet.contains(key)) continue
-                            if (isCacheEmpty && lastSyncInstant != null && !sample.time.isAfter(lastSyncInstant)) continue
+                            if (lastSyncInstant != null && !sample.time.isAfter(lastSyncInstant)) continue
+                            if (lastSpeedEndTime != null && !sample.time.isAfter(lastSpeedEndTime)) continue
+                            lastSpeedEndTime = sample.time
                             
                             speedObjectArray.put(JSONObject().apply {
                                 put("count", JSONObject.NULL)
@@ -394,8 +463,17 @@ class HealthConnectSyncWorker(
                     }
                 }
 
+                // 5. Exercise Records Deduplication & Overlap Prevention
                 val todayExerciseRecordsArray = JSONArray()
-                for (record in exercises) {
+                var lastExEndTime: Instant? = null
+                val sortedExercises = exercises.sortedBy { it.startTime }
+                for (record in sortedExercises) {
+                    if (lastSyncInstant != null && !record.startTime.isAfter(lastSyncInstant)) continue
+                    val key = "exercise|${record.startTime}|${record.endTime}"
+                    if (syncedKeysSet.contains(key)) continue
+                    if (lastExEndTime != null && record.startTime.isBefore(lastExEndTime)) continue
+                    lastExEndTime = record.endTime
+
                     val durationHours = java.time.Duration.between(record.startTime, record.endTime).toMinutes().toDouble() / 60.0
                     todayExerciseRecordsArray.put(JSONObject().apply {
                         put("durationHours", durationHours)
@@ -405,13 +483,15 @@ class HealthConnectSyncWorker(
                         put("title", record.title ?: "")
                         put("type", record.exerciseType)
                     })
+                    newlySyncedKeys.add(key)
                 }
 
                 // Deduplication Skip Check
                 val hasNewData = stepsObjectArray.length() > 0 ||
                                  distanceObjectArray.length() > 0 ||
                                  caloriesObjectArray.length() > 0 ||
-                                 speedObjectArray.length() > 0
+                                 speedObjectArray.length() > 0 ||
+                                 todayExerciseRecordsArray.length() > 0
 
                 if (!hasNewData) {
                     Log.d(TAG, "No new detailed data for interval $intervalKey. Skipping upload.")
@@ -457,7 +537,7 @@ class HealthConnectSyncWorker(
                     put("session", sessionName)
                     put("date", dateStr)
                     put("steps", totalSteps)
-                    put("heartPoint", exerciseHeartPoints.toInt())
+                    put("heartPoint", 0)
                     put("activeCaloriesInKcal", totalActiveCalories)
                     put("averageHeartRate", avgHeartRate)
                     put("heartRateMeasurements", heartRateSamplesCount)
