@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DrawerContext from '../../navigation/DrawerContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
 import { UserProfile, Activity } from '../../types';
@@ -58,6 +59,8 @@ export interface TrackSubMetric {
   title: string;
   weight: string;
   value: string;
+  percentageScore?: string;
+  avgScore?: string;
   statusTag?: string;
   isDanger?: boolean;
 }
@@ -725,7 +728,56 @@ const GoldParticle: React.FC<{ delay: number }> = ({ delay }) => {
   );
 };
 
+const parseSubMetric = (sm: TrackSubMetric) => {
+  if (sm.percentageScore !== undefined && sm.avgScore !== undefined) {
+    return { percentage: sm.percentageScore, avg: sm.avgScore };
+  }
+  const val = (sm.value || '').trim();
+
+  // Pattern 1: "89.0% (Avg: 8,900 / 10,000 steps)" or "82.0% (Avg: 17.5 / 21.4 HP)" or "96.0% (Avg: 9,600 steps/day)"
+  const parenMatch = val.match(/^(.*?)\s*\((.*?)\)$/);
+  if (parenMatch) {
+    const rawAvg = parenMatch[2].trim();
+    return {
+      percentage: parenMatch[1].trim(),
+      avg: rawAvg.toLowerCase().startsWith('avg') ? rawAvg : `Avg: ${rawAvg}`,
+    };
+  }
+
+  // Pattern 2: "21.0 / 100 [LOW HAZARD]" or "100.0 / 100 [MAX HAZARD]" or "18.0 / 100 [LOW HAZARD]"
+  const hazardMatch = val.match(/^(.*?)\s*(\[.*?\])$/);
+  if (hazardMatch) {
+    return {
+      percentage: hazardMatch[1].trim(),
+      avg: hazardMatch[2].trim(),
+    };
+  }
+
+  // Pattern 3: "88.0% [⚡ OPTIMAL]" or "98.4% [🥇 ELITE ASCENSION]"
+  const bracketMatch = val.match(/^(.*?)\s*\[(.*?)\]$/);
+  if (bracketMatch) {
+    return {
+      percentage: bracketMatch[1].trim(),
+      avg: `[${bracketMatch[2].trim()}]`,
+    };
+  }
+
+  // Pattern 4: "Cardio: 94% | Muscle: 88.5% | Spine: 91% | Neuro: 85%"
+  if (val.includes('|')) {
+    return {
+      percentage: '',
+      avg: val,
+    };
+  }
+
+  return {
+    percentage: val,
+    avg: '',
+  };
+};
+
 export const LeaderboardScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const drawer = useContext(DrawerContext);
   const isDrawerOpen = drawer?.isOpen || false;
   const [loading, setLoading] = useState(true);
@@ -741,10 +793,6 @@ export const LeaderboardScreen: React.FC = () => {
 
   // Search Filter State
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Layer 2 & 3 Interactive Accordion States (User's card only)
-  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>('current-user-player');
-  const [selectedTrackByPlayer, setSelectedTrackByPlayer] = useState<Record<string, string>>({});
 
   // Rank-up and celebration states
   const [rankUpVisible, setRankUpVisible] = useState(false);
@@ -935,33 +983,14 @@ export const LeaderboardScreen: React.FC = () => {
     );
   });
 
-  // Toggle Accordion Row (Layer 2 Drawer - restricted to current user only)
-  const togglePlayerAccordion = (player: PhasePlayer) => {
+  // Open Dedicated Details Screen for Current User
+  const handleOpenPlayerDetails = (player: PhasePlayer) => {
     if (!player.isCurrentUser) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (expandedPlayerId === player.id) {
-      setExpandedPlayerId(null);
-    } else {
-      setExpandedPlayerId(player.id);
-      // Ensure default track is selected
-      if (!selectedTrackByPlayer[player.id]) {
-        if (player.tracks.length > 0) {
-          setSelectedTrackByPlayer(prev => ({
-            ...prev,
-            [player.id]: player.tracks[0].id,
-          }));
-        }
-      }
-    }
-  };
-
-  // Select Layer 3 Deep Dive Sub-Tray Track
-  const handleSelectTrack = (playerId: string, trackId: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSelectedTrackByPlayer(prev => ({
-      ...prev,
-      [playerId]: trackId,
-    }));
+    navigation.navigate(ROUTES.LEADERBOARD_DETAILS, {
+      player,
+      phase: activePhase,
+      day: selectedDay,
+    });
   };
 
   const handleSimulateRankUp = () => {
@@ -1078,7 +1107,6 @@ export const LeaderboardScreen: React.FC = () => {
                         onPress={() => {
                           setSelectedDay(dayObj.dayNumber);
                           setDropdownOpen(false);
-                          setExpandedPlayerId('current-user-player');
                         }}
                       >
                         <Text
@@ -1121,7 +1149,6 @@ export const LeaderboardScreen: React.FC = () => {
                         onPress={() => {
                           setSelectedDay(dayObj.dayNumber);
                           setDropdownOpen(false);
-                          setExpandedPlayerId('current-user-player');
                         }}
                       >
                         <Text
@@ -1165,7 +1192,6 @@ export const LeaderboardScreen: React.FC = () => {
                         onPress={() => {
                           setSelectedDay(dayObj.dayNumber);
                           setDropdownOpen(false);
-                          setExpandedPlayerId('current-user-player');
                         }}
                       >
                         <Text
@@ -1326,12 +1352,17 @@ export const LeaderboardScreen: React.FC = () => {
 
         {/* Section Table Header (Layer 1 Header) */}
         <View style={styles.tableHeaderRow}>
-          <Text style={[styles.tableColHeader, { width: 50 }]}>RANK</Text>
-          <Text style={[styles.tableColHeader, { flex: 1 }]}>PARTICIPANT ID</Text>
-          <Text style={[styles.tableColHeader, { width: 90, textAlign: 'right' }]}>
-            {activePhase === 1 ? 'CMAS / 100' : activePhase === 2 ? 'COMPOUND' : '3-AXIS'}
+          <Text style={[styles.tableColHeader, { width: 44 }]}>RANK</Text>
+          <Text style={[styles.tableColHeader, { flex: 1, paddingLeft: 4 }]} numberOfLines={1}>
+            PARTICIPANT
           </Text>
-          <Text style={[styles.tableColHeader, { width: 85, textAlign: 'right' }]}>STATUS</Text>
+          <Text
+            style={[styles.tableColHeader, { width: 95, textAlign: 'right', marginRight: 10 }]}
+            numberOfLines={1}
+          >
+            {activePhase === 1 ? 'CMAS / 100' : activePhase === 2 ? 'COMPOUND' : 'CHAMPIONSHIP'}
+          </Text>
+          <Text style={[styles.tableColHeader, { width: 80, textAlign: 'right' }]}>STATUS</Text>
         </View>
 
         {/* Leaderboard Rows with Progressive Disclosure */}
@@ -1339,9 +1370,6 @@ export const LeaderboardScreen: React.FC = () => {
           const rankNumber = index + 1;
           const isUser = !!player.isCurrentUser;
           const isDanger = !!player.isDanger || player.status === 'IN DANGER';
-          const isExpanded = expandedPlayerId === player.id;
-          const selectedTrackId = selectedTrackByPlayer[player.id] || player.tracks[0]?.id;
-          const currentTrack = player.tracks.find(t => t.id === selectedTrackId) || player.tracks[0];
 
           // Check if we need to render the Axe Line after this row
           const isAxeLineAfterThisRow = rankNumber === activePhaseConfig.axeLineCutRank;
@@ -1354,10 +1382,9 @@ export const LeaderboardScreen: React.FC = () => {
                   styles.playerRowCard,
                   isUser && styles.userRowHighlight,
                   isDanger && styles.dangerRowHighlight,
-                  isExpanded && styles.expandedRowBorder,
                 ]}
-                onPress={() => togglePlayerAccordion(player)}
-                activeOpacity={isUser ? 0.85 : 1}
+                onPress={() => handleOpenPlayerDetails(player)}
+                activeOpacity={isUser ? 0.75 : 1}
                 disabled={!isUser}
               >
                 <View style={styles.rowMain}>
@@ -1452,14 +1479,12 @@ export const LeaderboardScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Micro Expand Arrow indicator */}
+                {/* Direct Action Indicator */}
                 <View style={styles.expandChevronRow}>
                   {isUser ? (
                     <View style={styles.userExpandPrompt}>
                       <Text style={styles.userExpandChevronText}>
-                        {isExpanded
-                          ? '▲ Tap to collapse your breakdown'
-                          : '▼ Tap to inspect your personalized biometric matrix'}
+                        📊 Tap to view personalized biometric details ➔
                       </Text>
                     </View>
                   ) : (
@@ -1470,164 +1495,6 @@ export const LeaderboardScreen: React.FC = () => {
                     </View>
                   )}
                 </View>
-
-                {/* Layer 2: Interactive Drawer (Accordion Tray) */}
-                {isExpanded && isUser && (
-                  <View style={styles.drawerContainer}>
-                    {/* Matrix Title */}
-                    <Text style={styles.drawerMatrixTitle}>
-                      📊 {player.matrixTitle} ({player.tracks.length} {player.tracks.length === 1 ? 'TRACK' : 'TRACKS'} ACTIVE):
-                    </Text>
-
-                    {/* Quick Breakdown Badges if Phase 2 or 3 */}
-                    {player.breakdown && (
-                      <View style={styles.breakdownBadgesRow}>
-                        {player.breakdown.cmas !== undefined && (
-                          <View style={styles.breakdownChip}>
-                            <Text style={styles.breakdownChipLabel}>Cum CMAS:</Text>
-                            <Text style={styles.breakdownChipVal}>
-                              {player.breakdown.cmas.toFixed(1)}
-                            </Text>
-                          </View>
-                        )}
-                        {player.breakdown.bse !== undefined && (
-                          <View style={styles.breakdownChip}>
-                            <Text style={styles.breakdownChipLabel}>Cum BSE:</Text>
-                            <Text style={styles.breakdownChipVal}>
-                              {player.breakdown.bse.toFixed(1)}%
-                            </Text>
-                          </View>
-                        )}
-                        {player.breakdown.ffs !== undefined && (
-                          <View style={styles.breakdownChip}>
-                            <Text style={styles.breakdownChipLabel}>Cum FFS:</Text>
-                            <Text style={styles.breakdownChipVal}>
-                              {player.breakdown.ffs.toFixed(1)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Dynamic Track Tab Buttons (1 in Phase 1, 2 in Phase 2, 3 in Phase 3) */}
-                    <View style={styles.tracksTabBar}>
-                      {player.tracks.map((track) => {
-                        const isTrackSelected = track.id === selectedTrackId;
-                        return (
-                          <TouchableOpacity
-                            key={track.id}
-                            style={[
-                              styles.trackTabBtn,
-                              isTrackSelected && styles.trackTabBtnSelected,
-                              isDanger && isTrackSelected && styles.trackTabBtnDanger,
-                            ]}
-                            onPress={() => handleSelectTrack(player.id, track.id)}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.trackTabBtnText,
-                                isTrackSelected && styles.trackTabBtnTextSelected,
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {track.icon} {track.shortName}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-
-                    {/* Layer 3: Deep-Dive Sub-Tray for Selected Track */}
-                    {currentTrack && (
-                      <View
-                        style={[
-                          styles.layer3SubTray,
-                          isDanger && styles.layer3SubTrayDanger,
-                        ]}
-                      >
-                        <View style={styles.trackHeaderRow}>
-                          <View style={styles.trackNameCol}>
-                            <Text style={styles.trackNameTitle}>{currentTrack.name}</Text>
-                            <Text style={styles.trackWeightText}>({currentTrack.weightLabel})</Text>
-                          </View>
-                          <View
-                            style={[
-                              styles.trackStatusTag,
-                              isDanger && styles.trackStatusTagDanger,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.trackStatusTagText,
-                                { color: currentTrack.statusColor || '#38BDF8' },
-                              ]}
-                            >
-                              {currentTrack.overallStatus}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Sub-metrics List */}
-                        <View style={styles.subMetricsContainer}>
-                          {currentTrack.subMetrics.map((sm, smIdx) => (
-                            <View key={smIdx} style={styles.subMetricCard}>
-                              <View style={styles.subMetricTopRow}>
-                                <Text style={styles.subMetricTitle}>{sm.title}</Text>
-                                <Text style={styles.subMetricWeight}>({sm.weight})</Text>
-                              </View>
-                              <View style={styles.subMetricValRow}>
-                                <Text
-                                  style={[
-                                    styles.subMetricValue,
-                                    (sm.isDanger || isDanger) && styles.subMetricValueDanger,
-                                  ]}
-                                >
-                                  {sm.value}
-                                </Text>
-                                {sm.statusTag && (
-                                  <View
-                                    style={[
-                                      styles.subMetricTag,
-                                      sm.isDanger && styles.subMetricTagDanger,
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.subMetricTagText,
-                                        sm.isDanger && styles.subMetricTagTextDanger,
-                                      ]}
-                                    >
-                                      {sm.statusTag}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                            </View>
-                          ))}
-                        </View>
-
-                        {/* Clinical Health Inference Box [AHA] */}
-                        <View
-                          style={[
-                            styles.clinicalInferenceCard,
-                            isDanger && styles.clinicalInferenceCardDanger,
-                          ]}
-                        >
-                          <View style={styles.clinicalHeaderRow}>
-                            <Text style={styles.clinicalIcon}>🩺</Text>
-                            <Text style={styles.clinicalTitle}>
-                              {currentTrack.clinicalInference.title}
-                            </Text>
-                          </View>
-                          <Text style={styles.clinicalText}>
-                            "{currentTrack.clinicalInference.text}"
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
               </TouchableOpacity>
 
               {/* High-Stakes Neon Axe Line */}
@@ -2366,8 +2233,11 @@ const styles = StyleSheet.create({
   subMetricTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'flex-start',
+  },
+  subMetricTitleCol: {
+    flex: 1,
+    marginRight: 8,
   },
   subMetricTitle: {
     fontSize: 11,
@@ -2375,38 +2245,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   subMetricWeight: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: '#94A3B8',
+    marginTop: 1,
   },
-  subMetricValRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  subMetricValue: {
-    fontSize: 11,
-    fontWeight: 'bold',
+  subMetricPercentageScore: {
+    fontSize: 13,
+    fontWeight: '800',
     color: '#34D399',
-    flex: 1,
+    textAlign: 'right',
+  },
+  subMetricCenterRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  subMetricAvgScore: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    textAlign: 'center',
   },
   subMetricValueDanger: {
-    color: '#EF4444',
-  },
-  subMetricTag: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  subMetricTagDanger: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  subMetricTagText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#34D399',
-  },
-  subMetricTagTextDanger: {
     color: '#EF4444',
   },
   clinicalInferenceCard: {
@@ -2677,5 +2540,6 @@ const styles = StyleSheet.create({
   },
 });
 
+export { LeaderboardDetailsScreen } from './LeaderboardDetailsScreen';
 export default LeaderboardScreen;
 

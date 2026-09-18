@@ -278,6 +278,14 @@ export const ProfileScreen: React.FC = () => {
         {/* Actions Button */}
         <View style={styles.actionsContainer}>
           <CustomButton
+            title="Reset Password"
+            onPress={() => navigation.navigate(ROUTES.RESET_PASSWORD as any)}
+            variant="primary"
+            style={styles.resetButton}
+            textStyle={styles.resetButtonText}
+          />
+          <View style={styles.actionSpacer} />
+          <CustomButton
             title="Delete Account"
             onPress={showDeleteAlert}
             variant="outline"
@@ -563,6 +571,17 @@ const styles = StyleSheet.create({
   actionsContainer: {
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xxl,
+  },
+  actionSpacer: {
+    height: 12,
+  },
+  resetButton: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   deleteButton: {
     borderColor: '#ef4444', // rose/red border

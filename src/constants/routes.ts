@@ -14,10 +14,12 @@ export const ROUTES = {
   LEADERBOARD: 'Leaderboard',
   INSIGHTS: 'Insights',
   PROFILE: 'Profile',
+  LEADERBOARD_DETAILS: 'LeaderboardDetails',
   DEMO_WORKOUT_LOG: 'DemoWorkoutLog',
   DEMO_SEARCH_HUB: 'DemoSearchHub',
   DEMO_WEARABLE_SYNC: 'DemoWearableSync',
   DEMO_POST_WORKOUT_SUMMARY: 'DemoPostWorkoutSummary',
+  RESET_PASSWORD: 'ResetPassword',
 } as const;
 
 export type RouteType = typeof ROUTES[keyof typeof ROUTES];

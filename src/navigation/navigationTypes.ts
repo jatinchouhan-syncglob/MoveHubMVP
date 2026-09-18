@@ -19,6 +19,11 @@ export type RootStackParamList = {
   WellnessPacingProfile: undefined;
   WellnessPrescription: undefined;
   DrawerNavigator: NavigatorScreenParams<DrawerParamList>;
+  LeaderboardDetails: {
+    player: any;
+    phase: number;
+    day: number;
+  };
   DemoSearchHub: undefined;
   DemoWorkoutLog: {
     activityCode?: string;
@@ -46,6 +51,9 @@ export type RootStackParamList = {
     balance?: number;
     recovery?: number;
     duration?: number;
+  };
+  ResetPassword?: {
+    email?: string;
   };
 };
 

@@ -14,6 +14,8 @@ import { DemoWorkoutLogScreen } from '../screens/DemoWorkoutLog';
 import { DemoSearchHubScreen } from '../screens/DemoWorkoutLog/DemoSearchHub';
 import { DemoWearableSyncScreen } from '../screens/DemoWorkoutLog/DemoWearableSync';
 import { DemoPostWorkoutSummaryScreen } from '../screens/DemoWorkoutLog/DemoPostWorkoutSummary';
+import { LeaderboardDetailsScreen } from '../screens/Leaderboard/LeaderboardDetailsScreen';
+import { ResetPasswordScreen } from '../screens/ResetPassword';
 import DrawerNavigator from './DrawerNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -74,6 +76,14 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen 
         name={ROUTES.DEMO_POST_WORKOUT_SUMMARY as 'DemoPostWorkoutSummary'} 
         component={DemoPostWorkoutSummaryScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.LEADERBOARD_DETAILS as 'LeaderboardDetails'} 
+        component={LeaderboardDetailsScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.RESET_PASSWORD as 'ResetPassword'} 
+        component={ResetPasswordScreen} 
       />
     </Stack.Navigator>
   );

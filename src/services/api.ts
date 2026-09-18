@@ -186,6 +186,8 @@ export const apiService = {
           calorieGoal:
             apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
           isSetupComplete: cachedProfile?.isSetupComplete || false,
+          email: apiData.email || cachedProfile?.email || 'sam@gmail.com',
+          userId: apiData.userId || cachedProfile?.userId,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
         return merged;
@@ -791,6 +793,36 @@ export const apiService = {
       return response.data;
     } catch (error) {
       console.error('Error in deleteUser:', error);
+      throw error;
+    }
+  },
+
+  async resetPassword(payload: {
+    email: string;
+    oldPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/reset-password`;
+      console.log('[apiService] POST resetPassword Request URL:', url, 'Payload:', {
+        ...payload,
+        oldPassword: '***',
+        newPassword: '***',
+        confirmPassword: '***',
+      });
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST resetPassword Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in resetPassword:', error.response?.data || error.message);
       throw error;
     }
   },
