@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type DrawerScreenType = 'FitnessPrescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'OngoingQuest' | 'CommunityFeed' | 'Training' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
+export type DrawerScreenType = 'FitnessPrescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'NutritionalProfiler' | 'LifestyleProfiler' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'OngoingQuest' | 'CommunityFeed' | 'Training' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
 
 interface DrawerContextProps {
   isOpen: boolean;

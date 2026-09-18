@@ -773,15 +773,9 @@ const FitnessActivityCard: React.FC<{
     }
   });
 
-  const maxScale = Math.max(Math.ceil(maxHp / 25) * 25, 50);
+  const maxScale = 25;
 
-  const yLabels = [
-    String(maxScale),
-    String(Math.round(maxScale * 0.75)),
-    String(Math.round(maxScale * 0.5)),
-    String(Math.round(maxScale * 0.25)),
-    '0',
-  ];
+  const yLabels = ['25', '20', '15', '10', '5', '0'];
 
   return (
     <View style={detailStyles.container}>
@@ -848,7 +842,7 @@ const FitnessActivityCard: React.FC<{
           ))}
         </View>
         <View style={detailStyles.chartArea}>
-          {[0, 25, 50, 75, 100].map(pct => (
+          {[0, 20, 40, 60, 80, 100].map(pct => (
             <View key={pct} style={[detailStyles.gridLine, { bottom: `${pct}%` }]} />
           ))}
           

@@ -3,6 +3,8 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 export type DrawerParamList = {
   Dashboard: undefined;
   ActivityTracking: undefined;
+  NutritionalProfiler: undefined;
+  LifestyleProfiler: undefined;
   Leaderboard: undefined;
   Insights: undefined;
   Profile: undefined;

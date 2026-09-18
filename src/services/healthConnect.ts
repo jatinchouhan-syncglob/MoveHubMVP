@@ -1408,7 +1408,6 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
         const payload = {
           uhid,
           deviceId,
-          session: sessionName,
           date: dateStr,
           steps: summary.steps || 0,
           heartPoint: 0,

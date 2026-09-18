@@ -507,7 +507,6 @@ class HealthConnectSyncWorker(
                 val payloadObj = JSONObject().apply {
                     put("uhid", uhid ?: "")
                     put("deviceId", deviceId ?: "")
-                    put("session", sessionName)
                     put("date", dateStr)
                     put("steps", totalSteps.toInt())
                     put("heartPoint", finalHeartPoints)
@@ -534,7 +533,6 @@ class HealthConnectSyncWorker(
                     put("event_type", "TELEMETRY_SYNC")
                     put("uhid", uhid ?: "")
                     put("deviceId", deviceId ?: "")
-                    put("session", sessionName)
                     put("date", dateStr)
                     put("steps", totalSteps)
                     put("heartPoint", 0)

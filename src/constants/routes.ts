@@ -9,6 +9,8 @@ export const ROUTES = {
   DRAWER: 'DrawerNavigator',
   DASHBOARD: 'Dashboard',
   ACTIVITY_TRACKING: 'ActivityTracking',
+  NUTRITIONAL_PROFILER: 'NutritionalProfiler',
+  LIFESTYLE_PROFILER: 'LifestyleProfiler',
   LEADERBOARD: 'Leaderboard',
   INSIGHTS: 'Insights',
   PROFILE: 'Profile',
