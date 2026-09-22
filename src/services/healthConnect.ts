@@ -63,6 +63,7 @@ type IHealthConnectWorkManagerStatus = {
   lastSyncedAt: string | null;
   lastStatus: string | null;
   lastReason: string | null;
+  changesToken?: string | null;
   exactAlarmAllowed: boolean;
   batteryOptimizationIgnored: boolean;
 };
@@ -74,6 +75,8 @@ type IHealthConnectWorkManagerModule = {
   startHealthSync?: (
     options: IHealthConnectWorkManagerStartOptions,
   ) => Promise<boolean>;
+  getChangesToken?: () => Promise<string | null>;
+  resetChangesToken?: () => Promise<boolean>;
   getSyncedIntervals?: () => Promise<string[]>;
   saveSyncedIntervals?: (intervals: string[]) => Promise<boolean>;
   getSyncedKeys?: () => Promise<string[]>;
@@ -1146,6 +1149,26 @@ export const getHealthConnectSyncedKeys = async (): Promise<string[]> => {
     return [];
   }
   return healthConnectWorkManagerModule.getSyncedKeys();
+};
+
+export const getHealthConnectChangesToken = async (): Promise<string | null> => {
+  if (
+    Platform.OS !== 'android' ||
+    !healthConnectWorkManagerModule?.getChangesToken
+  ) {
+    return null;
+  }
+  return healthConnectWorkManagerModule.getChangesToken();
+};
+
+export const resetHealthConnectChangesToken = async (): Promise<boolean> => {
+  if (
+    Platform.OS !== 'android' ||
+    !healthConnectWorkManagerModule?.resetChangesToken
+  ) {
+    return false;
+  }
+  return healthConnectWorkManagerModule.resetChangesToken();
 };
 
 export const saveHealthConnectSyncedKeys = async (

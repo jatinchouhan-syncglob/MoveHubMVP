@@ -134,6 +134,8 @@ class HealthConnectWorkManagerModule(private val reactContext: ReactApplicationC
                 putString("lastStatus", prefs.getString("lastStatus", null))
                 putString("lastReason", prefs.getString("lastReason", null))
                 
+                putString("changesToken", prefs.getString("health_connect_changes_token", null))
+                
                 putBoolean("exactAlarmAllowed", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     (reactContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
                 } else {
@@ -147,6 +149,28 @@ class HealthConnectWorkManagerModule(private val reactContext: ReactApplicationC
                 })
             }
             promise.resolve(map)
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getChangesToken(promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("HealthConnectSyncPrefs", Context.MODE_PRIVATE)
+            val token = prefs.getString("health_connect_changes_token", null)
+            promise.resolve(token)
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun resetChangesToken(promise: Promise) {
+        try {
+            val prefs = reactContext.getSharedPreferences("HealthConnectSyncPrefs", Context.MODE_PRIVATE)
+            prefs.edit().remove("health_connect_changes_token").apply()
+            promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("ERROR", e.message, e)
         }
