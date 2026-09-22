@@ -55,6 +55,9 @@ export type RootStackParamList = {
   ResetPassword?: {
     email?: string;
   };
+  ForgotPassword?: {
+    email?: string;
+  };
 };
 
 declare global {

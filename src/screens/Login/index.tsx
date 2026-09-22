@@ -386,6 +386,15 @@ export const LoginScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
                 {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
+
+                {/* Forgot Password Link */}
+                <TouchableOpacity
+                  onPress={() => navigation.navigate(ROUTES.FORGOT_PASSWORD as any, { email: email.trim() })}
+                  style={styles.forgotPasswordContainer}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Gradient Submit Button */}
@@ -634,6 +643,17 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
     color: theme.colors.primary,
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4f46e5', // Blue / Indigo text
   },
   eyeBtn: {
     padding: 6,

@@ -826,4 +826,33 @@ export const apiService = {
       throw error;
     }
   },
+
+  async forgotPassword(payload: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password`;
+      console.log('[apiService] POST forgotPassword Request URL:', url, 'Payload:', {
+        email: payload.email,
+        password: '***',
+        confirmPassword: '***',
+      });
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST forgotPassword Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in forgotPassword:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };
+
