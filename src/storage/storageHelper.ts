@@ -1,56 +1,62 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MMKV } from 'react-native-mmkv';
 import { StorageKeyType } from './storageKeys';
+
+// Initialize a highly secure, encrypted MMKV instance
+const storage = new MMKV({
+  id: 'movehub-secure-storage',
+  encryptionKey: 'movehub_secure_key_3527!',
+});
 
 export const storageHelper = {
   /**
-   * Save a value to AsyncStorage
+   * Save a value to MMKV
    */
   async setItem<T>(key: StorageKeyType, value: T): Promise<boolean> {
     try {
       const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, jsonValue);
+      storage.set(key, jsonValue);
       return true;
     } catch (error) {
-      console.error(`AsyncStorage error saving key ${key}:`, error);
+      console.error(`MMKV error saving key ${key}:`, error);
       return false;
     }
   },
 
   /**
-   * Retrieve a value from AsyncStorage
+   * Retrieve a value from MMKV
    */
   async getItem<T>(key: StorageKeyType): Promise<T | null> {
     try {
-      const jsonValue = await AsyncStorage.getItem(key);
+      const jsonValue = storage.getString(key);
       return jsonValue != null ? (JSON.parse(jsonValue) as T) : null;
     } catch (error) {
-      console.error(`AsyncStorage error reading key ${key}:`, error);
+      console.error(`MMKV error reading key ${key}:`, error);
       return null;
     }
   },
 
   /**
-   * Remove a key from AsyncStorage
+   * Remove a key from MMKV
    */
   async removeItem(key: StorageKeyType): Promise<boolean> {
     try {
-      await AsyncStorage.removeItem(key);
+      storage.delete(key);
       return true;
     } catch (error) {
-      console.error(`AsyncStorage error removing key ${key}:`, error);
+      console.error(`MMKV error removing key ${key}:`, error);
       return false;
     }
   },
 
   /**
-   * Clear all app-related AsyncStorage data
+   * Clear all app-related MMKV data
    */
   async clear(): Promise<boolean> {
     try {
-      await AsyncStorage.clear();
+      storage.clearAll();
       return true;
     } catch (error) {
-      console.error('AsyncStorage error clearing storage:', error);
+      console.error('MMKV error clearing storage:', error);
       return false;
     }
   },

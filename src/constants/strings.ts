@@ -34,7 +34,7 @@ export const STRINGS = {
     WEEKLY_TRENDS: 'Weekly Trends',
   },
   ACTIVITY_TRACKING: {
-    TITLE: 'Activity Tracking',
+    TITLE: 'Activity Logger',
     LOG_ACTIVITY: 'Log a New Activity',
     NO_ACTIVITIES: 'No activities recorded today.',
   },

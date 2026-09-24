@@ -204,7 +204,7 @@ export const BarChart: React.FC<BarChartProps> = ({
 
       {labels.map((l, i) => (
         <SvgText
-          key={l}
+          key={`label-${l}-${i}`}
           x={pL + i * slot + slot / 2}
           y={height - verticalScale(5)}
           textAnchor="middle"
@@ -317,7 +317,7 @@ export const DualLineChart: React.FC<LineChartProps> = ({
 
       {labels.map((l, i) => (
         <SvgText
-          key={l}
+          key={`duallabel-${l}-${i}`}
           x={xs[i]}
           y={height - verticalScale(4)}
           textAnchor="middle"

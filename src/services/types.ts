@@ -38,6 +38,7 @@ export interface IHealthConnectDetailedAnalyticsRecords {
     endTime: string;
   }>;
   caloriesObject: Array<{
+    type?: 'ACTIVE' | 'BMR' | string;
     count: number | null;
     distanceKm: number | null;
     energyKcal: number | null;

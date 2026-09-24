@@ -54,12 +54,28 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
       <View style={styles.leftContainer}>
         {showBackButton && (
           <TouchableOpacity onPress={handleBack} style={[styles.button, buttonStyle]} activeOpacity={0.7}>
-            <Text style={[styles.iconText, iconStyle]}>←</Text>
+            <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M15 19l-7-7 7-7"
+                stroke={iconStyle?.color || theme.colors.text}
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </TouchableOpacity>
         )}
         {showDrawerButton && (
           <TouchableOpacity onPress={handleDrawerToggle} style={[styles.button, buttonStyle]} activeOpacity={0.7}>
-            <Text style={[styles.iconText, iconStyle]}>☰</Text>
+            <Svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M4 6h16M4 12h16M4 18h16"
+                stroke={iconStyle?.color || theme.colors.text}
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
           </TouchableOpacity>
         )}
       </View>

@@ -7,4 +7,5 @@ export const MOCK_PROFILE: UserProfile = {
   height: 178,
   calorieGoal: 2400,
   isSetupComplete: true,
+  email: 'sam@gmail.com',
 };

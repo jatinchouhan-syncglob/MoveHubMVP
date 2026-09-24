@@ -1,0 +1,211 @@
+import { IQuestion, IStep, ILifestyleSketchPayload } from './types';
+
+const YES_NO_OPTIONS = [
+  { label: 'Yes', value: 'Yes' },
+  { label: 'No', value: 'No' },
+];
+
+export const LIFESTYLE_QUESTIONS: Record<keyof ILifestyleSketchPayload, IQuestion> = {
+  // Block 1
+  diagnosed_cardiovascular_conditions: {
+    id: 'diagnosed_cardiovascular_conditions',
+    questionNumber: 1,
+    blockNumber: 1,
+    blockTitle: 'Cardiovascular & Metabolic Baseline',
+    title: 'Diagnosed Cardiovascular Conditions',
+    description: 'Do you have a history of high blood pressure, arrhythmias, or heart disease?',
+    options: YES_NO_OPTIONS,
+  },
+  metabolic_disorders: {
+    id: 'metabolic_disorders',
+    questionNumber: 2,
+    blockNumber: 1,
+    blockTitle: 'Cardiovascular & Metabolic Baseline',
+    title: 'Metabolic Disorders',
+    description: 'Have you been diagnosed with Type 2 Diabetes, Pre-diabetes, or Insulin Resistance?',
+    options: YES_NO_OPTIONS,
+  },
+  respiratory_system_health: {
+    id: 'respiratory_system_health',
+    questionNumber: 3,
+    blockNumber: 1,
+    blockTitle: 'Cardiovascular & Metabolic Baseline',
+    title: 'Respiratory System Health',
+    description: 'Do you have diagnosed Asthma, COPD, or chronic respiratory conditions?',
+    options: YES_NO_OPTIONS,
+  },
+  structural_orthopedic_conditions: {
+    id: 'structural_orthopedic_conditions',
+    questionNumber: 4,
+    blockNumber: 1,
+    blockTitle: 'Cardiovascular & Metabolic Baseline',
+    title: 'Structural Orthopedic Conditions',
+    description: 'Do you suffer from chronic osteoarthritis, degenerative disc disease, or joint replacement?',
+    options: YES_NO_OPTIONS,
+  },
+
+  // Block 2
+  early_onset_cardiovascular_disease: {
+    id: 'early_onset_cardiovascular_disease',
+    questionNumber: 5,
+    blockNumber: 2,
+    blockTitle: 'Genetic Vulnerabilities',
+    title: 'Early-Onset Cardiovascular Disease',
+    description: 'Has a first-degree relative (parent/sibling) had a heart attack or stroke before age 55 (men) or 65 (women)?',
+    options: YES_NO_OPTIONS,
+  },
+  familial_diabetes_track: {
+    id: 'familial_diabetes_track',
+    questionNumber: 6,
+    blockNumber: 2,
+    blockTitle: 'Genetic Vulnerabilities',
+    title: 'Familial Diabetes Track',
+    description: 'Is there a history of Type 2 Diabetes across multiple generations in your immediate family?',
+    options: YES_NO_OPTIONS,
+  },
+  neurological_decline_track: {
+    id: 'neurological_decline_track',
+    questionNumber: 7,
+    blockNumber: 2,
+    blockTitle: 'Genetic Vulnerabilities',
+    title: 'Neurological Decline Track',
+    description: 'Has anyone in your immediate family been diagnosed with Alzheimer’s or Vascular Dementia?',
+    options: YES_NO_OPTIONS,
+  },
+  familial_bone_density_deficits: {
+    id: 'familial_bone_density_deficits',
+    questionNumber: 8,
+    blockNumber: 2,
+    blockTitle: 'Genetic Vulnerabilities',
+    title: 'Familial Bone Density Deficits',
+    description: 'Is there a history of severe Osteoporosis or hip fractures in your family?',
+    options: YES_NO_OPTIONS,
+  },
+
+  // Block 3
+  tobacco_nicotine_exposure: {
+    id: 'tobacco_nicotine_exposure',
+    questionNumber: 9,
+    blockNumber: 3,
+    blockTitle: 'Lifestyle Choices & Habits',
+    title: 'Tobacco & Nicotine Exposure',
+    description: 'Do you smoke cigarettes, vape, or use tobacco products daily?',
+    options: YES_NO_OPTIONS,
+  },
+  alcohol_consumption_volume: {
+    id: 'alcohol_consumption_volume',
+    questionNumber: 10,
+    blockNumber: 3,
+    blockTitle: 'Lifestyle Choices & Habits',
+    title: 'Alcohol Consumption Volume',
+    description: 'Do you consume more than 14 standard alcoholic drinks per week?',
+    options: YES_NO_OPTIONS,
+  },
+  sedentary_off_work_habits: {
+    id: 'sedentary_off_work_habits',
+    questionNumber: 11,
+    blockNumber: 3,
+    blockTitle: 'Lifestyle Choices & Habits',
+    title: 'Sedentary Off-Work Habits',
+    description: 'Outside of work hours, do you spend more than 5 hours a day sitting (TV, driving, gaming)?',
+    options: YES_NO_OPTIONS,
+  },
+  chronic_sleep_duration: {
+    id: 'chronic_sleep_duration',
+    questionNumber: 12,
+    blockNumber: 3,
+    blockTitle: 'Lifestyle Choices & Habits',
+    title: 'Chronic Sleep Duration',
+    description: 'Do you regularly get fewer than 6 hours of sleep per night?',
+    options: YES_NO_OPTIONS,
+  },
+
+  // Block 4
+  ultra_processed_food_frequency: {
+    id: 'ultra_processed_food_frequency',
+    questionNumber: 13,
+    blockNumber: 4,
+    blockTitle: 'Nutrition & Metabolic Inputs',
+    title: 'Ultra-Processed Food Frequency',
+    description: 'Do you consume ultra-processed foods, fast food, or sugary drinks more than 3 times a week?',
+    options: YES_NO_OPTIONS,
+  },
+  daily_protein_allocation: {
+    id: 'daily_protein_allocation',
+    questionNumber: 14,
+    blockNumber: 4,
+    blockTitle: 'Nutrition & Metabolic Inputs',
+    title: 'Daily Protein Allocation',
+    description: 'Do you systematically consume less than 1.2 grams of protein per kilogram of body weight daily?',
+    options: YES_NO_OPTIONS,
+  },
+  hydration_baseline: {
+    id: 'hydration_baseline',
+    questionNumber: 15,
+    blockNumber: 4,
+    blockTitle: 'Nutrition & Metabolic Inputs',
+    title: 'Hydration Baseline',
+    description: 'Do you drink less than 2 liters of pure water daily?',
+    options: YES_NO_OPTIONS,
+  },
+  chronic_caloric_mismatch: {
+    id: 'chronic_caloric_mismatch',
+    questionNumber: 16,
+    blockNumber: 4,
+    blockTitle: 'Nutrition & Metabolic Inputs',
+    title: 'Chronic Caloric Mismatch',
+    description: 'Are you currently in a deliberate chronic caloric surplus or extreme restrictive deficit without supervision?',
+    options: YES_NO_OPTIONS,
+  },
+};
+
+export const LIFESTYLE_STEPS: IStep[] = [
+  {
+    stepIndex: 0,
+    blockNumber: 1,
+    blockTitle: 'Block 1: Cardiovascular & Metabolic Baseline',
+    blockSubtitle: 'Personal medical history & diagnosed physiological conditions',
+    questionIds: [
+      'diagnosed_cardiovascular_conditions',
+      'metabolic_disorders',
+      'respiratory_system_health',
+      'structural_orthopedic_conditions',
+    ],
+  },
+  {
+    stepIndex: 1,
+    blockNumber: 2,
+    blockTitle: 'Block 2: Genetic Vulnerabilities',
+    blockSubtitle: 'First-degree relative health & hereditary risk factors',
+    questionIds: [
+      'early_onset_cardiovascular_disease',
+      'familial_diabetes_track',
+      'neurological_decline_track',
+      'familial_bone_density_deficits',
+    ],
+  },
+  {
+    stepIndex: 2,
+    blockNumber: 3,
+    blockTitle: 'Block 3: Lifestyle Choices & Habits',
+    blockSubtitle: 'Biophysical depletors, daily strain & recovery patterns',
+    questionIds: [
+      'tobacco_nicotine_exposure',
+      'alcohol_consumption_volume',
+      'sedentary_off_work_habits',
+      'chronic_sleep_duration',
+    ],
+  },
+  {
+    stepIndex: 3,
+    blockNumber: 4,
+    blockTitle: 'Block 4: Nutrition & Metabolic Inputs',
+    blockSubtitle: 'Dietary habits, metabolic substrate quality & hydration',
+    questionIds: [
+      'ultra_processed_food_frequency',
+      'daily_protein_allocation',
+      'hydration_baseline',
+      'chronic_caloric_mismatch',
+    ],
+  },
+];

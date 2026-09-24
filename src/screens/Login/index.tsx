@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,10 +18,13 @@ import { theme } from '../../theme';
 import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
+import { BiometricConsentModal } from '../../components/common/BiometricConsentModal';
 import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
+import { syncHealthConnectAnalytics } from '../../services/healthConnect';
+import ReactNativeBiometrics from 'react-native-biometrics';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -29,10 +32,16 @@ export const LoginScreen: React.FC = () => {
   // Input fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const passwordInputRef = useRef<any>(null);
   
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Biometrics States
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [biometricsTypeLabel, setBiometricsTypeLabel] = useState('');
+  const [hasBiometricsEnabled, setHasBiometricsEnabled] = useState(false);
 
   // Error States
   const [emailError, setEmailError] = useState('');
@@ -43,6 +52,119 @@ export const LoginScreen: React.FC = () => {
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
+
+  // Biometric Consent Modal States
+  const [biometricConsentVisible, setBiometricConsentVisible] = useState(false);
+  const [tempProfileData, setTempProfileData] = useState<UserProfile | null>(null);
+  const [tempPlainPassword, setTempPlainPassword] = useState('');
+
+  // Check biometric availability on screen mount
+  React.useEffect(() => {
+    const checkBiometricAvailability = async () => {
+      try {
+        const rnBiometrics = new ReactNativeBiometrics();
+        const { available, biometryType } = await rnBiometrics.isSensorAvailable();
+        if (available) {
+          setBiometricsAvailable(true);
+          if (biometryType === 'TouchID') {
+            setBiometricsTypeLabel('Touch ID');
+          } else if (biometryType === 'FaceID') {
+            setBiometricsTypeLabel('Face ID');
+          } else {
+            setBiometricsTypeLabel('Fingerprint / Face ID');
+          }
+          
+          // Check if user previously enabled biometrics
+          const enabled = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);
+          if (enabled) {
+            setHasBiometricsEnabled(true);
+            const savedCredentials = await storageHelper.getItem<{ email: string }>(
+              STORAGE_KEYS.BIOMETRICS_CREDENTIALS
+            );
+            if (savedCredentials?.email) {
+              setEmail(savedCredentials.email);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[LoginScreen] Error checking biometrics:', err);
+      }
+    };
+    
+    // Small delay to make transition smoother
+    const timer = setTimeout(() => {
+      checkBiometricAvailability();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleBiometricLogin = async () => {
+    try {
+      const rnBiometrics = new ReactNativeBiometrics();
+      const { success } = await rnBiometrics.simplePrompt({
+        promptMessage: `Authenticate to sign in using ${biometricsTypeLabel || 'Biometrics'}`,
+      });
+
+      if (success) {
+        console.log('[LoginScreen] Biometric authentication successful!');
+        const savedCredentials = await storageHelper.getItem<{ email: string; password: string }>(
+          STORAGE_KEYS.BIOMETRICS_CREDENTIALS
+        );
+
+        if (savedCredentials && savedCredentials.email && savedCredentials.password) {
+          setLoading(true);
+          const response = await apiService.signin({
+            email: savedCredentials.email,
+            password: savedCredentials.password,
+          });
+
+          console.log('[LoginScreen] Biometric Signin Response:', JSON.stringify(response, null, 2));
+
+          if (response && response.status === 'Success') {
+            const userData = response.data || {};
+            const authToken = userData.token || response.token;
+            if (authToken) {
+              await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+            }
+            const userProfile: UserProfile = {
+              uhid: userData.uhid || 'SAUSHA9775',
+              name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
+              age: userData.age || 30,
+              weight: userData.weight || 70,
+              height: userData.height || 170,
+              calorieGoal: userData.calorieGoal || 2400,
+              isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
+              email: userData.email || savedCredentials.email,
+              token: authToken,
+            };
+            await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+            syncHealthConnectAnalytics().catch(() => {});
+
+            if (userProfile.isSetupComplete) {
+              navigation.replace(ROUTES.DRAWER);
+            } else {
+              navigation.replace(ROUTES.PROFILE_SETUP);
+            }
+          } else {
+            setAlertTitle('Biometric Sign In Failed');
+            setAlertMessage(response?.message || 'Verification failed on server side.');
+            setAlertVisible(true);
+          }
+        } else {
+          Alert.alert(
+            'Credentials Not Found',
+            'No credentials saved for biometrics. Please log in with password once to enable biometric login.'
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('[LoginScreen] Biometric login error:', err);
+      Alert.alert('Authentication Failed', err.message || 'Fingerprint authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     let hasError = false;
@@ -80,6 +202,10 @@ export const LoginScreen: React.FC = () => {
 
       if (response && response.status === 'Success') {
         const userData = response.data || {};
+        const authToken = userData.token || response.token;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
         
         // Save the profile to storage
         const userProfile: UserProfile = {
@@ -91,14 +217,31 @@ export const LoginScreen: React.FC = () => {
           calorieGoal: userData.calorieGoal || 2400,
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || email.trim(),
+          token: authToken,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+        syncHealthConnectAnalytics().catch(() => {});
 
-        // If profile setup is not complete, go to profile setup. Otherwise go to main app (Drawer)
-        if (userProfile.isSetupComplete) {
-          navigation.replace(ROUTES.DRAWER);
+        // Check if user has biometric opt-in already enabled
+        const isBiometricOptedIn = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);
+        if (biometricsAvailable && !isBiometricOptedIn) {
+          setTempProfileData(userProfile);
+          setTempPlainPassword(password);
+          setBiometricConsentVisible(true);
         } else {
-          navigation.replace(ROUTES.PROFILE_SETUP);
+          // If biometrics is already enabled, update stored password in case it was changed
+          if (isBiometricOptedIn) {
+            await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_CREDENTIALS, {
+              email: email.trim(),
+              password: password,
+            });
+          }
+
+          if (userProfile.isSetupComplete) {
+            navigation.replace(ROUTES.DRAWER);
+          } else {
+            navigation.replace(ROUTES.PROFILE_SETUP);
+          }
         }
       } else {
         setAlertTitle('Sign In Failed');
@@ -113,6 +256,33 @@ export const LoginScreen: React.FC = () => {
       setAlertVisible(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnableBiometrics = async () => {
+    setBiometricConsentVisible(false);
+    if (tempProfileData) {
+      await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_ENABLED, true);
+      await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_CREDENTIALS, {
+        email: tempProfileData.email,
+        password: tempPlainPassword,
+      });
+      if (tempProfileData.isSetupComplete) {
+        navigation.replace(ROUTES.DRAWER);
+      } else {
+        navigation.replace(ROUTES.PROFILE_SETUP);
+      }
+    }
+  };
+
+  const handleCancelBiometrics = () => {
+    setBiometricConsentVisible(false);
+    if (tempProfileData) {
+      if (tempProfileData.isSetupComplete) {
+        navigation.replace(ROUTES.DRAWER);
+      } else {
+        navigation.replace(ROUTES.PROFILE_SETUP);
+      }
     }
   };
 
@@ -180,6 +350,9 @@ export const LoginScreen: React.FC = () => {
                       setEmail(val);
                       setEmailError('');
                     }}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                 </View>
                 {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
@@ -194,6 +367,7 @@ export const LoginScreen: React.FC = () => {
                 ]}>
                   <Text style={[styles.inputIcon, passwordFocused && { color: theme.colors.primary }]}>🔒</Text>
                   <TextInput
+                    ref={passwordInputRef}
                     style={styles.textInput}
                     placeholder="Enter your password"
                     placeholderTextColor={theme.colors.textLight}
@@ -207,6 +381,8 @@ export const LoginScreen: React.FC = () => {
                       setPassword(val);
                       setPasswordError('');
                     }}
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
                   />
                   <TouchableOpacity
                     style={styles.eyeBtn}
@@ -220,6 +396,15 @@ export const LoginScreen: React.FC = () => {
                   </TouchableOpacity>
                 </View>
                 {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
+
+                {/* Forgot Password Link */}
+                <TouchableOpacity
+                  onPress={() => navigation.navigate(ROUTES.FORGOT_PASSWORD as any, { email: email.trim() })}
+                  style={styles.forgotPasswordContainer}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Gradient Submit Button */}
@@ -243,6 +428,24 @@ export const LoginScreen: React.FC = () => {
                 </LinearGradient>
               </TouchableOpacity>
 
+              {/* Biometric Button just below the Sign In button */}
+              {biometricsAvailable && hasBiometricsEnabled && (
+                <TouchableOpacity
+                  onPress={handleBiometricLogin}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                  style={styles.biometricBtn}
+                >
+                  <LinearGradient
+                    colors={['#ffffff', '#f8fafc']}
+                    style={styles.biometricGradient}
+                  >
+                    <Text style={styles.biometricIcon}>🧬</Text>
+                    <Text style={styles.biometricText}>Sign In with {biometricsTypeLabel || 'Biometrics'}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
               {/* Link to Sign Up */}
               <View style={styles.footerLinkContainer}>
                 <Text style={styles.footerLinkLabel}>Don't have an account? </Text>
@@ -260,6 +463,13 @@ export const LoginScreen: React.FC = () => {
         title={alertTitle}
         message={alertMessage}
         onClose={() => setAlertVisible(false)}
+      />
+
+      <BiometricConsentModal
+        visible={biometricConsentVisible}
+        biometricTypeLabel={biometricsTypeLabel}
+        onEnable={handleEnableBiometrics}
+        onCancel={handleCancelBiometrics}
       />
     </LinearGradient>
   );
@@ -444,6 +654,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.primary,
   },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4f46e5', // Blue / Indigo text
+  },
   eyeBtn: {
     padding: 6,
     justifyContent: 'center',
@@ -465,6 +686,36 @@ const styles = StyleSheet.create({
     height: 1.8,
     backgroundColor: '#64748b', // slate-500
     transform: [{ rotate: '-45deg' }],
+  },
+  biometricBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+    overflow: 'hidden',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  biometricGradient: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  biometricIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  biometricText: {
+    color: '#475569', // slate-600
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

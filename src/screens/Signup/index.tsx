@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -30,6 +30,13 @@ export const SignupScreen: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+
+  // Refs for keyboard navigation
+  const lastNameInputRef = useRef<any>(null);
+  const emailInputRef = useRef<any>(null);
+  const phoneNumberInputRef = useRef<any>(null);
+  const passwordInputRef = useRef<any>(null);
+  const referralCodeInputRef = useRef<any>(null);
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [referralCode, setReferralCode] = useState('');
@@ -135,6 +142,10 @@ export const SignupScreen: React.FC = () => {
 
       if (response && response.status === 'Success') {
         const userData = response.data || {};
+        const authToken = userData.token || response.token;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
         
         // Save the profile locally
         const userProfile: UserProfile = {
@@ -146,6 +157,7 @@ export const SignupScreen: React.FC = () => {
           calorieGoal: userData.calorieGoal || 2000,
           isSetupComplete: false,
           email: userData.email || email.trim(),
+          token: authToken,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
 
@@ -232,6 +244,9 @@ export const SignupScreen: React.FC = () => {
                           setFirstName(val);
                           setFirstNameError('');
                         }}
+                        returnKeyType="next"
+                        onSubmitEditing={() => lastNameInputRef.current?.focus()}
+                        blurOnSubmit={false}
                       />
                     </View>
                     {firstNameError !== '' && <Text style={styles.errorText}>{firstNameError}</Text>}
@@ -246,6 +261,7 @@ export const SignupScreen: React.FC = () => {
                     ]}>
                       <Text style={[styles.inputIcon, lastNameFocused && { color: theme.colors.secondaryDark }]}>👤</Text>
                       <TextInput
+                        ref={lastNameInputRef}
                         style={styles.textInput}
                         placeholder=""
                         placeholderTextColor={theme.colors.textLight}
@@ -258,6 +274,9 @@ export const SignupScreen: React.FC = () => {
                           setLastName(val);
                           setLastNameError('');
                         }}
+                        returnKeyType="next"
+                        onSubmitEditing={() => emailInputRef.current?.focus()}
+                        blurOnSubmit={false}
                       />
                     </View>
                     {lastNameError !== '' && <Text style={styles.errorText}>{lastNameError}</Text>}
@@ -272,6 +291,7 @@ export const SignupScreen: React.FC = () => {
                 ]}>
                   <Text style={[styles.inputIcon, emailFocused && { color: theme.colors.secondaryDark }]}>✉️</Text>
                   <TextInput
+                    ref={emailInputRef}
                     style={styles.textInput}
                     placeholder="Enter your email address"
                     placeholderTextColor={theme.colors.textLight}
@@ -285,6 +305,9 @@ export const SignupScreen: React.FC = () => {
                       setEmail(val);
                       setEmailError('');
                     }}
+                    returnKeyType="next"
+                    onSubmitEditing={() => phoneNumberInputRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                 </View>
                 {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
@@ -297,6 +320,7 @@ export const SignupScreen: React.FC = () => {
                 ]}>
                   <Text style={[styles.inputIcon, phoneNumberFocused && { color: theme.colors.secondaryDark }]}>📞</Text>
                   <TextInput
+                    ref={phoneNumberInputRef}
                     style={styles.textInput}
                     placeholder="Enter your phone number"
                     placeholderTextColor={theme.colors.textLight}
@@ -310,6 +334,9 @@ export const SignupScreen: React.FC = () => {
                       setPhoneNumber(val);
                       setPhoneNumberError('');
                     }}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                 </View>
                 {phoneNumberError !== '' && <Text style={styles.errorText}>{phoneNumberError}</Text>}
@@ -322,6 +349,7 @@ export const SignupScreen: React.FC = () => {
                 ]}>
                   <Text style={[styles.inputIcon, passwordFocused && { color: theme.colors.secondaryDark }]}>🔒</Text>
                   <TextInput
+                    ref={passwordInputRef}
                     style={styles.textInput}
                     placeholder="Enter password"
                     placeholderTextColor={theme.colors.textLight}
@@ -335,6 +363,9 @@ export const SignupScreen: React.FC = () => {
                       setPassword(val);
                       setPasswordError('');
                     }}
+                    returnKeyType="next"
+                    onSubmitEditing={() => referralCodeInputRef.current?.focus()}
+                    blurOnSubmit={false}
                   />
                   <TouchableOpacity
                     style={styles.eyeBtn}
@@ -356,6 +387,7 @@ export const SignupScreen: React.FC = () => {
                 ]}>
                   <Text style={[styles.inputIcon, referralFocused && { color: theme.colors.secondaryDark }]}>🎫</Text>
                   <TextInput
+                    ref={referralCodeInputRef}
                     style={styles.textInput}
                     placeholder="Enter referral code (optional)"
                     placeholderTextColor={theme.colors.textLight}
@@ -365,6 +397,8 @@ export const SignupScreen: React.FC = () => {
                     onFocus={() => setReferralFocused(true)}
                     onBlur={() => setReferralFocused(false)}
                     onChangeText={setReferralCode}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSignup}
                   />
                 </View>
 

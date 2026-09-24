@@ -37,14 +37,14 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({ activity, isDark = f
       </View>
       
       <View style={styles.contentContainer}>
-        <View style={styles.row}>
+        <View style={styles.titleRow}>
           <Text style={[styles.type, isDark && { color: '#FFFFFF' }]}>{activity.type}</Text>
           <Text style={[styles.value, { color: activeColor }]}>
             {activity.value.toLocaleString()} {activity.metric}
           </Text>
         </View>
         
-        <View style={styles.row}>
+        <View style={styles.bottomRow}>
           <Text style={[styles.time, isDark && { color: '#94A3B8' }]}>{formatFriendlyDate(activity.timestamp)}</Text>
           <View style={styles.metaRow}>
             <Text style={[styles.metaText, isDark && { color: '#94A3B8' }]}>{formatDuration(activity.durationMinutes)}</Text>
@@ -103,29 +103,44 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+    minWidth: 0,
   },
-  row: {
+  titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: theme.spacing.xs,
   },
   type: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: theme.fonts.weights.bold as any,
     color: theme.colors.text,
+    marginRight: 8,
   },
   value: {
+    flexShrink: 0,
     fontSize: 15,
     fontWeight: theme.fonts.weights.bold as any,
+    textAlign: 'right',
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   time: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 12,
     color: theme.colors.textLight,
+    marginRight: 8,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   metaText: {
     fontSize: 12.5,

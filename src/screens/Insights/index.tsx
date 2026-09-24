@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -35,6 +36,8 @@ import {
   areaPath,
   lerp,
 } from '../../components/charts/CustomSvgCharts';
+import { FitnessTab } from './FitnessTab';
+import { BioSyncTab } from './BioSyncTab';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - scale(32); // margin horizontal (16 * 2)
@@ -145,11 +148,147 @@ const VITALITY_INDEX_DATA = [
 
 const VITALITY_INDEX_LABELS = ['Day 1', '5', '10', '15', '20', '25', '30'];
 
+// Static data for Fitness Tab
+const FITNESS_DAILY_STEPS = {
+  values: [6200, 8100, 5400, 7800, 9200, 11000, 4800],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_DAILY_HEART_POINTS = {
+  values: [22, 35, 18, 30, 42, 55, 15],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_SDEX_ACTIVITY = {
+  values: [45, 58, 42, 60, 72, 85, 38],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_ENERGY_EXPENDED = {
+  values: [240, 310, 210, 290, 350, 420, 180],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const FITNESS_HEART_POINTS_CHARTS = { target: '21.4', actual: '22', performance: '103' };
+const FITNESS_SDEX_CHARTS = { target: '50', actual: '57', performance: '114' };
+const FITNESS_STEPS_CHARTS = { target: '45,000', actual: '52,900', performance: '117' };
+const FITNESS_ENERGY_EXPANDED_CHARTS = { target: '1,800', actual: '2,000', performance: '111' };
+
+// Static data for Bio-sync Tab
+const BIOSYNC_ENERGY_EFFICIENCY = {
+  values: [4.1, 3.7, 4.3, 3.8, 3.9, 3.5, 4.2],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_INTEGRATED_STAMINA = {
+  values: [88, 85, 90, 86, 87, 92, 84],
+  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE = {
+  labels: ['Wk 41', 'Wk 42', 'Wk 43', 'Wk 44'],
+  cys: [75, 78, 80, 83],
+  eeKm: [4.0, 3.9, 3.8, 3.7],
+  is: [84, 85, 86, 88],
+};
+const BIOSYNC_WEEKLY_PERFORMANCE_SUMMARY = { eeKmAvg: '3.85', isAvg: '85.7', cysTotal: '316' };
+const BIOSYNC_PILLAR_HEALTH_DATA = [
+  { label: 'Sleep Consistency', value: 94, color: '#22C55E' },
+  { label: 'Physical Activity', value: 89, color: '#3B82F6' },
+  { label: 'Circadian Alignment', value: 87, color: '#F59E0B' },
+];
+const BIOSYNC_CARDIO_YIELD_DATA = [
+  { day: 'Mon', trend: '+3%', stacks: [18, 22, 24, 12] },
+  { day: 'Tue', trend: '+5%', stacks: [20, 24, 26, 14] },
+  { day: 'Wed', trend: '-2%', stacks: [15, 18, 20, 10] },
+  { day: 'Thu', trend: '+4%', stacks: [19, 22, 25, 12] },
+  { day: 'Fri', trend: '+8%', stacks: [26, 28, 32, 16] },
+  { day: 'Sat', trend: '+6%', stacks: [24, 26, 30, 15] },
+  { day: 'Sun', trend: '+2%', stacks: [17, 20, 22, 11] },
+];
+const BIOSYNC_EE_PER_KM_CHARTS = { target: '4.0', actual: '3.85', performance: '104' };
+const BIOSYNC_INTEGRATED_STAMINA_CHARTS = { target: '82', actual: '85.7', performance: '104' };
+const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '106' };
+const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
+
+const parseFitnessTrendArray = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return undefined;
+  const values = arr.map(item => item.values ?? 0);
+  const labels = arr.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  return { values, labels };
+};
+
+const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
+  if (!weeklyTrend || weeklyTrend.length === 0) return undefined;
+  const labels = weeklyTrend.map(item => {
+    if (!item.date) return '';
+    try {
+      const d = new Date(item.date);
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  });
+  const cys = weeklyTrend.map(item => item.cys ?? 0);
+  const eeKm = weeklyTrend.map(item => item.eeKm ?? 0);
+  const is = weeklyTrend.map(item => item.isAvg ?? 0);
+  return { labels, cys, eeKm, is };
+};
+
+const parseCardioYieldData = (arr?: any[]) => {
+  if (!arr || arr.length === 0) return [];
+  return arr.map(item => {
+    const dayLabel = item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) : `Day ${item.day}`;
+    return {
+      day: dayLabel,
+      trend: '',
+      stacks: [
+        item.morning ?? 0,
+        item.afternoon ?? 0,
+        item.evening ?? 0,
+        item.night ?? 0
+      ]
+    };
+  });
+};
+
+const formatChartSummary = (summaryObj?: any) => {
+  if (!summaryObj) return undefined;
+  const target = summaryObj.target !== undefined && summaryObj.target !== null ? summaryObj.target : undefined;
+  const actual = summaryObj.actual !== undefined && summaryObj.actual !== null ? summaryObj.actual : undefined;
+  let perf = summaryObj.performance !== undefined && summaryObj.performance !== null ? summaryObj.performance : undefined;
+  if (typeof perf === 'string' && perf.endsWith('%')) {
+    perf = perf.slice(0, -1);
+  }
+  if (target === undefined && actual === undefined && perf === undefined) {
+    return undefined;
+  }
+  return {
+    target,
+    actual,
+    performance: perf,
+  };
+};
+
+const getBioSyncStatus = (score?: number) => {
+  if (score === undefined || score === null) return 'green';
+  if (score >= 90) return 'green';
+  if (score >= 70) return 'amber';
+  return 'red';
+};
+
 export const InsightsScreen: React.FC = () => {
-  const [activeScreenTab, setActiveScreenTab] = useState<'trends' | 'transformation'>('trends');
+  const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [fitnessTrend, setFitnessTrend] = useState<any>(null);
+  const [bioSyncTrend, setBioSyncTrend] = useState<any>(null);
+  const [loadingTrends, setLoadingTrends] = useState<boolean>(true);
+  const [targetUhid, setTargetUhid] = useState<string>('JATCHO5525');
+  const [targetDate, setTargetDate] = useState<string>('');
 
   // Interactive index for Activity Trends tooltip selection
   const [selectedTrendIdx, setSelectedTrendIdx] = useState<number>(2); // Default to index 2 (e.g. Wk 43)
@@ -162,60 +301,184 @@ export const InsightsScreen: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('Jun 2026');
   const [showMonthDropdown, setShowMonthDropdown] = useState<boolean>(false);
 
-  // Health Transformation Dynamic API Data states
-  const [transformationLoading, setTransformationLoading] = useState(false);
-  const [transformationData, setTransformationData] = useState<any>(null);
+  // Weekly Report Dynamic API Data states
+  const [weeklyReportLoading, setWeeklyReportLoading] = useState(false);
+  const [weeklyReportData, setWeeklyReportData] = useState<any>(null);
 
   // Scroll & Ref states for horizontal see-more chart
   const chartScrollViewRef = React.useRef<ScrollView>(null);
   const [chartScrollX, setChartScrollX] = useState(0);
 
-  const loadTransformationData = async (monthStr: string) => {
-    setTransformationLoading(true);
+  const loadWeeklyReportData = async () => {
+    setWeeklyReportLoading(true);
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-      
-      // Convert short name to full month name (e.g. "Jun 2026" to "June 2026")
-      const parts = monthStr.split(' ');
-      const shortName = parts[0];
-      const year = parts[1] || '2026';
-      const monthMap: { [key: string]: string } = {
-        Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April',
-        May: 'May', Jun: 'June', Jul: 'July', Aug: 'August',
-        Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December'
-      };
-      const fullMonth = `${monthMap[shortName] || shortName} ${year}`;
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const activeUhid = cachedProfile?.uhid || 'JATCHO5525';
 
-      const res = await apiService.getHealthTransformation(targetUhid, fullMonth);
-      console.log('[InsightsScreen] getHealthTransformation Response:', JSON.stringify(res, null, 2));
+      const res = await apiService.getWeeklyReport(activeUhid);
+      console.log('[InsightsScreen] getWeeklyReport Response:', JSON.stringify(res, null, 2));
 
-      if (res && res.status === 'Success' && res.data) {
-        setTransformationData(res.data);
+      if (res) {
+        setWeeklyReportData(res);
       }
     } catch (error) {
-      console.error('Failed to load health transformation data:', error);
+      console.error('Failed to load weekly report data:', error);
     } finally {
-      setTransformationLoading(false);
+      setWeeklyReportLoading(false);
     }
   };
 
   useEffect(() => {
     if (activeScreenTab === 'transformation') {
-      loadTransformationData(selectedMonth);
+      loadWeeklyReportData();
     }
-  }, [activeScreenTab, selectedMonth]);
+  }, [activeScreenTab]);
+
+  const loadTrendsLogs = async () => {
+    try {
+      const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const activeUhid = cachedProfile?.uhid || 'JATCHO5525';
+      setTargetUhid(activeUhid);
+
+      try {
+        const dailyChartsRes = await apiService.getDailyCharts(activeUhid);
+        console.log('[Insights] daily-charts API SUCCESS:', JSON.stringify(dailyChartsRes, null, 2));
+
+        if (dailyChartsRes) {
+          if (dailyChartsRes.uhid) {
+            setTargetUhid(dailyChartsRes.uhid);
+          }
+          if (dailyChartsRes.target_date) {
+            setTargetDate(dailyChartsRes.target_date);
+          }
+          const metrics = dailyChartsRes.daily_metrics || {};
+          const heartPointsObj = metrics.heart_points || {};
+          const bioSyncObj = dailyChartsRes.bio_sync_charts || {};
+          const labelDate = dailyChartsRes.target_date || 'Today';
+          const totalSteps = dailyChartsRes.daily_steps_breakdown?.total_steps ?? metrics.steps ?? 0;
+
+          const mappedFitnessTrend = {
+            dailyStepsBreakdown: [
+              { date: labelDate, values: totalSteps }
+            ],
+            dailyHeartPoints: [
+              { date: labelDate, values: heartPointsObj.value ?? 0 }
+            ],
+            dailySdex: [
+              { date: labelDate, values: metrics.sdex ?? 0 }
+            ],
+            energyExpanded: [
+              { date: labelDate, values: metrics.energy_expended_kcal ?? 0 }
+            ],
+            dailyActiveMinutes: [
+              { date: labelDate, values: 0 }
+            ],
+            totalHeartPoint: heartPointsObj.value ?? 0,
+            totalDailySdex: metrics.sdex ?? 0,
+            dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
+            dailyHeartPointsCharts: {
+              target: 21.4,
+              actual: heartPointsObj.value ?? 0,
+              performance: Math.round(((heartPointsObj.value ?? 0) / 21.4) * 100),
+            },
+            dailySdexCharts: {
+              target: metrics.sdex_target,
+              actual: metrics.sdex,
+              performance: metrics.sdex_performance_percent
+            },
+            dailyStepsBreakdownCharts: {
+              target: dailyChartsRes.daily_steps_breakdown?.target,
+              actual: totalSteps,
+              performance: dailyChartsRes.daily_steps_breakdown?.performance_percent ?? dailyChartsRes.daily_steps_breakdown?.percent
+            },
+            energyExpandedCharts: {
+              target: metrics.energy_expended_kcal_target,
+              actual: metrics.energy_expended_kcal,
+              performance: metrics.energy_expended_kcal_performance_percent
+            }
+          };
+
+          const ppiVal = bioSyncObj.ppi?.value ?? 0;
+          const e3Val = bioSyncObj.e3?.value ?? 0;
+          const isVal = bioSyncObj.is?.value ?? 0;
+          const bioSyncScore = bioSyncObj.bio_sync?.value ?? 0;
+
+          const mappedBioSyncTrend = {
+            weeklyTrend: [
+              {
+                date: labelDate,
+                cys: ppiVal,
+                eeKm: e3Val,
+                isAvg: isVal
+              }
+            ],
+            integratedStamina: [
+              { date: labelDate, values: isVal }
+            ],
+            eeKmAvg: bioSyncObj.weekly_avg_e3?.value ?? e3Val,
+            eeKmTrend: bioSyncObj.weekly_avg_e3?.trend,
+            isAvg: bioSyncObj.weekly_avg_is?.value ?? isVal,
+            isTrend: bioSyncObj.weekly_avg_is?.trend,
+            cysTotal: bioSyncObj.weekly_avg_ppi?.value ?? ppiVal,
+            cysTrend: bioSyncObj.weekly_avg_ppi?.trend,
+            stability: bioSyncObj.is?.performance_percent ?? bioSyncObj.is?.percent ?? isVal,
+            intensity: bioSyncObj.ppi?.performance_percent ?? bioSyncObj.ppi?.percent ?? ppiVal,
+            metabolic: bioSyncObj.e3?.performance_percent ?? bioSyncObj.e3?.percent ?? 0,
+            cardioYieldPerStep: [
+              {
+                date: labelDate,
+                morning: ppiVal,
+                afternoon: 0,
+                evening: 0,
+                night: 0
+              }
+            ],
+            weeklyBioSyncEfficiencyScore: bioSyncScore,
+            eePerKmCharts: {
+              target: bioSyncObj.e3?.target,
+              actual: e3Val,
+              performance: bioSyncObj.e3?.performance_percent ?? bioSyncObj.e3?.percent
+            },
+            integratedStaminaCharts: {
+              target: bioSyncObj.is?.target,
+              actual: isVal,
+              performance: bioSyncObj.is?.performance_percent ?? bioSyncObj.is?.percent
+            },
+            weeklyTrendCharts: {
+              target: bioSyncObj.bio_sync?.target,
+              actual: bioSyncScore,
+              performance: bioSyncObj.bio_sync?.performance_percent ?? bioSyncObj.bio_sync?.percent
+            },
+            cardioYieldPerStepCharts: {
+              target: bioSyncObj.ppi?.target,
+              actual: ppiVal,
+              performance: bioSyncObj.ppi?.performance_percent ?? bioSyncObj.ppi?.percent
+            },
+            dailyInsightText: dailyChartsRes.daily_insight?.text || dailyChartsRes.daily_insight_text || ''
+          };
+
+          setFitnessTrend(mappedFitnessTrend);
+          setBioSyncTrend(mappedBioSyncTrend);
+        }
+      } catch (dailyChartsError) {
+        console.error('[Insights] daily-charts API ERROR:', dailyChartsError);
+      }
+    } catch (error) {
+      console.error('[Insights] Error fetching daily trend APIs:', error);
+    }
+  };
 
   const loadData = async () => {
+    setLoadingTrends(true);
     try {
       const logs = await apiService.getActivities();
       setActivities(logs);
+      await loadTrendsLogs();
     } catch (error) {
       console.error('Failed to load insights trends activities:', error);
     } finally {
       setRefreshing(false);
+      setLoadingTrends(false);
     }
   };
 
@@ -228,82 +491,36 @@ export const InsightsScreen: React.FC = () => {
     loadData();
   };
 
-  // Compile active trends data
   const getTrendsData = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-
-    if (activeTimeframe === '7days') {
-      const compiled = BASE_7_DAYS.map(p => ({
-        ...p,
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-      
-      // Calculate today's steps/calories from user logs
-      const todayStart = new Date().setHours(0, 0, 0, 0);
-      const todayEnd = new Date().setHours(23, 59, 59, 999);
-      
-      const todayWalkActivities = activities.filter(
-        (a) => a.type === 'Walking' && new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todaySteps = todayWalkActivities.reduce((sum, a) => sum + a.value, 0);
-      
-      const todayAllActivities = activities.filter(
-        (a) => new Date(a.timestamp).getTime() >= todayStart && new Date(a.timestamp).getTime() <= todayEnd
-      );
-      const todayCalories = todayAllActivities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-      
-      // Heart Rate estimation
-      let todayHR = 70;
-      if (todayAllActivities.length > 0) {
-        todayHR = 80; // active heart rate average
-      }
-
-      compiled[6] = {
-        label: 'Sun', // today
-        steps: todaySteps ? Math.round(todaySteps * mult) : Math.round(4800 * mult),
-        calories: todayCalories ? Math.round(todayCalories * mult) : Math.round(210 * mult),
-        hr: todayHR,
-      };
-
-      return compiled;
-    } else if (activeTimeframe === '4weeks') {
-      const labels = ['Wk 01', 'Wk 02', 'Wk 03', 'Wk 04'];
-      const compiled = BASE_4_WEEKS.map((p, idx) => ({
-        label: labels[idx],
-        steps: Math.round(p.steps * mult),
-        calories: Math.round(p.calories * mult),
-        hr: Math.min(200, Math.round(p.hr * (0.95 + (mult - 1) * 0.2))),
-      }));
-
-      // Add active logs to the last week if selectedMonth matches current month and activities are present
-      const currentYear = new Date().getFullYear();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentMonthName = monthNames[new Date().getMonth()];
-      const isCurrentMonth = selectedMonth === `${currentMonthName} ${currentYear}`;
-
-      if (isCurrentMonth) {
-        const week4Steps = activities.reduce((sum, a) => sum + (a.type === 'Walking' ? a.value : 0), 0);
-        const week4Calories = activities.reduce((sum, a) => sum + a.caloriesBurned, 0);
-        if (week4Steps > 0 || week4Calories > 0) {
-          compiled[3] = {
-            label: labels[3],
-            steps: Math.round(Math.max(31000, week4Steps) * mult),
-            calories: Math.round(Math.max(1400, week4Calories) * mult),
-            hr: 75,
-          };
+    if (fitnessTrend && fitnessTrend.dailyStepsBreakdown && fitnessTrend.dailyStepsBreakdown.length > 0) {
+      return fitnessTrend.dailyStepsBreakdown.map((item: any, idx: number) => {
+        const steps = item.values ?? 0;
+        const hr = fitnessTrend.dailyHeartPoints?.[idx]?.values ?? 0;
+        const calories = fitnessTrend.energyExpanded?.[idx]?.values ?? 0;
+        
+        let label = '';
+        if (item.date) {
+          try {
+            if (item.date.length === 3 || isNaN(Date.parse(item.date))) {
+              label = item.date.slice(0, 3);
+            } else {
+              const d = new Date(item.date);
+              label = d.toLocaleDateString('en-US', { weekday: 'short' });
+            }
+          } catch {
+            label = item.date ? String(item.date).slice(0, 3) : '';
+          }
         }
-      }
-      return compiled;
-    } else {
-      let count = 3;
-      if (activeTimeframe === '6months') count = 6;
-      else if (activeTimeframe === '9months') count = 9;
-      else if (activeTimeframe === '12months') count = 12;
-
-      return getMonthsSequence(selectedMonth, count).map(item => getMonthlyDataPoint(item.label, item.year));
+        
+        return {
+          label,
+          steps,
+          calories,
+          hr
+        };
+      });
     }
+    return [];
   };
 
   const trendPoints = getTrendsData();
@@ -318,38 +535,20 @@ export const InsightsScreen: React.FC = () => {
   // Dynamic values based on selected index in chart
   const activePoint = trendPoints[selectedTrendIdx] || trendPoints[0];
 
-  // Helper values for distance & active minutes summary
   const getSummaryMetrics = () => {
-    const mult = getMonthMultiplier(selectedMonth);
-    let totalDistance = 112.5;
-    let distanceDiff = '+12%';
-    let activeMinutes = 980;
-    let activeMinutesDiff = '+8%';
+    let totalDistance = 0.0;
+    let distanceDiff = '';
+    let activeMinutes = 0;
+    let activeMinutesDiff = '';
 
-    if (activeTimeframe === '7days') {
-      const stepsSum = trendPoints.reduce((sum, p) => sum + p.steps, 0);
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026';
+
+    if (isDataAvailable && fitnessTrend && fitnessTrend.dailyStepsBreakdown) {
+      const stepsSum = trendPoints.reduce((sum: number, p: any) => sum + (p.steps || 0), 0);
       totalDistance = parseFloat((stepsSum * 0.0008).toFixed(1));
-      distanceDiff = '+4%';
-      activeMinutes = activities.reduce((sum, a) => sum + a.durationMinutes, 0) || 180;
-      activeMinutesDiff = '+3%';
-    } else if (activeTimeframe === '4weeks') {
-      totalDistance = parseFloat((112.5 * mult).toFixed(1));
-      activeMinutes = Math.round(980 * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(12 * mult)}%` : `+${Math.round(12 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(8 * mult)}%` : `+${Math.round(8 * mult)}%`;
-    } else if (activeTimeframe === '3months' || activeTimeframe === '6months' || activeTimeframe === '9months' || activeTimeframe === '12months') {
-      let baseDistance = 384.2;
-      let baseMinutes = 3450;
-      let factor = 1.0;
       
-      if (activeTimeframe === '6months') factor = 2.0;
-      else if (activeTimeframe === '9months') factor = 3.0;
-      else if (activeTimeframe === '12months') factor = 4.0;
-
-      totalDistance = parseFloat((baseDistance * factor * mult).toFixed(1));
-      activeMinutes = Math.round(baseMinutes * factor * mult);
-      distanceDiff = mult >= 1.0 ? `+${Math.round(18 * mult)}%` : `+${Math.round(18 * mult)}%`;
-      activeMinutesDiff = mult >= 1.0 ? `+${Math.round(15 * mult)}%` : `+${Math.round(15 * mult)}%`;
+      const minsArray = fitnessTrend.dailyActiveMinutes || [];
+      activeMinutes = minsArray.reduce((sum: number, p: any) => sum + (p.values ?? 0), 0);
     }
 
     return { totalDistance, distanceDiff, activeMinutes, activeMinutesDiff };
@@ -359,6 +558,18 @@ export const InsightsScreen: React.FC = () => {
 
   // Draw Activity SVG Chart
   const renderActivityTrendsChart = () => {
+    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026' && trendPoints && trendPoints.length > 0;
+
+    if (!isDataAvailable) {
+      return (
+        <View style={[styles.chartOuterContainer, { height: CHART_HEIGHT, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16 }]}>
+          <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500' }}>
+            No data available for this selection.
+          </Text>
+        </View>
+      );
+    }
+
     const pL = scale(46);
     const pR = scale(34);
     const pT = verticalScale(34); // extra space at top for tooltip
@@ -368,24 +579,25 @@ export const InsightsScreen: React.FC = () => {
     const n = trendPoints.length;
 
     // Steps values mapping (Left axis scale max)
-    const isMonthlyView = activeTimeframe === '3months' || activeTimeframe === '6months' || activeTimeframe === '9months' || activeTimeframe === '12months';
-    const maxSteps = isMonthlyView ? 200000 : activeTimeframe === '4weeks' ? 50000 : 15000;
+    const currentTf: string = activeTimeframe;
+    const isMonthlyView = currentTf === '3months' || currentTf === '6months' || currentTf === '9months' || currentTf === '12months';
+    const maxSteps = isMonthlyView ? 200000 : currentTf === '4weeks' ? 50000 : 15000;
     const toYSteps = (v: number) => pT + cH - lerp(v, 0, maxSteps, 0, cH);
 
     // Calories mapping (Right axis scale max)
-    const maxCal = isMonthlyView ? 10000 : activeTimeframe === '4weeks' ? 3000 : 600;
+    const maxCal = isMonthlyView ? 10000 : currentTf === '4weeks' ? 3000 : 600;
     const toYCal = (v: number) => pT + cH - lerp(v, 0, maxCal, 0, cH);
 
     // Heart Rate mapping (scale: 0 to 200)
     const toYHR = (v: number) => pT + cH - lerp(v, 0, 200, 0, cH);
 
-    const xs = trendPoints.map((_, i) =>
+    const xs = trendPoints.map((_: any, i: number) =>
       n <= 1 ? pL + cW / 2 : pL + (i / (n - 1)) * cW
     );
 
-    const stepPts = trendPoints.map((p, i) => ({ x: xs[i], y: toYSteps(p.steps) }));
-    const calPts = trendPoints.map((p, i) => ({ x: xs[i], y: toYCal(p.calories) }));
-    const hrPts = trendPoints.map((p, i) => ({ x: xs[i], y: toYHR(p.hr) }));
+    const stepPts = trendPoints.map((p: any, i: number) => ({ x: xs[i], y: toYSteps(p.steps) }));
+    const calPts = trendPoints.map((p: any, i: number) => ({ x: xs[i], y: toYCal(p.calories) }));
+    const hrPts = trendPoints.map((p: any, i: number) => ({ x: xs[i], y: toYHR(p.hr) }));
 
     const stepPath = smoothPath(stepPts);
     const calPath = smoothPath(calPts);
@@ -527,7 +739,7 @@ export const InsightsScreen: React.FC = () => {
           />
 
           {/* X Labels */}
-          {trendPoints.map((p, i) => {
+          {trendPoints.map((p: any, i: number) => {
             const showLabel = trendPoints.length <= 6 || i % 2 === 0 || i === selectedTrendIdx;
             if (!showLabel) return null;
 
@@ -582,7 +794,7 @@ export const InsightsScreen: React.FC = () => {
           })()}
 
           {/* Interactive touch grid columns */}
-          {trendPoints.map((_, i) => {
+          {trendPoints.map((_: any, i: number) => {
             const slotW = cW / n;
             const clickX = xs[i] - slotW / 2;
             return (
@@ -602,190 +814,204 @@ export const InsightsScreen: React.FC = () => {
     );
   };
 
-  // Draw 30-Day Predictive Health View (Neon-Green)
-  const renderPredictiveHealthChart = () => {
-    const activeData = transformationData?.chartData?.vitalityIndexData || VITALITY_INDEX_DATA;
-    const activeLabels = transformationData?.chartData?.vitalityIndexLabels || VITALITY_INDEX_LABELS;
-
-    const pL = scale(32);
-    const pR = scale(20);
-    const pT = verticalScale(16);
-    const pB = verticalScale(20);
-    
-    // Wider width to support scrolling
-    const dynamicChartWidth = CHART_WIDTH * 1.35;
-    const cW = dynamicChartWidth - pL - pR;
-    const cH = CHART_HEIGHT - pT - pB;
-    const n = activeData.length;
-    const baseY = pT + cH;
-
-    const xsPoints = activeData.map((_: number, i: number) =>
-      pL + (i / (n - 1)) * cW
-    );
-    const toY = (v: number) => pT + cH - lerp(v, 0, 100, 0, cH);
-
-    const points = activeData.map((v: number, i: number) => ({
-      x: xsPoints[i],
-      y: toY(v),
-    }));
-
-    const linePath = smoothPath(points);
-
-    // Map labels to align at Days 1, 5, 10, 15, 20, 25, 30 mathematically
-    const labelIndices = activeLabels.map((_: string, idx: number) => {
-      if (idx === 0) return 0;
-      if (idx === activeLabels.length - 1) return n - 1;
-      return Math.round((idx / (activeLabels.length - 1)) * (n - 1));
+  // Markdown renderer helper for bold (**text**) and italic (*text*)
+  const renderInlineMarkdown = (text: string, baseStyle?: any) => {
+    if (!text) return null;
+    const tokens = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return tokens.map((token, idx) => {
+      if (token.startsWith('**') && token.endsWith('**')) {
+        const boldText = token.slice(2, -2);
+        return (
+          <Text key={idx} style={[baseStyle, styles.mdBold]}>
+            {boldText}
+          </Text>
+        );
+      }
+      if (token.startsWith('*') && token.endsWith('*')) {
+        const italicText = token.slice(1, -1);
+        return (
+          <Text key={idx} style={[baseStyle, styles.mdItalic]}>
+            {italicText}
+          </Text>
+        );
+      }
+      return (
+        <Text key={idx} style={baseStyle}>
+          {token}
+        </Text>
+      );
     });
-    const xsLabels = activeLabels.map((_: string, idx: number) => {
-      const dataIdx = labelIndices[idx];
-      return xsPoints[dataIdx];
-    });
+  };
 
-    return (
-      <View style={styles.scrollChartContainer}>
-        <ScrollView
-          ref={chartScrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onScroll={(e) => setChartScrollX(e.nativeEvent.contentOffset.x)}
-          scrollEventThrottle={16}
-          contentContainerStyle={{ width: dynamicChartWidth }}
+  const renderWeeklyReportSections = (rawText: string) => {
+    if (!rawText) return null;
+    const rawSections = rawText
+      .split(/\n\s*---\s*\n|(?:\r?\n){2,}---(?:\r?\n){1,}/)
+      .filter((s) => s.trim().length > 0);
+
+    return rawSections.map((sectionStr, index) => {
+      const lines = sectionStr
+        .trim()
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      if (lines.length === 0) return null;
+
+      let headerLine = '';
+      let contentLines: string[] = [];
+
+      if (lines[0].startsWith('###')) {
+        headerLine = lines[0].replace(/^###\s*/, '').trim();
+        contentLines = lines.slice(1);
+      } else {
+        contentLines = lines;
+      }
+
+      let cardAccentColor = '#0284c7'; // default blue
+      let cardBg = '#ffffff';
+      let cardBorderColor = '#E2E8F0';
+
+      if (headerLine.includes('PART 1') || headerLine.includes('🟢') || headerLine.includes('Scorecard')) {
+        cardAccentColor = '#059669'; // emerald
+        cardBorderColor = '#A7F3D0';
+        cardBg = '#F0FDF4';
+      } else if (headerLine.includes('PART 2') || headerLine.includes('🌟') || headerLine.includes('Success')) {
+        cardAccentColor = '#2563eb'; // blue
+        cardBorderColor = '#BFDBFE';
+        cardBg = '#EFF6FF';
+      } else if (headerLine.includes('PART 3') || headerLine.includes('🚨') || headerLine.includes('Shortcoming') || headerLine.includes('Focus')) {
+        cardAccentColor = '#d97706'; // amber
+        cardBorderColor = '#FDE68A';
+        cardBg = '#FFFBEB';
+      } else if (headerLine.includes('BIO-SYNC') || headerLine.includes('REPORT')) {
+        cardAccentColor = '#4F46E5'; // indigo
+        cardBorderColor = '#C7D2FE';
+        cardBg = '#EEF2FF';
+      }
+
+      return (
+        <View
+          key={`report-section-${index}`}
+          style={[
+            styles.weeklySectionCard,
+            { borderColor: cardBorderColor, backgroundColor: cardBg },
+          ]}
         >
-          <Svg width={dynamicChartWidth} height={CHART_HEIGHT}>
-            <Defs>
-              <SvgLinearGradient id="emeraldFill" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-                <Stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
-              </SvgLinearGradient>
-            </Defs>
+          {headerLine ? (
+            <View style={[styles.weeklySectionHeaderRow, { borderBottomColor: cardBorderColor }]}>
+              <Text style={[styles.weeklySectionTitle, { color: cardAccentColor }]}>
+                {headerLine}
+              </Text>
+            </View>
+          ) : null}
 
-            {/* Grid lines (Horizontal: 0, 20, 40, 60, 80, 100) */}
-            {[0, 20, 40, 60, 80, 100].map((v) => {
-              const y = toY(v);
+          <View style={styles.weeklySectionBody}>
+            {contentLines.map((line, lIdx) => {
+              const isBullet = line.startsWith('*') || line.startsWith('-');
+              const cleanLine = isBullet ? line.replace(/^[\*\-]\s*/, '') : line;
+
+              // Check if metric row: e.g. "**1. Bio-Sync Efficiency (BSE):** **21.4 / 100**"
+              const isMetricRow = isBullet && (cleanLine.includes(':**') || cleanLine.includes(':'));
+
+              if (isMetricRow) {
+                return (
+                  <View key={`metric-${lIdx}`} style={styles.weeklyMetricRow}>
+                    <Text style={[styles.bulletDot, { color: cardAccentColor }]}>●</Text>
+                    <Text style={styles.weeklyMetricText}>
+                      {renderInlineMarkdown(cleanLine, styles.weeklyMetricBaseText)}
+                    </Text>
+                  </View>
+                );
+              }
+
+              if (isBullet) {
+                return (
+                  <View key={`bullet-${lIdx}`} style={styles.weeklyBulletRow}>
+                    <Text style={[styles.bulletPointIcon, { color: cardAccentColor }]}>•</Text>
+                    <Text style={styles.weeklyBulletContent}>
+                      {renderInlineMarkdown(cleanLine, styles.weeklyBulletText)}
+                    </Text>
+                  </View>
+                );
+              }
+
               return (
-                <G key={v}>
-                  <Line
-                    x1={pL}
-                    y1={y}
-                    x2={dynamicChartWidth - pR}
-                    y2={y}
-                    stroke="#cbd5e1"
-                    strokeWidth={0.8}
-                    opacity={0.12}
-                  />
-                  <SvgText
-                    x={pL - 6}
-                    y={y + 3}
-                    textAnchor="end"
-                    fontSize={8}
-                    fill={C.textGray}
-                    fontWeight="600"
-                  >
-                    {String(v)}
-                  </SvgText>
-                </G>
+                <Text key={`para-${lIdx}`} style={styles.weeklyParagraphText}>
+                  {renderInlineMarkdown(line, styles.weeklyParagraphText)}
+                </Text>
               );
             })}
-
-            {/* Area Fill */}
-            {showEmeraldGradient && (
-              <Path d={areaPath(points, baseY)} fill="url(#emeraldFill)" />
-            )}
-
-            {/* Green Line */}
-            <Path
-              d={linePath}
-              stroke={showGreenLine ? '#10b981' : '#64748b'}
-              strokeWidth={3}
-              fill="none"
-            />
-
-            {/* Key data point highlight dots */}
-            {labelIndices.map((dataIdx: number, i: number) => {
-              const p = points[dataIdx];
-              if (!p) return null;
-              return (
-                <Circle
-                  key={i}
-                  cx={p.x}
-                  cy={p.y}
-                  r={4}
-                  fill={showGreenLine ? '#10b981' : '#64748b'}
-                />
-              );
-            })}
-
-            {/* X Axis Labels */}
-            {activeLabels.map((l: string, i: number) => (
-              <SvgText
-                key={i}
-                x={xsLabels[i]}
-                y={CHART_HEIGHT - 4}
-                textAnchor={i === 0 ? 'start' : i === activeLabels.length - 1 ? 'end' : 'middle'}
-                fontSize={8}
-                fill={C.textGray}
-                fontWeight="600"
-              >
-                {l}
-              </SvgText>
-            ))}
-          </Svg>
-        </ScrollView>
-
-        {/* See More Navigation Overlay Arrows */}
-        {chartScrollX < (dynamicChartWidth - CHART_WIDTH - 10) && (
-          <TouchableOpacity
-            style={styles.seeMoreBtnRight}
-            onPress={() => chartScrollViewRef.current?.scrollTo({ x: dynamicChartWidth - CHART_WIDTH, animated: true })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.seeMoreText}>See More ➡️</Text>
-          </TouchableOpacity>
-        )}
-
-        {chartScrollX > 10 && (
-          <TouchableOpacity
-            style={styles.seeMoreBtnLeft}
-            onPress={() => chartScrollViewRef.current?.scrollTo({ x: 0, animated: true })}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.seeMoreText}>⬅️ Prev</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
+          </View>
+        </View>
+      );
+    });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <CustomHeader title="Health Insights & Trends" showDrawerButton />
-
-      {/* Background Soft Glow Spots */}
+      <CustomHeader title="Fitness Insights & Trends" showDrawerButton />
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
 
-      {/* Screen Segment Selector */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('trends')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+      <View style={styles.tabScrollContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabContainer}
         >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
-            Activity Trends
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveScreenTab('transformation')}
-          activeOpacity={0.8}
-          style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
-        >
-          <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
-            Health Transformation
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('fitness')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'fitness' && styles.tabActiveText]}>
+              Daily Metrics
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('bio-sync')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'bio-sync' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'bio-sync' && styles.tabActiveText]}>
+              Bio-Sync
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('trends')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
+              Activity Trends
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveScreenTab('transformation')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'transformation' && styles.tabActiveText]}>
+              Weekly Report
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
+
+      {/* Target Date & UHID Info Banner (Rendered below tabs, only for Daily Metrics and Bio-Sync) */}
+      {(activeScreenTab === 'fitness' || activeScreenTab === 'bio-sync') && (
+        <View style={styles.topInfoBar}>
+          <View style={styles.infoBarChip}>
+            <Text style={styles.infoBarLabel}>UHID: </Text>
+            <Text style={styles.infoBarValue}>{targetUhid}</Text>
+          </View>
+          <View style={styles.infoBarChip}>
+            <Text style={styles.infoBarLabel}>Target Date: </Text>
+            <Text style={styles.infoBarDateValue}>{targetDate || 'Today'}</Text>
+          </View>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -793,7 +1019,79 @@ export const InsightsScreen: React.FC = () => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.colors.primary]} />
         }
       >
-        {activeScreenTab === 'trends' ? (
+        {activeScreenTab === 'fitness' && (
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading fitness insights...
+              </Text>
+            </View>
+          ) : (
+            <FitnessTab
+              chartWidth={CHART_WIDTH}
+              dailyStepsBreakdown={parseFitnessTrendArray(fitnessTrend?.dailyStepsBreakdown)}
+              dailyHeartPoints={parseFitnessTrendArray(fitnessTrend?.dailyHeartPoints)}
+              sdexActivity={parseFitnessTrendArray(fitnessTrend?.dailySdex)}
+              energyExpended={parseFitnessTrendArray(fitnessTrend?.energyExpanded)}
+              totalHeartPoint={fitnessTrend?.totalHeartPoint ?? 0}
+              totalDailySdex={fitnessTrend?.totalDailySdex ?? 0}
+              dailyHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyHeartPointsCharts)}
+              dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
+              dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
+              energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
+              dailyInsightText={fitnessTrend?.dailyInsightText}
+            />
+          )
+        )}
+
+        {activeScreenTab === 'bio-sync' && (
+          loadingTrends ? (
+            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                Loading bio-sync data...
+              </Text>
+            </View>
+          ) : (
+            <BioSyncTab
+              chartWidth={CHART_WIDTH}
+              energyEfficiency={parseFitnessTrendArray(
+                bioSyncTrend?.weeklyTrend
+                  ? bioSyncTrend.weeklyTrend.map((item: any) => ({
+                      ...item,
+                      values: item.eeKm,
+                    }))
+                  : undefined
+              )}
+              integratedStamina={parseFitnessTrendArray(bioSyncTrend?.integratedStamina)}
+              weeklyPerformance={parseWeeklyPerformance(bioSyncTrend?.weeklyTrend)}
+              weeklyPerformanceSummary={{
+                eeKmAvg: bioSyncTrend?.eeKmAvg ?? 0,
+                eeKmTrend: bioSyncTrend?.eeKmTrend,
+                isAvg: bioSyncTrend?.isAvg ?? 0,
+                isTrend: bioSyncTrend?.isTrend,
+                cysTotal: bioSyncTrend?.cysTotal ?? 0,
+                cysTrend: bioSyncTrend?.cysTrend,
+              }}
+              pillarHealthData={[
+                { label: 'Stamina (IS)', value: bioSyncTrend?.stability ?? 0, color: '#22C55E' },
+                { label: 'Intensity (PPI)', value: bioSyncTrend?.intensity ?? 0, color: '#3B82F6' },
+                { label: 'Metabolic (E3)', value: bioSyncTrend?.metabolic ?? 0, color: '#F59E0B' },
+              ]}
+              cardioYieldData={parseCardioYieldData(bioSyncTrend?.cardioYieldPerStep)}
+              weeklyBioSyncEfficiencyScore={bioSyncTrend?.weeklyBioSyncEfficiencyScore ?? 0}
+              eePerKmCharts={formatChartSummary(bioSyncTrend?.eePerKmCharts)}
+              integratedStaminaCharts={formatChartSummary(bioSyncTrend?.integratedStaminaCharts)}
+              weeklyTrendCharts={formatChartSummary(bioSyncTrend?.weeklyTrendCharts)}
+              cardioYieldPerStepCharts={formatChartSummary(bioSyncTrend?.cardioYieldPerStepCharts)}
+              status={getBioSyncStatus(bioSyncTrend?.weeklyBioSyncEfficiencyScore)}
+              dailyInsightText={bioSyncTrend?.dailyInsightText || fitnessTrend?.dailyInsightText}
+            />
+          )
+        )}
+
+        {activeScreenTab === 'trends' && (
           /* View 1: Activity Trends Chart */
           <View>
             <View style={styles.sectionHeaderRow}>
@@ -895,9 +1193,11 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Total Distance</Text>
                   <Text style={styles.summaryValue}>{summary.totalDistance} km</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.distanceDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
 
@@ -912,113 +1212,68 @@ export const InsightsScreen: React.FC = () => {
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Active Minutes</Text>
                   <Text style={styles.summaryValue}>{summary.activeMinutes} min</Text>
-                  <Text style={styles.summarySubtext}>
-                    <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
-                  </Text>
+                  {!!summary.activeMinutesDiff && (
+                    <Text style={styles.summarySubtext}>
+                      <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth
+                    </Text>
+                  )}
                 </View>
               </LinearGradient>
             </View>
           </View>
-        ) : (
-          /* View 2: Your 30-Day Health Transformation */
-          <View>
-            <Text style={styles.transformationHeaderTitle}>Your 30-Day Health Transformation</Text>
+        )}
 
-            <View style={styles.transformCard}>
-              <View style={styles.transformCardHeader}>
-                <Text style={styles.transformCardTitle}>30-Day Predictive Health View</Text>
-                <Text style={styles.transformCardSub}>Trailing 30-day proactive lifestyle adaptation index.</Text>
-              </View>
+        {activeScreenTab === 'transformation' && (
+          /* View: Your Weekly Fitness Transformation */
+          <View style={styles.weeklyReportContainer}>
+            <Text style={styles.transformationHeaderTitle}>Your Weekly Fitness Transformation</Text>
 
-              <Text style={styles.chartTitleLabel}>Vitality Score (Last 30 days)</Text>
-
-              {/* Render green SingleLine SVG chart */}
-              {renderPredictiveHealthChart()}
-
-              {/* Toggles check box row */}
-              <View style={styles.togglesContainerRow}>
-                {/* Checkbox 1: Green line */}
-                <TouchableOpacity
-                  onPress={() => setShowGreenLine(!showGreenLine)}
-                  activeOpacity={0.8}
-                  style={styles.checkboxWrapper}
-                >
-                  <View style={[styles.checkboxOutline, showGreenLine && styles.checkboxActive]}>
-                    {showGreenLine && <Text style={styles.checkIcon}>✓</Text>}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Neon-Green SVG Trend Line</Text>
-                </TouchableOpacity>
-
-                {/* Checkbox 2: Soft gradient */}
-                <TouchableOpacity
-                  onPress={() => setShowEmeraldGradient(!showEmeraldGradient)}
-                  activeOpacity={0.8}
-                  style={styles.checkboxWrapper}
-                >
-                  <View style={[styles.checkboxOutline, showEmeraldGradient && styles.checkboxActive]}>
-                    {showEmeraldGradient && <Text style={styles.checkIcon}>✓</Text>}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Soft Emerald Gradient</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Proactive Summary metrics */}
-            <Text style={styles.groupLabel}>PROACTIVE MONTHLY SUMMARY METRICS</Text>
-            <View style={styles.proactiveGrid}>
-              <View style={styles.proactiveCard}>
-                <View style={[styles.proactiveBadgeCircle, { backgroundColor: '#d1fae5' }]}>
-                  <Text style={styles.proactiveBadgeText}>👍</Text>
-                </View>
-                <View style={styles.proactiveTextContainer}>
-                  <Text style={styles.proactiveLabel}>Total Gain Points</Text>
-                  <Text style={styles.proactiveValue}>
-                    {transformationData?.summaryMetrics?.totalGainPoints || '15,240 pts'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.proactiveCard}>
-                <View style={[styles.proactiveBadgeCircle, { backgroundColor: '#d1fae5' }]}>
-                  <Text style={styles.proactiveBadgeText}>🌙</Text>
-                </View>
-                <View style={styles.proactiveTextContainer}>
-                  <Text style={styles.proactiveLabel}>Avg Sleep Depth</Text>
-                  <Text style={styles.proactiveValue}>
-                    {transformationData?.summaryMetrics?.avgSleepDepth || '7.6 hrs/night'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Layman Interpretation */}
-            <View style={styles.transformCard}>
-              <Text style={styles.interpretationTitle}>PRECISE LAYMAN INTERPRETATION</Text>
-              <Text style={styles.interpretationSub}>What This Trend Means For You</Text>
-              <Text style={styles.interpretationBody}>
-                {transformationData?.interpretation?.generalDescription || 'Your Vitality Score represents your overall cardio-respiratory efficiency, muscle endurance, and metabolic stability combined.'}
-              </Text>
-              
-              <View style={styles.bulletRow}>
-                <Text style={styles.bulletPoint}>•</Text>
-                <Text style={styles.bulletText}>
-                  <Text style={styles.bulletBold}>
-                    {transformationData?.interpretation?.heartStrengthTitle || 'Your Heart is Getting Stronger (The Upward Curve):'}{' '}
-                  </Text>
-                  {transformationData?.interpretation?.heartStrengthText || "Notice how your trend line steadily climbs. This isn't random; it means as your heart pumps blood more efficiently per beat, your lungs utilize oxygen better, and your overall physical stamina has increased by about 10%."}
+            {weeklyReportLoading ? (
+              <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
+                  Loading weekly fitness transformation report...
                 </Text>
               </View>
+            ) : weeklyReportData ? (
+              <View style={{ gap: verticalScale(14) }}>
+                {/* Meta summary chip row if metadata exists */}
+                {weeklyReportData.report_metadata && (
+                  <View style={styles.weeklyMetaHeader}>
+                    {weeklyReportData.user_id ? (
+                      <View style={styles.weeklyMetaBadge}>
+                        <Text style={styles.weeklyMetaLabel}>UHID: </Text>
+                        <Text style={styles.weeklyMetaValue}>{weeklyReportData.user_id}</Text>
+                      </View>
+                    ) : null}
+                    {weeklyReportData.report_metadata.week_code ? (
+                      <View style={styles.weeklyMetaBadge}>
+                        <Text style={styles.weeklyMetaLabel}>Week: </Text>
+                        <Text style={styles.weeklyMetaValue}>{weeklyReportData.report_metadata.week_code}</Text>
+                      </View>
+                    ) : null}
+                    {weeklyReportData.report_metadata.generation_timestamp_utc ? (
+                      <View style={styles.weeklyMetaBadge}>
+                        <Text style={styles.weeklyMetaLabel}>Generated: </Text>
+                        <Text style={styles.weeklyMetaValue}>
+                          {new Date(weeklyReportData.report_metadata.generation_timestamp_utc).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
 
-              <View style={styles.bulletRow}>
-                <Text style={styles.bulletPoint}>•</Text>
-                <Text style={styles.bulletText}>
-                  <Text style={styles.bulletBold}>
-                    {transformationData?.interpretation?.recoveryReservesTitle || 'Your Recovery Reserves are Locked In (The Safe Baselines):'}{' '}
-                  </Text>
-                  {transformationData?.interpretation?.recoveryReservesText || "Even on harder weeks, your trend never plummets. Maintaining a 7.6-hour average sleep depth protects your nervous system and ensures that on shorter sleep days, our Auto-Pacing Mode steps in so you build up reserves rather than straining muscles."}
+                {/* Render sections parsed from raw_body_text */}
+                {renderWeeklyReportSections(weeklyReportData.ui_rendering_payload?.raw_body_text || '')}
+              </View>
+            ) : (
+              <View style={[styles.transformCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                <Text style={{ fontSize: 32, marginBottom: 12 }}>📋</Text>
+                <Text style={{ color: '#64748b', fontSize: 14, fontWeight: '600' }}>
+                  No weekly report available at this moment.
                 </Text>
               </View>
-            </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -1103,21 +1358,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.secondary + '08',
     zIndex: -1,
   },
+  tabScrollContainer: {
+    paddingHorizontal: theme.spacing.containerPadding,
+    marginTop: theme.spacing.md,
+    height: 48,
+  },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(99, 102, 241, 0.06)',
     borderRadius: 12,
-    marginHorizontal: theme.spacing.containerPadding,
-    marginTop: theme.spacing.md,
     padding: 4,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.12)',
+    alignItems: 'center',
   },
   tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
+    marginRight: 4,
   },
   tabActiveBtn: {
     backgroundColor: theme.colors.primary,
@@ -1558,6 +1818,149 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 9.5,
     fontWeight: '800',
+  },
+  topInfoBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: scale(16),
+    marginTop: verticalScale(4),
+    marginBottom: verticalScale(8),
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(6),
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  infoBarChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoBarLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  infoBarValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  infoBarDateValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0284c7',
+  },
+  weeklyReportContainer: {
+    paddingBottom: verticalScale(20),
+  },
+  weeklyMetaHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: verticalScale(4),
+  },
+  weeklyMetaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(4),
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  weeklyMetaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  weeklyMetaValue: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  weeklySectionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: scale(16),
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  weeklySectionHeaderRow: {
+    paddingBottom: verticalScale(10),
+    marginBottom: verticalScale(10),
+    borderBottomWidth: 1,
+  },
+  weeklySectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  weeklySectionBody: {
+    gap: verticalScale(8),
+  },
+  weeklyMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(8),
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  bulletDot: {
+    fontSize: 10,
+    marginRight: scale(8),
+    marginTop: verticalScale(2),
+  },
+  weeklyMetricText: {
+    flex: 1,
+  },
+  weeklyMetricBaseText: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 18,
+  },
+  weeklyBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  bulletPointIcon: {
+    fontSize: 16,
+    marginRight: scale(8),
+    marginTop: verticalScale(-2),
+  },
+  weeklyBulletContent: {
+    flex: 1,
+  },
+  weeklyBulletText: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 19,
+  },
+  weeklyParagraphText: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 20,
+  },
+  mdBold: {
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  mdItalic: {
+    fontStyle: 'italic',
+    color: '#64748B',
   },
 });
 
