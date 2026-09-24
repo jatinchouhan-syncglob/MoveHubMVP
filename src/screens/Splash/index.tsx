@@ -42,8 +42,9 @@ export const SplashScreen: React.FC = () => {
     // 2. Perform Session Check after timer
     const checkSetupState = async () => {
       try {
+        const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        if (cachedProfile?.isSetupComplete) {
+        if (token && cachedProfile?.isSetupComplete) {
           navigation.replace(ROUTES.DRAWER);
         } else {
           navigation.replace(ROUTES.LOGIN);
@@ -63,8 +64,9 @@ export const SplashScreen: React.FC = () => {
 
   const handleSkip = async () => {
     try {
+      const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      if (cachedProfile?.isSetupComplete) {
+      if (token && cachedProfile?.isSetupComplete) {
         navigation.replace(ROUTES.DRAWER);
       } else {
         navigation.replace(ROUTES.LOGIN);

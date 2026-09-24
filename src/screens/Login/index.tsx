@@ -123,6 +123,10 @@ export const LoginScreen: React.FC = () => {
 
           if (response && response.status === 'Success') {
             const userData = response.data || {};
+            const authToken = userData.token || response.token;
+            if (authToken) {
+              await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+            }
             const userProfile: UserProfile = {
               uhid: userData.uhid || 'SAUSHA9775',
               name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
@@ -132,6 +136,7 @@ export const LoginScreen: React.FC = () => {
               calorieGoal: userData.calorieGoal || 2400,
               isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
               email: userData.email || savedCredentials.email,
+              token: authToken,
             };
             await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
             syncHealthConnectAnalytics().catch(() => {});
@@ -197,6 +202,10 @@ export const LoginScreen: React.FC = () => {
 
       if (response && response.status === 'Success') {
         const userData = response.data || {};
+        const authToken = userData.token || response.token;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
         
         // Save the profile to storage
         const userProfile: UserProfile = {
@@ -208,6 +217,7 @@ export const LoginScreen: React.FC = () => {
           calorieGoal: userData.calorieGoal || 2400,
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || email.trim(),
+          token: authToken,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
         syncHealthConnectAnalytics().catch(() => {});

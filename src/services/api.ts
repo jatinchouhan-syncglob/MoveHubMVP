@@ -20,6 +20,44 @@ export const BACKEND_8081_URL =
 export const BACKEND_8082_URL =
   'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com';
 
+import { storageHelper } from '../storage/storageHelper';
+import { STORAGE_KEYS } from '../storage/storageKeys';
+
+// Attach Global Axios Request Interceptor for Token-based Authentication
+axios.interceptors.request.use(
+  async config => {
+    try {
+      const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
+      if (token) {
+        config.headers = config.headers || {};
+        if (!config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      }
+    } catch (err) {
+      console.warn('[apiService] Error attaching token to request:', err);
+    }
+    return config;
+  },
+  error => Promise.reject(error),
+);
+
+// Global Axios Response Interceptor for handling 401 Unauthorized / Token Expiry
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.warn('[apiService] 401/403 Unauthorized detected! Token expired or invalid.');
+      try {
+        await storageHelper.removeItem(STORAGE_KEYS.TOKEN);
+      } catch (e) {
+        console.warn('[apiService] Error removing expired token:', e);
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 // Create Axios Instance
 export const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -29,30 +67,6 @@ export const axiosInstance = axios.create({
   },
 });
 
-// Request Interceptor (e.g. to attach auth token later)
-axiosInstance.interceptors.request.use(
-  async config => {
-    // const token = await storageHelper.getItem(STORAGE_KEYS.TOKEN);
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
-    return config;
-  },
-  error => Promise.reject(error),
-);
-
-// Response Interceptor
-axiosInstance.interceptors.response.use(
-  response => response.data,
-  error => {
-    // Centralized error handling
-    console.error('API Error Response:', error.response || error.message);
-    return Promise.reject(error);
-  },
-);
-
-import { storageHelper } from '../storage/storageHelper';
-import { STORAGE_KEYS } from '../storage/storageKeys';
 
 // Helper function to simulate network delay for MVP demo purposes
 const simulateNetworkCall = <T>(mockData: T, delayMs = 800): Promise<T> => {

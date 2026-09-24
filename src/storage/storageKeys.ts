@@ -1,4 +1,5 @@
 export const STORAGE_KEYS = {
+  TOKEN: '@movehub_auth_token',
   USER_PROFILE: '@movehub_user_profile',
   ACTIVITIES: '@movehub_activities_v2',
   LAST_DISCLAIMER_ACCEPTED: '@movehub_disclaimer_accepted',

@@ -10,6 +10,7 @@ export interface UserProfile {
   uhid?: string;
   email?: string;
   userId?: number;
+  token?: string;
 }
 
 export interface Activity {

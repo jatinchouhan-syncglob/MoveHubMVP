@@ -256,6 +256,7 @@ const DrawerNavigatorContent: React.FC = () => {
       console.error('Logout API call failed:', err);
     } finally {
       // Clear all cached keys
+      await storageHelper.removeItem(STORAGE_KEYS.TOKEN);
       await storageHelper.removeItem(STORAGE_KEYS.USER_PROFILE);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_PROFILE);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);

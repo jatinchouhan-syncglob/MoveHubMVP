@@ -142,6 +142,10 @@ export const SignupScreen: React.FC = () => {
 
       if (response && response.status === 'Success') {
         const userData = response.data || {};
+        const authToken = userData.token || response.token;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
         
         // Save the profile locally
         const userProfile: UserProfile = {
@@ -153,6 +157,7 @@ export const SignupScreen: React.FC = () => {
           calorieGoal: userData.calorieGoal || 2000,
           isSetupComplete: false,
           email: userData.email || email.trim(),
+          token: authToken,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
 
