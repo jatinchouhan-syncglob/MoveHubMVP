@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,7 +19,7 @@ import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { BiometricConsentModal } from '../../components/common/BiometricConsentModal';
-import { apiService } from '../../services/api';
+import { apiService, prefetchStepsLogsData } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
@@ -28,38 +28,49 @@ import ReactNativeBiometrics from 'react-native-biometrics';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  
-  // Input fields
+
+  // Active Tab Mode ('email' or 'otp')
+  const [authMode, setAuthMode] = useState<'email' | 'otp'>('email');
+
+  // Email/Password fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const passwordInputRef = useRef<any>(null);
-  
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  // Mobile OTP fields
+  const [mobile, setMobile] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(30);
+  const [canResend, setCanResend] = useState(false);
+  const otpInputRef = useRef<any>(null);
+  const [mobileFocused, setMobileFocused] = useState(false);
+  const [otpFocused, setOtpFocused] = useState(false);
+  const [mobileError, setMobileError] = useState('');
+  const [otpError, setOtpError] = useState('');
+
+  // General Loading & Alert States
+  const [loading, setLoading] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error'>('error');
 
   // Biometrics States
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [biometricsTypeLabel, setBiometricsTypeLabel] = useState('');
   const [hasBiometricsEnabled, setHasBiometricsEnabled] = useState(false);
-
-  // Error States
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // Custom Alert Modal States
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-
-  // Biometric Consent Modal States
   const [biometricConsentVisible, setBiometricConsentVisible] = useState(false);
   const [tempProfileData, setTempProfileData] = useState<UserProfile | null>(null);
   const [tempPlainPassword, setTempPlainPassword] = useState('');
 
   // Check biometric availability on screen mount
-  React.useEffect(() => {
+  useEffect(() => {
     const checkBiometricAvailability = async () => {
       try {
         const rnBiometrics = new ReactNativeBiometrics();
@@ -73,8 +84,7 @@ export const LoginScreen: React.FC = () => {
           } else {
             setBiometricsTypeLabel('Fingerprint / Face ID');
           }
-          
-          // Check if user previously enabled biometrics
+
           const enabled = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);
           if (enabled) {
             setHasBiometricsEnabled(true);
@@ -90,8 +100,7 @@ export const LoginScreen: React.FC = () => {
         console.warn('[LoginScreen] Error checking biometrics:', err);
       }
     };
-    
-    // Small delay to make transition smoother
+
     const timer = setTimeout(() => {
       checkBiometricAvailability();
     }, 500);
@@ -99,6 +108,23 @@ export const LoginScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // OTP Resend Countdown Timer
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    if (otpSent && resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    } else if (resendTimer === 0) {
+      setCanResend(true);
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [otpSent, resendTimer]);
+
+  // Biometric Login Handler
   const handleBiometricLogin = async () => {
     try {
       const rnBiometrics = new ReactNativeBiometrics();
@@ -107,7 +133,6 @@ export const LoginScreen: React.FC = () => {
       });
 
       if (success) {
-        console.log('[LoginScreen] Biometric authentication successful!');
         const savedCredentials = await storageHelper.getItem<{ email: string; password: string }>(
           STORAGE_KEYS.BIOMETRICS_CREDENTIALS
         );
@@ -118,8 +143,6 @@ export const LoginScreen: React.FC = () => {
             email: savedCredentials.email,
             password: savedCredentials.password,
           });
-
-          console.log('[LoginScreen] Biometric Signin Response:', JSON.stringify(response, null, 2));
 
           if (response && response.status === 'Success') {
             const userData = response.data || {};
@@ -140,6 +163,7 @@ export const LoginScreen: React.FC = () => {
             };
             await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
             syncHealthConnectAnalytics().catch(() => {});
+            prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
             if (userProfile.isSetupComplete) {
               navigation.replace(ROUTES.DRAWER);
@@ -147,6 +171,7 @@ export const LoginScreen: React.FC = () => {
               navigation.replace(ROUTES.PROFILE_SETUP);
             }
           } else {
+            setAlertType('error');
             setAlertTitle('Biometric Sign In Failed');
             setAlertMessage(response?.message || 'Verification failed on server side.');
             setAlertVisible(true);
@@ -166,10 +191,9 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleLogin = async () => {
+  // Email/Password Login Handler
+  const handleEmailLogin = async () => {
     let hasError = false;
-
-    // Reset errors
     setEmailError('');
     setPasswordError('');
 
@@ -198,7 +222,7 @@ export const LoginScreen: React.FC = () => {
         password: password,
       });
 
-      console.log('[LoginScreen] Signin API Response inside Screen:', JSON.stringify(response, null, 2));
+      console.log('[LoginScreen] Signin API Response:', JSON.stringify(response, null, 2));
 
       if (response && response.status === 'Success') {
         const userData = response.data || {};
@@ -206,8 +230,7 @@ export const LoginScreen: React.FC = () => {
         if (authToken) {
           await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
         }
-        
-        // Save the profile to storage
+
         const userProfile: UserProfile = {
           uhid: userData.uhid || 'SAUSHA9775',
           name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
@@ -221,15 +244,14 @@ export const LoginScreen: React.FC = () => {
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
         syncHealthConnectAnalytics().catch(() => {});
+        prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
-        // Check if user has biometric opt-in already enabled
         const isBiometricOptedIn = await storageHelper.getItem<boolean>(STORAGE_KEYS.BIOMETRICS_ENABLED);
         if (biometricsAvailable && !isBiometricOptedIn) {
           setTempProfileData(userProfile);
           setTempPlainPassword(password);
           setBiometricConsentVisible(true);
         } else {
-          // If biometrics is already enabled, update stored password in case it was changed
           if (isBiometricOptedIn) {
             await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_CREDENTIALS, {
               email: email.trim(),
@@ -244,6 +266,7 @@ export const LoginScreen: React.FC = () => {
           }
         }
       } else {
+        setAlertType('error');
         setAlertTitle('Sign In Failed');
         setAlertMessage(response?.message || 'Invalid credentials or login failed.');
         setAlertVisible(true);
@@ -251,7 +274,131 @@ export const LoginScreen: React.FC = () => {
     } catch (err: any) {
       console.error('Login error:', err);
       const serverMessage = err.response?.data?.message || err.message || 'Failed to sign in. Please check your network connection.';
+      setAlertType('error');
       setAlertTitle('Sign In Error');
+      setAlertMessage(serverMessage);
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Send Login OTP Handler
+  const handleSendLoginOtp = async () => {
+    setMobileError('');
+    const cleanMobile = mobile.replace(/[^0-9]/g, '');
+
+    if (!cleanMobile) {
+      setMobileError('Mobile number is required.');
+      return;
+    }
+    if (cleanMobile.length < 10) {
+      setMobileError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.sendLoginOtp(cleanMobile);
+      console.log('[LoginScreen] sendLoginOtp Response:', JSON.stringify(response, null, 2));
+
+      if (response && (response.status === 'Success' || response.status === 'success' || response.statusCode === 200)) {
+        setOtpSent(true);
+        setResendTimer(30);
+        setCanResend(false);
+        setAlertType('success');
+        setAlertTitle('OTP Sent! 📲');
+        setAlertMessage(response?.message || `A 6-digit verification code has been sent to +91 ${cleanMobile}.`);
+        setAlertVisible(true);
+        setTimeout(() => {
+          otpInputRef.current?.focus();
+        }, 600);
+      } else {
+        setAlertType('error');
+        setAlertTitle('Failed to Send OTP');
+        setAlertMessage(response?.message || 'Could not send OTP. Please check the mobile number.');
+        setAlertVisible(true);
+      }
+    } catch (err: any) {
+      console.error('sendLoginOtp error:', err);
+      const serverMessage = err.response?.data?.message || err.message || 'Failed to send OTP. Please check your network connection.';
+      setAlertType('error');
+      setAlertTitle('OTP Error');
+      setAlertMessage(serverMessage);
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend Login OTP Handler
+  const handleResendLoginOtp = async () => {
+    if (!canResend) return;
+    await handleSendLoginOtp();
+  };
+
+  // Validate Login OTP Handler
+  const handleValidateLoginOtp = async () => {
+    setOtpError('');
+    const cleanOtp = otp.trim();
+    const cleanMobile = mobile.replace(/[^0-9]/g, '');
+
+    if (!cleanOtp) {
+      setOtpError('Please enter the OTP.');
+      return;
+    }
+    if (cleanOtp.length < 4) {
+      setOtpError('Please enter a valid OTP code.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.validateLoginOtp({
+        mobile: cleanMobile,
+        otp: cleanOtp,
+      });
+
+      console.log('[LoginScreen] validateLoginOtp Response:', JSON.stringify(response, null, 2));
+
+      if (response && (response.status === 'Success' || response.status === 'success' || response.statusCode === 200)) {
+        const userData = response.data || {};
+        const authToken = userData.token || response.token;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
+
+        const userProfile: UserProfile = {
+          uhid: userData.uhid || 'JATCHO5525',
+          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'User'),
+          age: userData.age || 30,
+          weight: userData.weight || 70,
+          height: userData.height || 170,
+          calorieGoal: userData.calorieGoal || 2400,
+          isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
+          email: userData.email || '',
+          token: authToken,
+        };
+        await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+        syncHealthConnectAnalytics().catch(() => {});
+        prefetchStepsLogsData(userProfile.uhid).catch(() => {});
+
+        if (userProfile.isSetupComplete) {
+          navigation.replace(ROUTES.DRAWER);
+        } else {
+          navigation.replace(ROUTES.PROFILE_SETUP);
+        }
+      } else {
+        setAlertType('error');
+        setAlertTitle('Verification Failed');
+        setAlertMessage(response?.message || 'Invalid or expired OTP. Please try again.');
+        setAlertVisible(true);
+      }
+    } catch (err: any) {
+      console.error('validateLoginOtp error:', err);
+      const serverMessage = err.response?.data?.message || err.message || 'Failed to verify OTP. Please try again.';
+      setAlertType('error');
+      setAlertTitle('Verification Error');
       setAlertMessage(serverMessage);
       setAlertVisible(true);
     } finally {
@@ -264,7 +411,7 @@ export const LoginScreen: React.FC = () => {
     if (tempProfileData) {
       await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_ENABLED, true);
       await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_CREDENTIALS, {
-        email: tempProfileData.email,
+        email: tempProfileData.email || '',
         password: tempPlainPassword,
       });
       if (tempProfileData.isSetupComplete) {
@@ -293,13 +440,13 @@ export const LoginScreen: React.FC = () => {
     >
       <SafeAreaView style={{ flex: 1 }}>
         <CustomHeader title="Sign In" />
-        
+
         {/* Background glowing rings */}
         <View style={styles.blurRing1} />
         <View style={styles.blurRing2} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <ScrollView
@@ -320,6 +467,7 @@ export const LoginScreen: React.FC = () => {
               </Text>
               <Text style={styles.brandTagline}>AI-Powered Bio-Computational Pacing</Text>
             </View>
+
             {/* Glassmorphic Login Card */}
             <View style={styles.card}>
               <Text style={styles.welcomeText}>Welcome Back</Text>
@@ -327,109 +475,285 @@ export const LoginScreen: React.FC = () => {
                 Sign in to sync your biometrics and pacing targets
               </Text>
 
-              {/* Input Forms */}
-              <View style={styles.formContainer}>
-                <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-                <View style={[
-                  styles.inputWrapper, 
-                  emailFocused && styles.inputWrapperFocused,
-                  emailError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, emailFocused && { color: theme.colors.primary }]}>✉️</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter your email"
-                    placeholderTextColor={theme.colors.textLight}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    value={email}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => setEmailFocused(false)}
-                    onChangeText={val => {
-                      setEmail(val);
-                      setEmailError('');
-                    }}
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordInputRef.current?.focus()}
-                    blurOnSubmit={false}
-                  />
-                </View>
-                {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
-
-                <Text style={[styles.inputLabel, { marginTop: 18 }]}>
-                  PASSWORD
-                </Text>
-                <View style={[
-                  styles.inputWrapper, 
-                  passwordFocused && styles.inputWrapperFocused,
-                  passwordError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, passwordFocused && { color: theme.colors.primary }]}>🔒</Text>
-                  <TextInput
-                    ref={passwordInputRef}
-                    style={styles.textInput}
-                    placeholder="Enter your password"
-                    placeholderTextColor={theme.colors.textLight}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    value={password}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
-                    onChangeText={val => {
-                      setPassword(val);
-                      setPasswordError('');
-                    }}
-                    returnKeyType="go"
-                    onSubmitEditing={handleLogin}
-                  />
-                  <TouchableOpacity
-                    style={styles.eyeBtn}
-                    onPress={() => setShowPassword(!showPassword)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.eyeContainer}>
-                      <Text style={styles.eyeText}>👁️</Text>
-                      {!showPassword && <View style={styles.eyeSlash} />}
-                    </View>
-                  </TouchableOpacity>
-                </View>
-                {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
-
-                {/* Forgot Password Link */}
+              {/* Segmented Mode Switch Tabs */}
+              <View style={styles.tabContainer}>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate(ROUTES.FORGOT_PASSWORD as any, { email: email.trim() })}
-                  style={styles.forgotPasswordContainer}
-                  activeOpacity={0.7}
+                  style={[styles.tabButton, authMode === 'email' && styles.tabButtonActive]}
+                  onPress={() => {
+                    setAuthMode('email');
+                    setMobileError('');
+                    setOtpError('');
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  <Text style={[styles.tabButtonText, authMode === 'email' && styles.tabButtonTextActive]}>
+                    ✉️ Email
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.tabButton, authMode === 'otp' && styles.tabButtonActive]}
+                  onPress={() => {
+                    setAuthMode('otp');
+                    setEmailError('');
+                    setPasswordError('');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.tabButtonText, authMode === 'otp' && styles.tabButtonTextActive]}>
+                    📱 Mobile OTP
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Gradient Submit Button */}
-              <TouchableOpacity
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.8}
-                style={styles.submitBtn}
-              >
-                <LinearGradient
-                  colors={['#6366f1', '#4f46e5']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.submitGradient}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Sign In</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
+              {/* ================= EMAIL & PASSWORD FORM ================= */}
+              {authMode === 'email' && (
+                <View style={styles.formContainer}>
+                  <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      emailFocused && styles.inputWrapperFocused,
+                      emailError !== '' && styles.inputWrapperError,
+                    ]}
+                  >
+                    <Text style={[styles.inputIcon, emailFocused && { color: theme.colors.primary }]}>✉️</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter your email"
+                      placeholderTextColor={theme.colors.textLight}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={email}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                      onChangeText={val => {
+                        setEmail(val);
+                        setEmailError('');
+                      }}
+                      returnKeyType="next"
+                      onSubmitEditing={() => passwordInputRef.current?.focus()}
+                      blurOnSubmit={false}
+                    />
+                  </View>
+                  {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
 
-              {/* Biometric Button just below the Sign In button */}
-              {biometricsAvailable && hasBiometricsEnabled && (
+                  <Text style={[styles.inputLabel, { marginTop: 18 }]}>PASSWORD</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      passwordFocused && styles.inputWrapperFocused,
+                      passwordError !== '' && styles.inputWrapperError,
+                    ]}
+                  >
+                    <Text style={[styles.inputIcon, passwordFocused && { color: theme.colors.primary }]}>🔒</Text>
+                    <TextInput
+                      ref={passwordInputRef}
+                      style={styles.textInput}
+                      placeholder="Enter your password"
+                      placeholderTextColor={theme.colors.textLight}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={password}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
+                      onChangeText={val => {
+                        setPassword(val);
+                        setPasswordError('');
+                      }}
+                      returnKeyType="go"
+                      onSubmitEditing={handleEmailLogin}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeBtn}
+                      onPress={() => setShowPassword(!showPassword)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.eyeContainer}>
+                        <Text style={styles.eyeText}>👁️</Text>
+                        {!showPassword && <View style={styles.eyeSlash} />}
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                  {passwordError !== '' && <Text style={styles.errorText}>{passwordError}</Text>}
+
+                  {/* Forgot Password Link */}
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate(ROUTES.FORGOT_PASSWORD as any, { email: email.trim() })}
+                    style={styles.forgotPasswordContainer}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+
+                  {/* Email Sign In Button */}
+                  <TouchableOpacity
+                    onPress={handleEmailLogin}
+                    disabled={loading}
+                    activeOpacity={0.8}
+                    style={styles.submitBtn}
+                  >
+                    <LinearGradient
+                      colors={['#6366f1', '#4f46e5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.submitGradient}
+                    >
+                      {loading ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={styles.submitBtnText}>Sign In</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ================= MOBILE OTP FORM ================= */}
+              {authMode === 'otp' && (
+                <View style={styles.formContainer}>
+                  {!otpSent ? (
+                    <>
+                      <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          mobileFocused && styles.inputWrapperFocused,
+                          mobileError !== '' && styles.inputWrapperError,
+                        ]}
+                      >
+                        <View style={styles.countryCodeBadge}>
+                          <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
+                        </View>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="Enter 10-digit mobile number"
+                          placeholderTextColor={theme.colors.textLight}
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                          value={mobile}
+                          onFocus={() => setMobileFocused(true)}
+                          onBlur={() => setMobileFocused(false)}
+                          onChangeText={val => {
+                            setMobile(val.replace(/[^0-9]/g, ''));
+                            setMobileError('');
+                          }}
+                          returnKeyType="go"
+                          onSubmitEditing={handleSendLoginOtp}
+                        />
+                      </View>
+                      {mobileError !== '' && <Text style={styles.errorText}>{mobileError}</Text>}
+
+                      <TouchableOpacity
+                        onPress={handleSendLoginOtp}
+                        disabled={loading}
+                        activeOpacity={0.8}
+                        style={[styles.submitBtn, { marginTop: 20 }]}
+                      >
+                        <LinearGradient
+                          colors={['#6366f1', '#4f46e5']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.submitGradient}
+                        >
+                          {loading ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <Text style={styles.submitBtnText}>Send OTP</Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      {/* Mobile Number Info & Edit */}
+                      <View style={styles.mobileInfoRow}>
+                        <Text style={styles.mobileInfoText}>
+                          OTP sent to <Text style={{ fontWeight: '700', color: theme.colors.text }}>+91 {mobile}</Text>
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setOtpSent(false);
+                            setOtp('');
+                            setOtpError('');
+                          }}
+                          style={styles.editNumberBtn}
+                        >
+                          <Text style={styles.editNumberText}>Change</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={[styles.inputLabel, { marginTop: 12 }]}>ENTER 6-DIGIT OTP</Text>
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          otpFocused && styles.inputWrapperFocused,
+                          otpError !== '' && styles.inputWrapperError,
+                        ]}
+                      >
+                        <Text style={[styles.inputIcon, otpFocused && { color: theme.colors.primary }]}>🔢</Text>
+                        <TextInput
+                          ref={otpInputRef}
+                          style={[styles.textInput, styles.otpTextInput]}
+                          placeholder="• • • • • •"
+                          placeholderTextColor={theme.colors.textLight}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          value={otp}
+                          onFocus={() => setOtpFocused(true)}
+                          onBlur={() => setOtpFocused(false)}
+                          onChangeText={val => {
+                            setOtp(val.replace(/[^0-9]/g, ''));
+                            setOtpError('');
+                          }}
+                          returnKeyType="go"
+                          onSubmitEditing={handleValidateLoginOtp}
+                        />
+                      </View>
+                      {otpError !== '' && <Text style={styles.errorText}>{otpError}</Text>}
+
+                      {/* Resend OTP Timer / Button */}
+                      <View style={styles.resendOtpRow}>
+                        {canResend ? (
+                          <TouchableOpacity onPress={handleResendLoginOtp} disabled={loading}>
+                            <Text style={styles.resendOtpAction}>Resend OTP</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.resendOtpTimer}>
+                            Resend OTP in <Text style={{ fontWeight: '700', color: theme.colors.primary }}>{resendTimer}s</Text>
+                          </Text>
+                        )}
+                      </View>
+
+                      {/* Verify & Sign In Button */}
+                      <TouchableOpacity
+                        onPress={handleValidateLoginOtp}
+                        disabled={loading}
+                        activeOpacity={0.8}
+                        style={styles.submitBtn}
+                      >
+                        <LinearGradient
+                          colors={['#6366f1', '#4f46e5']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.submitGradient}
+                        >
+                          {loading ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <Text style={styles.submitBtnText}>Verify & Sign In</Text>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {/* Biometric Button */}
+              {authMode === 'email' && biometricsAvailable && hasBiometricsEnabled && (
                 <TouchableOpacity
                   onPress={handleBiometricLogin}
                   disabled={loading}
@@ -457,11 +781,13 @@ export const LoginScreen: React.FC = () => {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-      
+
       <CustomAlertModal
         visible={alertVisible}
         title={alertTitle}
         message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? 'OK' : 'Dismiss'}
         onClose={() => setAlertVisible(false)}
       />
 
@@ -508,11 +834,11 @@ const styles = StyleSheet.create({
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   logoBadge: {
-    width: 76,
-    height: 76,
+    width: 72,
+    height: 72,
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
@@ -523,27 +849,27 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   logoText: {
-    fontSize: 38,
+    fontSize: 36,
   },
   brandTitle: {
     fontSize: 28,
     fontWeight: '300',
     color: theme.colors.text,
-    marginTop: 12,
+    marginTop: 10,
     letterSpacing: 0.5,
   },
   brandTagline: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 3,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderRadius: 28,
-    padding: 24,
+    padding: 22,
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.8)',
     alignItems: 'center',
@@ -560,16 +886,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitleText: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 6,
-    marginBottom: theme.spacing.xl,
-    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  tabButtonTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '800',
   },
   formContainer: {
     width: '100%',
-    marginBottom: theme.spacing.xl,
+    marginBottom: 10,
   },
   inputLabel: {
     fontSize: 10.5,
@@ -588,6 +948,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(226, 232, 240, 0.8)',
     borderRadius: 14,
     paddingHorizontal: 14,
+  },
+  countryCodeBadge: {
+    paddingRight: 10,
+    marginRight: 8,
+    borderRightWidth: 1.5,
+    borderRightColor: '#e2e8f0',
+    justifyContent: 'center',
+  },
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   inputWrapperFocused: {
     borderColor: theme.colors.primary,
@@ -609,12 +981,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  otpTextInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 6,
+  },
   errorText: {
     color: theme.colors.error,
     fontSize: 11.5,
     fontWeight: '600',
     marginTop: 4,
     marginLeft: 4,
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    marginBottom: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4f46e5',
+  },
+  mobileInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  mobileInfoText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  editNumberBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  editNumberText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  resendOtpRow: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  resendOtpAction: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  resendOtpTimer: {
+    fontSize: 12.5,
+    color: theme.colors.textSecondary,
   },
   submitBtn: {
     width: '100%',
@@ -654,17 +1087,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.primary,
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginTop: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  forgotPasswordText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#4f46e5', // Blue / Indigo text
-  },
   eyeBtn: {
     padding: 6,
     justifyContent: 'center',
@@ -684,14 +1106,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 18,
     height: 1.8,
-    backgroundColor: '#64748b', // slate-500
+    backgroundColor: '#64748b',
     transform: [{ rotate: '-45deg' }],
   },
   biometricBtn: {
     width: '100%',
     height: 52,
     borderRadius: 16,
-    marginTop: 14,
+    marginTop: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(226, 232, 240, 0.8)',
     overflow: 'hidden',
@@ -713,7 +1135,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   biometricText: {
-    color: '#475569', // slate-600
+    color: '#475569',
     fontSize: 14,
     fontWeight: '700',
   },

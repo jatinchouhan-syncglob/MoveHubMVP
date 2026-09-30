@@ -9,6 +9,7 @@ import { CustomButton } from '../../components/common/CustomButton';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
+import { prefetchStepsLogsData } from '../../services/api';
 
 export const SplashScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -45,6 +46,7 @@ export const SplashScreen: React.FC = () => {
         const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
         if (token && cachedProfile?.isSetupComplete) {
+          prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
           navigation.replace(ROUTES.DRAWER);
         } else {
           navigation.replace(ROUTES.LOGIN);
@@ -67,6 +69,7 @@ export const SplashScreen: React.FC = () => {
       const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
       if (token && cachedProfile?.isSetupComplete) {
+        prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
         navigation.replace(ROUTES.DRAWER);
       } else {
         navigation.replace(ROUTES.LOGIN);

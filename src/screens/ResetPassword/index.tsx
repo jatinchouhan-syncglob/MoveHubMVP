@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,15 +11,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { apiService } from '../../services/api';
-import { storageHelper } from '../../storage/storageHelper';
-import { STORAGE_KEYS } from '../../storage/storageKeys';
-import { UserProfile } from '../../types';
 
 export const ResetPasswordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -113,7 +110,10 @@ export const ResetPasswordScreen: React.FC = () => {
         confirmPassword: confirmPassword,
       });
 
-      console.log('[ResetPasswordScreen] Reset Password API Response:', JSON.stringify(response, null, 2));
+      console.log(
+        '[ResetPasswordScreen] Reset Password API Response:',
+        JSON.stringify(response, null, 2),
+      );
 
       if (response && response.status === 'Success') {
         setIsSuccessAlert(true);
@@ -123,7 +123,10 @@ export const ResetPasswordScreen: React.FC = () => {
       } else {
         setIsSuccessAlert(false);
         setAlertTitle('Reset Failed');
-        setAlertMessage(response?.message || 'Failed to reset password. Please check your credentials.');
+        setAlertMessage(
+          response?.message ||
+            'Failed to reset password. Please check your credentials.',
+        );
         setAlertVisible(true);
       }
     } catch (err: any) {
@@ -179,16 +182,24 @@ export const ResetPasswordScreen: React.FC = () => {
                 <Text style={styles.logoText}>🔐</Text>
               </LinearGradient>
               <Text style={styles.brandTitle}>
-                Move<Text style={{ color: theme.colors.primary, fontWeight: '800' }}>Hub</Text>
+                Move
+                <Text
+                  style={{ color: theme.colors.primary, fontWeight: '800' }}
+                >
+                  Hub
+                </Text>
               </Text>
-              <Text style={styles.brandTagline}>Security & Password Management</Text>
+              <Text style={styles.brandTagline}>
+                Security & Password Management
+              </Text>
             </View>
 
             {/* Glassmorphic Card */}
             <View style={styles.card}>
               <Text style={styles.welcomeText}>Update Password</Text>
               <Text style={styles.subtitleText}>
-                Enter your registered email and current password to create a new secure password
+                Enter your registered email and current password to create a new
+                secure password
               </Text>
 
               {generalError !== '' && (
@@ -201,12 +212,21 @@ export const ResetPasswordScreen: React.FC = () => {
               <View style={styles.formContainer}>
                 {/* Email Address */}
                 <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  emailFocused && styles.inputWrapperFocused,
-                  emailError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, emailFocused && { color: theme.colors.primary }]}>✉️</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    emailFocused && styles.inputWrapperFocused,
+                    emailError !== '' && styles.inputWrapperError,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.inputIcon,
+                      emailFocused && { color: theme.colors.primary },
+                    ]}
+                  >
+                    ✉️
+                  </Text>
                   <TextInput
                     style={styles.textInput}
                     placeholder="Enter your email"
@@ -226,18 +246,29 @@ export const ResetPasswordScreen: React.FC = () => {
                     blurOnSubmit={false}
                   />
                 </View>
-                {emailError !== '' && <Text style={styles.errorText}>{emailError}</Text>}
+                {emailError !== '' && (
+                  <Text style={styles.errorText}>{emailError}</Text>
+                )}
 
                 {/* Current Password */}
                 <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                   CURRENT PASSWORD
                 </Text>
-                <View style={[
-                  styles.inputWrapper,
-                  oldPasswordFocused && styles.inputWrapperFocused,
-                  oldPasswordError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, oldPasswordFocused && { color: theme.colors.primary }]}>🔒</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    oldPasswordFocused && styles.inputWrapperFocused,
+                    oldPasswordError !== '' && styles.inputWrapperError,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.inputIcon,
+                      oldPasswordFocused && { color: theme.colors.primary },
+                    ]}
+                  >
+                    🔒
+                  </Text>
                   <TextInput
                     ref={oldPasswordInputRef}
                     style={styles.textInput}
@@ -268,18 +299,29 @@ export const ResetPasswordScreen: React.FC = () => {
                     </View>
                   </TouchableOpacity>
                 </View>
-                {oldPasswordError !== '' && <Text style={styles.errorText}>{oldPasswordError}</Text>}
+                {oldPasswordError !== '' && (
+                  <Text style={styles.errorText}>{oldPasswordError}</Text>
+                )}
 
                 {/* New Password */}
                 <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                   NEW PASSWORD
                 </Text>
-                <View style={[
-                  styles.inputWrapper,
-                  newPasswordFocused && styles.inputWrapperFocused,
-                  newPasswordError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, newPasswordFocused && { color: theme.colors.primary }]}>🔒</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    newPasswordFocused && styles.inputWrapperFocused,
+                    newPasswordError !== '' && styles.inputWrapperError,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.inputIcon,
+                      newPasswordFocused && { color: theme.colors.primary },
+                    ]}
+                  >
+                    🔒
+                  </Text>
                   <TextInput
                     ref={newPasswordInputRef}
                     style={styles.textInput}
@@ -296,7 +338,9 @@ export const ResetPasswordScreen: React.FC = () => {
                       setNewPasswordError('');
                     }}
                     returnKeyType="next"
-                    onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+                    onSubmitEditing={() =>
+                      confirmPasswordInputRef.current?.focus()
+                    }
                     blurOnSubmit={false}
                   />
                   <TouchableOpacity
@@ -310,18 +354,29 @@ export const ResetPasswordScreen: React.FC = () => {
                     </View>
                   </TouchableOpacity>
                 </View>
-                {newPasswordError !== '' && <Text style={styles.errorText}>{newPasswordError}</Text>}
+                {newPasswordError !== '' && (
+                  <Text style={styles.errorText}>{newPasswordError}</Text>
+                )}
 
                 {/* Confirm New Password */}
                 <Text style={[styles.inputLabel, { marginTop: 16 }]}>
                   CONFIRM NEW PASSWORD
                 </Text>
-                <View style={[
-                  styles.inputWrapper,
-                  confirmPasswordFocused && styles.inputWrapperFocused,
-                  confirmPasswordError !== '' && styles.inputWrapperError
-                ]}>
-                  <Text style={[styles.inputIcon, confirmPasswordFocused && { color: theme.colors.primary }]}>🔒</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    confirmPasswordFocused && styles.inputWrapperFocused,
+                    confirmPasswordError !== '' && styles.inputWrapperError,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.inputIcon,
+                      confirmPasswordFocused && { color: theme.colors.primary },
+                    ]}
+                  >
+                    🔒
+                  </Text>
                   <TextInput
                     ref={confirmPasswordInputRef}
                     style={styles.textInput}
@@ -351,7 +406,9 @@ export const ResetPasswordScreen: React.FC = () => {
                     </View>
                   </TouchableOpacity>
                 </View>
-                {confirmPasswordError !== '' && <Text style={styles.errorText}>{confirmPasswordError}</Text>}
+                {confirmPasswordError !== '' && (
+                  <Text style={styles.errorText}>{confirmPasswordError}</Text>
+                )}
               </View>
 
               {/* Submit Gradient Button */}

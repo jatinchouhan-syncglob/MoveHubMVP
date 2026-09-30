@@ -36,12 +36,12 @@ export const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
   let defaultBtnText = 'Dismiss';
 
   if (type === 'success') {
-    defaultIcon = '🎉';
+    defaultIcon = '✅';
     badgeBg = 'rgba(16, 185, 129, 0.12)';
     badgeBorder = 'rgba(16, 185, 129, 0.3)';
     gradientColors = ['#10b981', '#059669'];
     shadowColor = '#10b981';
-    defaultBtnText = 'Continue';
+    defaultBtnText = 'OK';
   } else if (type === 'warning') {
     defaultIcon = '⚠️';
     badgeBg = 'rgba(245, 158, 11, 0.12)';

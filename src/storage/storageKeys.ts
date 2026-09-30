@@ -12,6 +12,10 @@ export const STORAGE_KEYS = {
   BIOMETRICS_ENABLED: '@movehub_biometrics_enabled',
   BIOMETRICS_CREDENTIALS: '@movehub_biometrics_credentials',
   LAST_WELLNESS_CHECKIN_DATE: '@movehub_last_wellness_checkin_date',
+  STEPS_LOGS_CACHE: '@movehub_steps_logs_cache',
+  DAILY_DISPLAY_BLOCK_CACHE: '@movehub_daily_display_block_cache',
+  WORKOUT_LOGS_CACHE: '@movehub_workout_logs_cache',
+  HEALTH_CONNECT_ACTIVITIES_CACHE: '@movehub_health_connect_activities_cache',
 } as const;
 
 export type StorageKeyType = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

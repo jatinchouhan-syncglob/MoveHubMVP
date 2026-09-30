@@ -16,7 +16,7 @@ import { STRINGS } from '../../constants/strings';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { Loader } from '../../components/common/Loader';
 import { CustomButton } from '../../components/common/CustomButton';
-import { apiService } from '../../services/api';
+import { apiService, prefetchStepsLogsData } from '../../services/api';
 import { UserProfile, Activity } from '../../types';
 import StepsTrackingTab from '../GoogleFit';
 import {
@@ -263,6 +263,7 @@ export const DashboardScreen: React.FC = () => {
 
       setProfile(profileData);
       setActivities(activitiesData);
+      prefetchStepsLogsData(profileData?.uhid).catch(() => {});
 
       // Check if target is achieved today (since midnight)
       const today = new Date();

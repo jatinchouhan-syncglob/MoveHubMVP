@@ -842,14 +842,16 @@ export const apiService = {
   },
 
   async forgotPassword(payload: {
-    email: string;
+    email?: string;
+    mobile?: string;
     password: string;
     confirmPassword: string;
+    resetToken?: string;
   }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password`;
       console.log('[apiService] POST forgotPassword Request URL:', url, 'Payload:', {
-        email: payload.email,
+        ...payload,
         password: '***',
         confirmPassword: '***',
       });
@@ -868,5 +870,144 @@ export const apiService = {
       throw error;
     }
   },
+
+  async sendLoginOtp(mobile: string): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/send-otp`;
+      const payload = { mobile };
+      console.log('[apiService] POST sendLoginOtp Request URL:', url, 'Payload:', payload);
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST sendLoginOtp Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in sendLoginOtp:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  async validateLoginOtp(payload: { mobile: string; otp: string }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/validate-otp`;
+      console.log('[apiService] POST validateLoginOtp Request URL:', url, 'Payload:', payload);
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST validateLoginOtp Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in validateLoginOtp:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  async sendForgotPasswordOtp(mobile: string): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password/send-otp`;
+      const payload = { mobile };
+      console.log('[apiService] POST sendForgotPasswordOtp Request URL:', url, 'Payload:', payload);
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST sendForgotPasswordOtp Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in sendForgotPasswordOtp:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  async verifyForgotPasswordOtp(payload: { mobile: string; otp: string }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password/verify-otp`;
+      console.log('[apiService] POST verifyForgotPasswordOtp Request URL:', url, 'Payload:', payload);
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST verifyForgotPasswordOtp Response:',
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error in verifyForgotPasswordOtp:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };
+
+/**
+ * Background pre-fetcher for Steps Logs tab data.
+ * Called immediately after Login, on Splash, and on App launch
+ * so that Steps Logs screen renders instantly with 0-second delay.
+ */
+export const prefetchStepsLogsData = async (targetUhid?: string): Promise<void> => {
+  try {
+    const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+    const uhid = targetUhid || cachedProfile?.uhid || 'SAUSHA9775';
+
+    const sysDate = new Date();
+    const sysY = sysDate.getFullYear();
+    const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+    const sysD = String(sysDate.getDate()).padStart(2, '0');
+    const systemDateStr = `${sysY}-${sysM}-${sysD}`;
+
+    console.log(`[prefetchStepsLogsData] 🚀 Background pre-fetching Steps Logs for UHID: ${uhid}...`);
+
+    const [pullRes, displayBlockRes, workoutLogRes, healthConnectRes] = await Promise.allSettled([
+      apiService.getPullStepsLogs(uhid),
+      apiService.getDailyDisplayBlock(uhid, systemDateStr),
+      apiService.getWorkoutLog(uhid),
+      apiService.getHealthConnectActivities(uhid),
+    ]);
+
+    if (pullRes.status === 'fulfilled' && pullRes.value?.data?.steplogs?.data) {
+      await storageHelper.setItem(STORAGE_KEYS.STEPS_LOGS_CACHE, pullRes.value.data.steplogs.data);
+      console.log('[prefetchStepsLogsData] ✅ Cached pullStepsLogs data');
+    }
+
+    if (displayBlockRes.status === 'fulfilled' && displayBlockRes.value) {
+      await storageHelper.setItem(STORAGE_KEYS.DAILY_DISPLAY_BLOCK_CACHE, displayBlockRes.value);
+      console.log('[prefetchStepsLogsData] ✅ Cached dailyDisplayBlock data');
+    }
+
+    if (
+      workoutLogRes.status === 'fulfilled' &&
+      workoutLogRes.value &&
+      workoutLogRes.value.status === 'Success' &&
+      Array.isArray(workoutLogRes.value.data)
+    ) {
+      await storageHelper.setItem(STORAGE_KEYS.WORKOUT_LOGS_CACHE, workoutLogRes.value.data);
+      console.log('[prefetchStepsLogsData] ✅ Cached workoutLogs data');
+    }
+
+    if (healthConnectRes.status === 'fulfilled' && healthConnectRes.value) {
+      await storageHelper.setItem(STORAGE_KEYS.HEALTH_CONNECT_ACTIVITIES_CACHE, healthConnectRes.value);
+      console.log('[prefetchStepsLogsData] ✅ Cached healthConnectActivities data');
+    }
+
+    console.log('[prefetchStepsLogsData] 🎉 Steps Logs background pre-fetch completed!');
+  } catch (err) {
+    console.warn('[prefetchStepsLogsData] Background prefetch non-fatal error:', err);
+  }
+};
+
 

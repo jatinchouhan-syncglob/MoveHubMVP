@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,12 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  getHealthConnectAccessState,
-  requestHealthConnectPermissions,
-  openHealthConnectAppSettings,
-  syncHealthConnectAnalytics,
-} from '../../../services/healthConnect';
+import { syncHealthConnectAnalytics } from '../../../services/healthConnect';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
 import { apiService } from '../../../services/api';
@@ -954,85 +949,98 @@ export const StepsLogsTab: React.FC = () => {
   const [pullStepsLogs, setPullStepsLogs] = useState<any>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [hasPermissions, setHasPermissions] = useState<boolean>(true);
-  const [bypassCheck, setBypassCheck] = useState<boolean>(false);
   const [dailyDisplayBlock, setDailyDisplayBlock] = useState<any>(null);
+  const hasCachedDataRef = useRef(false);
 
-  const fetchHealthActivities = useCallback(async (isRefresh = false, forceBypass = false) => {
-    if (!isRefresh) setLoadingLogs(true);
+  // 1. Immediate Instant Load from Cache (0-second waiting time)
+  useEffect(() => {
+    const loadCachedStepsLogs = async () => {
+      try {
+        const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        if (cachedProfile?.uhid) {
+          setActiveUhid(cachedProfile.uhid);
+        }
+
+        const [cachedPull, cachedBlock, cachedWorkouts] = await Promise.all([
+          storageHelper.getItem<any>(STORAGE_KEYS.STEPS_LOGS_CACHE),
+          storageHelper.getItem<any>(STORAGE_KEYS.DAILY_DISPLAY_BLOCK_CACHE),
+          storageHelper.getItem<any[]>(STORAGE_KEYS.WORKOUT_LOGS_CACHE),
+        ]);
+
+        if (cachedPull || cachedBlock || cachedWorkouts) {
+          hasCachedDataRef.current = true;
+          if (cachedPull) setPullStepsLogs(cachedPull);
+          if (cachedBlock) setDailyDisplayBlock(cachedBlock);
+          if (cachedWorkouts) setWorkoutLogs(cachedWorkouts);
+          setLoadingLogs(false);
+          console.log('[StepsLogsTab] ⚡ Instant Cache Loaded: Steps Logs data rendered with 0 delay!');
+        }
+      } catch (e) {
+        console.warn('[StepsLogsTab] Error reading cached steps logs:', e);
+      }
+    };
+
+    loadCachedStepsLogs();
+  }, []);
+
+  const fetchHealthActivities = useCallback(async (isRefresh = false) => {
+    if (!isRefresh && !hasCachedDataRef.current) {
+      setLoadingLogs(true);
+    }
     try {
-      const access = await getHealthConnectAccessState();
-      const hasPerms = access.hasAllPermissions || forceBypass;
-      setHasPermissions(hasPerms);
-
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
       setActiveUhid(targetUhid);
 
-      if (hasPerms) {
-        try {
-          console.log('[StepsLogsTab] Performing fast foreground Health Connect sync...');
-          await syncHealthConnectAnalytics();
-        } catch (syncErr) {
-          console.warn('[StepsLogsTab] Foreground sync before fetching logs failed:', syncErr);
+      try {
+        console.log(`Fetching getPullStepsLogs for ${targetUhid}...`);
+        const pullRes = await apiService.getPullStepsLogs(targetUhid);
+        console.log('getPullStepsLogs Response in StepsLogsTab:', JSON.stringify(pullRes, null, 2));
+        if (pullRes && pullRes.data?.steplogs?.data) {
+          setPullStepsLogs(pullRes.data.steplogs.data);
+          hasCachedDataRef.current = true;
+          await storageHelper.setItem(STORAGE_KEYS.STEPS_LOGS_CACHE, pullRes.data.steplogs.data);
         }
+      } catch (pullErr) {
+        console.warn('Error fetching getPullStepsLogs in StepsLogsTab:', pullErr);
+      }
 
-        try {
-          console.log(`Fetching getPullStepsLogs for ${targetUhid}...`);
-          const pullRes = await apiService.getPullStepsLogs(targetUhid);
-          console.log('getPullStepsLogs Response in StepsLogsTab:', JSON.stringify(pullRes, null, 2));
-          if (pullRes && pullRes.data?.steplogs?.data) {
-            setPullStepsLogs(pullRes.data.steplogs.data);
-          } else {
-            setPullStepsLogs(null);
-          }
-        } catch (pullErr) {
-          console.warn('Error fetching getPullStepsLogs in StepsLogsTab:', pullErr);
-          setPullStepsLogs(null);
-        }
-
-        console.log(`Fetching Health Connect activities for ${targetUhid}...`);
-        const response = await apiService.getHealthConnectActivities(targetUhid);
-        console.log('GET Health Connect Activities Response in StepsLogsTab:', response);
-
+      try {
         console.log(`Fetching Workout Logs for ${targetUhid}...`);
         const workoutLogResponse = await apiService.getWorkoutLog(targetUhid);
         console.log('GET Workout Log Response in StepsLogsTab:', JSON.stringify(workoutLogResponse, null, 2));
 
         if (workoutLogResponse && workoutLogResponse.status === 'Success' && Array.isArray(workoutLogResponse.data)) {
           setWorkoutLogs(workoutLogResponse.data);
-        } else {
-          setWorkoutLogs([]);
+          hasCachedDataRef.current = true;
+          await storageHelper.setItem(STORAGE_KEYS.WORKOUT_LOGS_CACHE, workoutLogResponse.data);
         }
+      } catch (workoutErr) {
+        console.warn('Error fetching getWorkoutLog in StepsLogsTab:', workoutErr);
+      }
 
-        try {
-          const sysDate = new Date();
-          const sysY = sysDate.getFullYear();
-          const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
-          const sysD = String(sysDate.getDate()).padStart(2, '0');
-          const systemDateStr = `${sysY}-${sysM}-${sysD}`;
+      try {
+        const sysDate = new Date();
+        const sysY = sysDate.getFullYear();
+        const sysM = String(sysDate.getMonth() + 1).padStart(2, '0');
+        const sysD = String(sysDate.getDate()).padStart(2, '0');
+        const systemDateStr = `${sysY}-${sysM}-${sysD}`;
 
-          console.log(`Fetching getDailyDisplayBlock for ${targetUhid} on Date: ${systemDateStr}...`);
-          const displayBlockRes = await apiService.getDailyDisplayBlock(targetUhid, systemDateStr);
-          console.log('getDailyDisplayBlock Response in StepsLogsTab:', JSON.stringify(displayBlockRes, null, 2));
-          if (displayBlockRes) {
-            setDailyDisplayBlock(displayBlockRes);
-          } else {
-            setDailyDisplayBlock(null);
-          }
-        } catch (displayBlockErr) {
-          console.warn('Error fetching getDailyDisplayBlock in StepsLogsTab:', displayBlockErr);
-          setDailyDisplayBlock(null);
+        console.log(`Fetching getDailyDisplayBlock for ${targetUhid} on Date: ${systemDateStr}...`);
+        const displayBlockRes = await apiService.getDailyDisplayBlock(targetUhid, systemDateStr);
+        console.log('getDailyDisplayBlock Response in StepsLogsTab:', JSON.stringify(displayBlockRes, null, 2));
+        if (displayBlockRes) {
+          setDailyDisplayBlock(displayBlockRes);
+          hasCachedDataRef.current = true;
+          await storageHelper.setItem(STORAGE_KEYS.DAILY_DISPLAY_BLOCK_CACHE, displayBlockRes);
         }
-      } else {
-        setWorkoutLogs([]);
-        setDailyDisplayBlock(null);
-        setPullStepsLogs(null);
+      } catch (displayBlockErr) {
+        console.warn('Error fetching getDailyDisplayBlock in StepsLogsTab:', displayBlockErr);
       }
     } catch (error) {
-      console.error('Error fetching Health Connect / Workout logs in StepsLogsTab:', error);
+      console.error('Error fetching logs in StepsLogsTab:', error);
     } finally {
       setLoadingLogs(false);
       setRefreshing(false);
@@ -1050,7 +1058,7 @@ export const StepsLogsTab: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       // 1. Initial fetch on screen focus
-      fetchHealthActivities(false, bypassCheck);
+      fetchHealthActivities(false);
 
       // 2. Setup timers for scheduled auto-refresh when user stays on this screen
       const timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -1063,19 +1071,18 @@ export const StepsLogsTab: React.FC = () => {
         target.setHours(h, m, s, 0);
 
         const delay = target.getTime() - now.getTime();
-        // If the target time is in the future today
         if (delay > 0) {
           console.log(`[StepsLogsTab] Scheduled auto-refresh for ${timeStr} in ${(delay / 1000).toFixed(1)}s`);
           const timeoutId = setTimeout(() => {
             console.log(`[StepsLogsTab] ⏰ Auto-triggering scheduled API hit at ${timeStr}`);
-            fetchHealthActivities(true, bypassCheck);
+            fetchHealthActivities(true);
             executedTimes.add(timeStr);
           }, delay);
           timeouts.push(timeoutId);
         }
       });
 
-      // 3. Fallback interval check every 1 second to ensure exact second precision even if device sleep/wake happens
+      // 3. Fallback interval check every 1 second
       const intervalId = setInterval(() => {
         const now = new Date();
         const currentH = String(now.getHours()).padStart(2, '0');
@@ -1086,7 +1093,7 @@ export const StepsLogsTab: React.FC = () => {
         if (SCHEDULED_REFRESH_TIMES.includes(currentTimeKey) && !executedTimes.has(currentTimeKey)) {
           console.log(`[StepsLogsTab] ⏰ Interval detected target time: ${currentTimeKey}. Triggering auto-fetch...`);
           executedTimes.add(currentTimeKey);
-          fetchHealthActivities(true, bypassCheck);
+          fetchHealthActivities(true);
         }
       }, 1000);
 
@@ -1094,24 +1101,12 @@ export const StepsLogsTab: React.FC = () => {
         timeouts.forEach(t => clearTimeout(t));
         clearInterval(intervalId);
       };
-    }, [fetchHealthActivities, bypassCheck])
+    }, [fetchHealthActivities])
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchHealthActivities(true, bypassCheck);
-  };
-
-  const handleGrantPermissions = async () => {
-    try {
-      const access = await requestHealthConnectPermissions();
-      setHasPermissions(access.hasAllPermissions);
-      if (access.hasAllPermissions) {
-        fetchHealthActivities(true);
-      }
-    } catch (err) {
-      console.warn('Failed to request permissions:', err);
-    }
+    fetchHealthActivities(true);
   };
 
   return (
@@ -1132,7 +1127,7 @@ export const StepsLogsTab: React.FC = () => {
               let hours = sysDate.getHours();
               const ampm = hours >= 12 ? 'PM' : 'AM';
               hours = hours % 12;
-              hours = hours ? hours : 12; // 0 should be 12
+              hours = hours ? hours : 12;
               
               const sysH = String(hours).padStart(2, '0');
               const sysMin = String(sysDate.getMinutes()).padStart(2, '0');
@@ -1140,18 +1135,6 @@ export const StepsLogsTab: React.FC = () => {
             })()}
           </Text>
         </View>
-        {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Bypass Check</Text>
-          <Switch
-            value={bypassCheck}
-            onValueChange={(val) => {
-              setBypassCheck(val);
-              fetchHealthActivities(true, val);
-            }}
-            trackColor={{ false: '#334155', true: '#6366f1' }}
-            thumbColor={bypassCheck ? '#ffffff' : '#94a3b8'}
-          />
-        </View> */}
       </View>
 
       <ScrollView
@@ -1174,40 +1157,6 @@ export const StepsLogsTab: React.FC = () => {
               <Text style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontWeight: '500' }}>
                 Fetching dynamic time blocks...
               </Text>
-            </View>
-          ) : !hasPermissions ? (
-            <View style={{ paddingVertical: 45, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                ⚠️ Health Connect Permissions Missing
-              </Text>
-              <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-                MoveHub is not authorized to access your fitness records. Please grant permissions to sync your steps and activities.
-              </Text>
-              <View style={{ flexDirection: 'row', marginTop: 18 }}>
-                <TouchableOpacity
-                  onPress={handleGrantPermissions}
-                  style={{
-                    backgroundColor: '#6366f1',
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderRadius: 20,
-                    marginRight: 8,
-                  }}
-                >
-                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '600' }}>Grant Permissions</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={openHealthConnectAppSettings}
-                  style={{
-                    backgroundColor: '#334155',
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderRadius: 20,
-                  }}
-                >
-                  <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600' }}>Open Settings</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           ) : (() => {
             const cardsStack = pullStepsLogs?.cards_stack || [];

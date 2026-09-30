@@ -14,6 +14,7 @@ interface CustomHeaderProps {
   titleStyle?: any;
   buttonStyle?: any;
   iconStyle?: any;
+  onBackPress?: () => void;
 }
 
 export const CustomHeader: React.FC<CustomHeaderProps> = ({
@@ -25,11 +26,16 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   titleStyle,
   buttonStyle,
   iconStyle,
+  onBackPress,
 }) => {
   const navigation = useNavigation<any>();
   const drawer = useContext(DrawerContext);
 
   const handleBack = () => {
+    if (onBackPress) {
+      onBackPress();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     }
