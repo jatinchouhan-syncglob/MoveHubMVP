@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme } from '../theme';
 import { useDrawer, DrawerProvider, DrawerScreenType } from './DrawerContext';
 import { apiService } from '../services/api';
@@ -54,6 +54,13 @@ const DrawerNavigatorContent: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+
+  React.useEffect(() => {
+    if (route.params?.screen) {
+      setActiveScreen(route.params.screen);
+    }
+  }, [route.params?.screen]);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [todayCalories, setTodayCalories] = React.useState(0);
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);

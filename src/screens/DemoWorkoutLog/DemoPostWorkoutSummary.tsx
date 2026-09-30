@@ -413,36 +413,17 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Go to Dashboard Link / Back Button */}
+            {/* Go to Dashboard Link / Button */}
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
-                if (params.fromActivityTracking) {
-                  navigation.navigate('DrawerNavigator', { screen: 'ActivityTracking' });
-                } else {
-                  navigation.navigate('DemoSearchHub');
-                }
+                navigation.navigate('DrawerNavigator', { screen: 'Dashboard' });
               }}
               style={styles.goToDashboardLink}
             >
               <Text style={styles.goToDashboardLinkText}>
                 👉 Click here to see your fitness score
               </Text>
-            </TouchableOpacity>
-
-            {/* Understand Button */}
-            <TouchableOpacity
-              style={styles.understandBtn}
-              onPress={() => {
-                if (params.fromActivityTracking) {
-                  navigation.navigate('DrawerNavigator', { screen: 'ActivityTracking' });
-                } else {
-                  navigation.navigate('DemoSearchHub');
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.understandBtnText}>Understand</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -1129,40 +1110,24 @@ const styles = StyleSheet.create({
   },
   goToDashboardLink: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(6, 182, 212, 0.08)',
-    paddingVertical: 10,
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(6, 182, 212, 0.25)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(6, 182, 212, 0.4)',
     marginTop: 24,
-    marginBottom: 24,
+    marginBottom: 32,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   goToDashboardLinkText: {
     color: '#06b6d4',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     textAlign: 'center',
-  },
-  understandBtn: {
-    width: '100%',
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f43f5e',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#f43f5e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 16,
-  },
-  understandBtnText: {
-    color: '#ffffff',
-    fontSize: 14.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 });
 

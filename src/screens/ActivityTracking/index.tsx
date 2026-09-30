@@ -75,7 +75,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   // Modal & Form States
   const [modalVisible, setModalVisible] = useState(false);
   const [metricsModalVisible, setMetricsModalVisible] = useState(false);
-  const [activityType, setActivityType] = useState('Walking');
+  const [activityType, setActivityType] = useState('');
   const [duration, setDuration] = useState('30');
   const [distance, setDistance] = useState('2.0');
 
@@ -164,7 +164,8 @@ export const ActivityTrackingScreen: React.FC = () => {
             const relativeX = evt.nativeEvent.pageX - pageXOffset;
             let pct = relativeX / width;
             pct = Math.max(0, Math.min(1, pct));
-            setSliderVal(pct * 9 + 1);
+            const newRpe = Math.min(10, Math.max(1, Math.round(pct * 9 + 1)));
+            setSliderVal(newRpe);
           }
         });
       },
@@ -173,7 +174,8 @@ export const ActivityTrackingScreen: React.FC = () => {
           const relativeX = gestureState.moveX - trackLeftOffset.current;
           let pct = relativeX / trackWidth.current;
           pct = Math.max(0, Math.min(1, pct));
-          setSliderVal(pct * 9 + 1);
+          const newRpe = Math.min(10, Math.max(1, Math.round(pct * 9 + 1)));
+          setSliderVal(newRpe);
         }
       },
     })
@@ -916,9 +918,20 @@ export const ActivityTrackingScreen: React.FC = () => {
     }
   };
 
+  const handleOpenModal = () => {
+    setActivityType('');
+    setSelectedDynamicActivity(null);
+    setModalSearchQuery('');
+    setModalSelectedPill(null);
+    setSelectedBioGoal(null);
+    setModalVisible(true);
+  };
+
   const handleCloseModal = () => {
     setModalVisible(false);
     setMetricsModalVisible(false);
+    setActivityType('');
+    setSelectedDynamicActivity(null);
     setSyncWearable(false);
     setHighIntensity(false);
     setStrengthRest(false);
@@ -1108,22 +1121,22 @@ export const ActivityTrackingScreen: React.FC = () => {
   const segments = {
     cardio: {
       percentage: pCardio,
-      color: '#06B6D4',
+      color: '#EF4444', // Heart Red / Crimson
       rotation: 0,
     },
     strength: {
       percentage: pStrength,
-      color: '#F97316',
+      color: '#F97316', // Power Orange
       rotation: 360 * pCardio,
     },
     balance: {
       percentage: pBalance,
-      color: '#2DD4BF',
+      color: '#10B981', // Zen Emerald Green
       rotation: 360 * (pCardio + pStrength),
     },
     recovery: {
       percentage: pRecovery,
-      color: '#FB923C',
+      color: '#8B5CF6', // Calming Lavender / Indigo
       rotation: 360 * (pCardio + pStrength + pBalance),
     },
   };
@@ -1139,7 +1152,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   const renderModalExerciseCard = (item: any) => {
     const displayNameClean = sanitizeString(item.displayName || item.activityName || '');
     const activityNameClean = sanitizeString(item.activityName || '');
-    const isSelected = activityType.toLowerCase() === displayNameClean.toLowerCase();
+    const isSelected = !!activityType && activityType.toLowerCase() === displayNameClean.toLowerCase();
     const emoji = getActivityEmoji(item.activityName, item.categoryName);
     return (
       <TouchableOpacity
@@ -1235,7 +1248,7 @@ export const ActivityTrackingScreen: React.FC = () => {
               <View style={styles.headerComponent}>
                 <CustomButton
                   title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
-                  onPress={() => setModalVisible(true)}
+                  onPress={handleOpenModal}
                   variant="primary"
                   style={styles.addButton}
                 />
@@ -1246,7 +1259,7 @@ export const ActivityTrackingScreen: React.FC = () => {
                 title="No Activities Yet"
                 description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
                 actionTitle="Log Your First Activity"
-                onActionPress={() => setModalVisible(true)}
+                onActionPress={handleOpenModal}
               />
             }
           />
@@ -1350,15 +1363,23 @@ export const ActivityTrackingScreen: React.FC = () => {
                   {/* Main exercise results list */}
                   <View style={{ marginTop: 8 }}>
                     {modalSelectedPill === null ? (
-                      /* Popular Workouts Block (first 4 items of catalogActivities) */
-                      <View style={styles.popularBlock}>
-                        <Text style={styles.sectionTitle}>🔥 POPULAR WORKOUTS RIGHT NOW</Text>
-                        <View style={styles.popularList}>
-                          {(apiPopularWorkouts.length > 0 ? apiPopularWorkouts : catalogActivities.slice(0, 4)).map(item =>
-                            renderModalExerciseCard(item)
-                          )}
+                      modalSearchQuery.trim().length > 0 ? (
+                        <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                          <Text style={{ color: '#64748B', fontSize: 14 }}>
+                            No activities found in this category.
+                          </Text>
                         </View>
-                      </View>
+                      ) : (
+                        /* Popular Workouts Block (first 4 items of catalogActivities) */
+                        <View style={styles.popularBlock}>
+                          <Text style={styles.sectionTitle}>🔥 POPULAR WORKOUTS RIGHT NOW</Text>
+                          <View style={styles.popularList}>
+                            {(apiPopularWorkouts.length > 0 ? apiPopularWorkouts : catalogActivities.slice(0, 4)).map(item =>
+                              renderModalExerciseCard(item)
+                            )}
+                          </View>
+                        </View>
+                      )
                     ) : (
                       (() => {
                         const catActivities = currentModalList;
@@ -1372,23 +1393,10 @@ export const ActivityTrackingScreen: React.FC = () => {
                         // 2. Structural Type Routing Check
                         const isRepetitionCategory = modalSelectedPill === '🏋️ GYM' || catActivities.some(item => item.metricType === 'REPETITION_BASED');
 
-                        return (
-                          <View>
-                            {/* Render Category-Specific Popular Workouts */}
-                            {categoryPopularWorkouts.length > 0 && (
-                              <View style={[styles.popularBlock, { marginBottom: 16 }]}>
-                                <Text style={styles.sectionTitle}>
-                                  🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
-                                </Text>
-                                <View style={styles.popularList}>
-                                  {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
-                                </View>
-                              </View>
-                            )}
-
-                            {/* Render Category List Content */}
-                            {count <= 8 ? (
-                              // Simple Flat List
+                        if (count <= 8) {
+                          // Simple Flat List
+                          return (
+                            <View>
                               <View style={styles.popularList}>
                                 {catActivities.map(item => renderModalExerciseCard(item))}
                                 {count === 0 && (
@@ -1399,216 +1407,276 @@ export const ActivityTrackingScreen: React.FC = () => {
                                   </View>
                                 )}
                               </View>
-                            ) : isRepetitionCategory ? (
-                              // REPETITION_BASED Routing -> Group strictly by intensityBand with native vertical headers
-                              (() => {
-                                const light = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
-                                const moderate = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
-                                const vigorous = catActivities.filter(e => {
-                                  const band = (e.intensityBand || '').toUpperCase();
-                                  return band === 'VIGOROUS' || band === 'VIGOUR';
-                                });
-                                return (
-                                  <View>
-                                    {light.length > 0 && (
-                                      <View style={{ marginBottom: 12 }}>
-                                        <TouchableOpacity
-                                          style={styles.modalSectionHeaderCollapsible}
-                                          onPress={() => toggleSection('light')}
-                                          activeOpacity={0.8}
-                                        >
-                                          <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
-                                          <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
-                                        </TouchableOpacity>
-                                        {sectionsExpanded.light && (
-                                          <View style={styles.popularList}>
-                                            {light.map(item => renderModalExerciseCard(item))}
-                                          </View>
-                                        )}
-                                      </View>
-                                    )}
-
-                                    {moderate.length > 0 && (
-                                      <View style={{ marginBottom: 12 }}>
-                                        <TouchableOpacity
-                                          style={styles.modalSectionHeaderCollapsible}
-                                          onPress={() => toggleSection('moderate')}
-                                          activeOpacity={0.8}
-                                        >
-                                          <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
-                                          <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
-                                        </TouchableOpacity>
-                                        {sectionsExpanded.moderate && (
-                                          <View style={styles.popularList}>
-                                            {moderate.map(item => renderModalExerciseCard(item))}
-                                          </View>
-                                        )}
-                                      </View>
-                                    )}
-
-                                    {vigorous.length > 0 && (
-                                      <View style={{ marginBottom: 12 }}>
-                                        <TouchableOpacity
-                                          style={styles.modalSectionHeaderCollapsible}
-                                          onPress={() => toggleSection('vigorous')}
-                                          activeOpacity={0.8}
-                                        >
-                                          <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
-                                          <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
-                                        </TouchableOpacity>
-                                        {sectionsExpanded.vigorous && (
-                                          <View style={styles.popularList}>
-                                            {vigorous.map(item => renderModalExerciseCard(item))}
-                                          </View>
-                                        )}
-                                      </View>
-                                    )}
+                              {count > 0 && categoryPopularWorkouts.length > 0 && (
+                                <View style={[styles.popularBlock, { marginTop: 12, marginBottom: 16 }]}>
+                                  <Text style={styles.sectionTitle}>
+                                    🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
+                                  </Text>
+                                  <View style={styles.popularList}>
+                                    {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
                                   </View>
-                                );
-                              })()
-                            ) : (
-                              // DURATION_BASED or DISTANCE_BASED Routing -> Biological Goal Filter Pills & Collapsible intensity lists
-                              (() => {
-                                const filteredByBioGoal = catActivities.filter(e => {
-                                  const cardioPct = e.cardioPct !== undefined ? e.cardioPct : 50;
-                                  if (selectedBioGoal === 'FAT_LOSS') {
-                                    return cardioPct >= 80;
-                                  }
-                                  if (selectedBioGoal === 'AEROBIC') {
-                                    return cardioPct >= 60 && cardioPct <= 79;
-                                  }
-                                  if (selectedBioGoal === 'RECOVERY') {
-                                    return cardioPct < 60;
-                                  }
-                                  return true;
-                                });
+                                </View>
+                              )}
+                            </View>
+                          );
+                        }
 
-                                const countFatLoss = catActivities.filter(e => {
-                                  const c = e.cardioPct !== undefined ? e.cardioPct : 50;
-                                  return c >= 80;
-                                }).length;
+                        if (isRepetitionCategory) {
+                          // REPETITION_BASED Routing -> Light, Moderate, Vigorous at top, Popular shifted BELOW
+                          const light = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
+                          const moderate = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+                          const vigorous = catActivities.filter(e => {
+                            const band = (e.intensityBand || '').toUpperCase();
+                            return band === 'VIGOROUS' || band === 'VIGOUR';
+                          });
+                          return (
+                            <View>
+                              {count === 0 && (
+                                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                                  <Text style={{ color: '#64748B', fontSize: 13 }}>
+                                    No activities found in this category.
+                                  </Text>
+                                </View>
+                              )}
 
-                                const countAerobic = catActivities.filter(e => {
-                                  const c = e.cardioPct !== undefined ? e.cardioPct : 50;
-                                  return c >= 60 && c <= 79;
-                                }).length;
-
-                                const countRecovery = catActivities.filter(e => {
-                                  const c = e.cardioPct !== undefined ? e.cardioPct : 50;
-                                  return c < 60;
-                                }).length;
-
-                                const light = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
-                                const moderate = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
-                                const vigorous = filteredByBioGoal.filter(e => {
-                                  const band = (e.intensityBand || '').toUpperCase();
-                                  return band === 'VIGOROUS' || band === 'VIGOUR';
-                                });
-
-                                return (
-                                  <View>
-                                    {/* Horizontal Row of Biological Goal Filter Pills */}
-                                    <View style={styles.bioGoalPillsContainer}>
-                                      <TouchableOpacity
-                                        style={[styles.bioGoalPill, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillActive]}
-                                        onPress={() => setSelectedBioGoal(prev => prev === 'FAT_LOSS' ? null : 'FAT_LOSS')}
-                                        activeOpacity={0.8}
-                                      >
-                                        <Text style={[styles.bioGoalPillText, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillTextActive]}>
-                                          🔥 Fat Loss ({countFatLoss})
-                                        </Text>
-                                      </TouchableOpacity>
-
-                                      <TouchableOpacity
-                                        style={[styles.bioGoalPill, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillActive]}
-                                        onPress={() => setSelectedBioGoal(prev => prev === 'AEROBIC' ? null : 'AEROBIC')}
-                                        activeOpacity={0.8}
-                                      >
-                                        <Text style={[styles.bioGoalPillText, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillTextActive]}>
-                                          ⚡ Aerobic ({countAerobic})
-                                        </Text>
-                                      </TouchableOpacity>
-
-                                      <TouchableOpacity
-                                        style={[styles.bioGoalPill, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillActive]}
-                                        onPress={() => setSelectedBioGoal(prev => prev === 'RECOVERY' ? null : 'RECOVERY')}
-                                        activeOpacity={0.8}
-                                      >
-                                        <Text style={[styles.bioGoalPillText, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillTextActive]}>
-                                          🧘 Recovery ({countRecovery})
-                                        </Text>
-                                      </TouchableOpacity>
+                              {light.length > 0 && (
+                                <View style={{ marginBottom: 12 }}>
+                                  <TouchableOpacity
+                                    style={styles.modalSectionHeaderCollapsible}
+                                    onPress={() => toggleSection('light')}
+                                    activeOpacity={0.8}
+                                  >
+                                    <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
+                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
+                                  </TouchableOpacity>
+                                  {sectionsExpanded.light && (
+                                    <View style={styles.popularList}>
+                                      {light.map(item => renderModalExerciseCard(item))}
                                     </View>
+                                  )}
+                                </View>
+                              )}
 
-                                    {/* Collapsible intensity groups for filtered list - HIDE BY DEFAULT */}
-                                    {selectedBioGoal !== null && (
-                                      <View>
-                                        {light.length > 0 && (
-                                          <View style={{ marginBottom: 12 }}>
-                                            <TouchableOpacity
-                                              style={styles.modalSectionHeaderCollapsible}
-                                              onPress={() => toggleSection('light')}
-                                              activeOpacity={0.8}
-                                            >
-                                              <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
-                                              <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
-                                            </TouchableOpacity>
-                                            {sectionsExpanded.light && (
-                                              <View style={styles.popularList}>
-                                                {light.map(item => renderModalExerciseCard(item))}
-                                              </View>
-                                            )}
-                                          </View>
-                                        )}
+                              {moderate.length > 0 && (
+                                <View style={{ marginBottom: 12 }}>
+                                  <TouchableOpacity
+                                    style={styles.modalSectionHeaderCollapsible}
+                                    onPress={() => toggleSection('moderate')}
+                                    activeOpacity={0.8}
+                                  >
+                                    <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
+                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
+                                  </TouchableOpacity>
+                                  {sectionsExpanded.moderate && (
+                                    <View style={styles.popularList}>
+                                      {moderate.map(item => renderModalExerciseCard(item))}
+                                    </View>
+                                  )}
+                                </View>
+                              )}
 
-                                        {moderate.length > 0 && (
-                                          <View style={{ marginBottom: 12 }}>
-                                            <TouchableOpacity
-                                              style={styles.modalSectionHeaderCollapsible}
-                                              onPress={() => toggleSection('moderate')}
-                                              activeOpacity={0.8}
-                                            >
-                                              <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
-                                              <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
-                                            </TouchableOpacity>
-                                            {sectionsExpanded.moderate && (
-                                              <View style={styles.popularList}>
-                                                {moderate.map(item => renderModalExerciseCard(item))}
-                                              </View>
-                                            )}
-                                          </View>
-                                        )}
+                              {vigorous.length > 0 && (
+                                <View style={{ marginBottom: 12 }}>
+                                  <TouchableOpacity
+                                    style={styles.modalSectionHeaderCollapsible}
+                                    onPress={() => toggleSection('vigorous')}
+                                    activeOpacity={0.8}
+                                  >
+                                    <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
+                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
+                                  </TouchableOpacity>
+                                  {sectionsExpanded.vigorous && (
+                                    <View style={styles.popularList}>
+                                      {vigorous.map(item => renderModalExerciseCard(item))}
+                                    </View>
+                                  )}
+                                </View>
+                              )}
 
-                                        {vigorous.length > 0 && (
-                                          <View style={{ marginBottom: 12 }}>
-                                            <TouchableOpacity
-                                              style={styles.modalSectionHeaderCollapsible}
-                                              onPress={() => toggleSection('vigorous')}
-                                              activeOpacity={0.8}
-                                            >
-                                              <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
-                                              <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
-                                            </TouchableOpacity>
-                                            {sectionsExpanded.vigorous && (
-                                              <View style={styles.popularList}>
-                                                {vigorous.map(item => renderModalExerciseCard(item))}
-                                              </View>
-                                            )}
-                                          </View>
-                                        )}
+                              {/* Popular Workouts shifted BELOW Light / Moderate / Vigorous sections only when count > 0 */}
+                              {count > 0 && categoryPopularWorkouts.length > 0 && (
+                                <View style={[styles.popularBlock, { marginTop: 8, marginBottom: 16 }]}>
+                                  <Text style={styles.sectionTitle}>
+                                    🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
+                                  </Text>
+                                  <View style={styles.popularList}>
+                                    {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                                  </View>
+                                </View>
+                              )}
+                            </View>
+                          );
+                        }
 
-                                        {filteredByBioGoal.length === 0 && (
-                                          <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                            <Text style={{ color: '#64748B', fontSize: 13 }}>
-                                              No activities match this biological goal.
-                                            </Text>
-                                          </View>
-                                        )}
+                        // DURATION_BASED or DISTANCE_BASED Routing -> Biological Goal Filter Pills at TOP, followed by Popular & Filtered lists
+                        const filteredByBioGoal = catActivities.filter(e => {
+                          const cardioPct = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          if (selectedBioGoal === 'FAT_LOSS') {
+                            return cardioPct >= 80;
+                          }
+                          if (selectedBioGoal === 'AEROBIC') {
+                            return cardioPct >= 60 && cardioPct <= 79;
+                          }
+                          if (selectedBioGoal === 'RECOVERY') {
+                            return cardioPct < 60;
+                          }
+                          return true;
+                        });
+
+                        const countFatLoss = catActivities.filter(e => {
+                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          return c >= 80;
+                        }).length;
+
+                        const countAerobic = catActivities.filter(e => {
+                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          return c >= 60 && c <= 79;
+                        }).length;
+
+                        const countRecovery = catActivities.filter(e => {
+                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          return c < 60;
+                        }).length;
+
+                        const light = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
+                        const moderate = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+                        const vigorous = filteredByBioGoal.filter(e => {
+                          const band = (e.intensityBand || '').toUpperCase();
+                          return band === 'VIGOROUS' || band === 'VIGOUR';
+                        });
+
+                        return (
+                          <View>
+                            {/* Horizontal Row of Biological Goal Filter Pills - RENDERED AT TOP */}
+                            <View style={styles.bioGoalPillsContainer}>
+                              <TouchableOpacity
+                                style={[styles.bioGoalPill, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillActive]}
+                                onPress={() => setSelectedBioGoal(prev => prev === 'FAT_LOSS' ? null : 'FAT_LOSS')}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillTextActive]}>
+                                  🔥 Fat Loss ({countFatLoss})
+                                </Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={[styles.bioGoalPill, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillActive]}
+                                onPress={() => setSelectedBioGoal(prev => prev === 'AEROBIC' ? null : 'AEROBIC')}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillTextActive]}>
+                                  ⚡ Aerobic ({countAerobic})
+                                </Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={[styles.bioGoalPill, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillActive]}
+                                onPress={() => setSelectedBioGoal(prev => prev === 'RECOVERY' ? null : 'RECOVERY')}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillTextActive]}>
+                                  🧘 Recovery ({countRecovery})
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            {count === 0 && (
+                              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                                <Text style={{ color: '#64748B', fontSize: 13 }}>
+                                  No activities found in this category.
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* When NO sub-category is selected: Show Popular Workouts directly below the sub-category tabs ONLY IF count > 0 */}
+                            {selectedBioGoal === null && count > 0 && categoryPopularWorkouts.length > 0 && (
+                              <View style={[styles.popularBlock, { marginBottom: 16 }]}>
+                                <Text style={styles.sectionTitle}>
+                                  🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
+                                </Text>
+                                <View style={styles.popularList}>
+                                  {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                                </View>
+                              </View>
+                            )}
+
+                            {/* Collapsible intensity groups for filtered list */}
+                            {selectedBioGoal !== null && (
+                              <View>
+                                {light.length > 0 && (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <TouchableOpacity
+                                      style={styles.modalSectionHeaderCollapsible}
+                                      onPress={() => toggleSection('light')}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
+                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
+                                    </TouchableOpacity>
+                                    {sectionsExpanded.light && (
+                                      <View style={styles.popularList}>
+                                        {light.map(item => renderModalExerciseCard(item))}
                                       </View>
                                     )}
                                   </View>
-                                );
-                              })()
+                                )}
+
+                                {moderate.length > 0 && (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <TouchableOpacity
+                                      style={styles.modalSectionHeaderCollapsible}
+                                      onPress={() => toggleSection('moderate')}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
+                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
+                                    </TouchableOpacity>
+                                    {sectionsExpanded.moderate && (
+                                      <View style={styles.popularList}>
+                                        {moderate.map(item => renderModalExerciseCard(item))}
+                                      </View>
+                                    )}
+                                  </View>
+                                )}
+
+                                {vigorous.length > 0 && (
+                                  <View style={{ marginBottom: 12 }}>
+                                    <TouchableOpacity
+                                      style={styles.modalSectionHeaderCollapsible}
+                                      onPress={() => toggleSection('vigorous')}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
+                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
+                                    </TouchableOpacity>
+                                    {sectionsExpanded.vigorous && (
+                                      <View style={styles.popularList}>
+                                        {vigorous.map(item => renderModalExerciseCard(item))}
+                                      </View>
+                                    )}
+                                  </View>
+                                )}
+
+                                {filteredByBioGoal.length === 0 && (
+                                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                                    <Text style={{ color: '#64748B', fontSize: 13 }}>
+                                      No activities match this biological goal.
+                                    </Text>
+                                  </View>
+                                )}
+
+                                {/* Popular Workouts below the filtered results only if items match */}
+                                {filteredByBioGoal.length > 0 && categoryPopularWorkouts.length > 0 && (
+                                  <View style={[styles.popularBlock, { marginTop: 8, marginBottom: 16 }]}>
+                                    <Text style={styles.sectionTitle}>
+                                      🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
+                                    </Text>
+                                    <View style={styles.popularList}>
+                                      {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                                    </View>
+                                  </View>
+                                )}
+                              </View>
                             )}
                           </View>
                         );
@@ -1628,8 +1696,9 @@ export const ActivityTrackingScreen: React.FC = () => {
                 />
                 <CustomButton
                   title="Next"
+                  disabled={!activityType || activityType.trim().length === 0}
                   onPress={() => {
-                    if (!activityType) {
+                    if (!activityType || activityType.trim().length === 0) {
                       Alert.alert('Selection Required', 'Please select an exercise first.');
                       return;
                     }
@@ -1894,23 +1963,35 @@ export const ActivityTrackingScreen: React.FC = () => {
                             <View 
                               style={[
                                 styles.rpeFill, 
-                                { width: `${((sliderVal - 1) / 9) * 100}%` }
+                                { width: `${((rpe - 1) / 9) * 100}%` }
                               ]} 
                             />
                             {/* Thumb */}
                             <View 
                               style={[
                                 styles.rpeThumb, 
-                                { left: `${((sliderVal - 1) / 9) * 100}%` }
+                                { left: `${((rpe - 1) / 9) * 100}%` }
                               ]} 
                             />
                           </View>
                           <View style={styles.rpeScaleLabels}>
-                            <Text style={styles.scaleLabelText}>2</Text>
-                            <Text style={styles.scaleLabelText}>4</Text>
-                            <Text style={styles.scaleLabelText}>6</Text>
-                            <Text style={styles.scaleLabelText}>8</Text>
-                            <Text style={styles.scaleLabelText}>10</Text>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                              const isSelected = rpe === num;
+                              return (
+                                <TouchableOpacity
+                                  key={num}
+                                  style={[styles.scaleTickButton, { left: `${((num - 1) / 9) * 100}%` }]}
+                                  onPress={() => setSliderVal(num)}
+                                  activeOpacity={0.7}
+                                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                                >
+                                  <View style={[styles.tickDot, isSelected && styles.tickDotActive]} />
+                                  <Text style={[styles.scaleLabelText, isSelected && styles.scaleLabelTextActive]}>
+                                    {num}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
                           </View>
                         </View>
 
@@ -1924,7 +2005,7 @@ export const ActivityTrackingScreen: React.FC = () => {
                                   cx={55}
                                   cy={55}
                                   r={radius}
-                                  stroke="#E2E8F0"
+                                  stroke="#1E293B"
                                   strokeWidth={10}
                                   fill="transparent"
                                 />
@@ -1995,7 +2076,7 @@ export const ActivityTrackingScreen: React.FC = () => {
                           {/* Legend Grid */}
                           <View style={styles.legendWrapper}>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#06B6D4' }]} />
+                              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
                               <Text style={styles.legendText}>Cardio: {breakdown.cardioPct}%</Text>
                             </View>
                             <View style={styles.legendRow}>
@@ -2003,11 +2084,11 @@ export const ActivityTrackingScreen: React.FC = () => {
                               <Text style={styles.legendText}>Strength: {breakdown.strengthPct}%</Text>
                             </View>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#2DD4BF' }]} />
+                              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
                               <Text style={styles.legendText}>Balance: {breakdown.balancePct}%</Text>
                             </View>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#FB923C' }]} />
+                              <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
                               <Text style={styles.legendText}>Recovery: {breakdown.recoveryPct}%</Text>
                             </View>
                           </View>
@@ -2396,7 +2477,7 @@ export const ActivityTrackingScreen: React.FC = () => {
                           </View>
                         </View>
 
-                        {/* Today's Logged Exercises Section (from Screenshot 2) */}
+                        {/* Today's Logged Exercises Section */}
                         <TouchableOpacity
                           activeOpacity={0.7}
                           onPress={() => {
@@ -2407,17 +2488,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                         >
                           <Text style={styles.goToDashboardLinkText}>
                             👉 Click here to see your fitness score
-                          </Text>
-                        </TouchableOpacity>
-
-                        {/* Understand Action Button (only single button now) */}
-                        <TouchableOpacity
-                          style={styles.understandBtn}
-                          onPress={() => setBenefitsVisible(false)}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.understandBtnText}>
-                            Understand
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -2681,13 +2751,13 @@ const styles = StyleSheet.create({
   rpeSection: {
     width: '100%',
     marginVertical: 16,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
   },
   rpeLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   rpeTitle: {
     fontSize: 14,
@@ -2733,15 +2803,39 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   rpeScaleLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginTop: 6,
+    position: 'relative',
+    height: 28,
+    marginTop: 10,
+    width: '100%',
+  },
+  scaleTickButton: {
+    position: 'absolute',
+    alignItems: 'center',
+    transform: [{ translateX: -10 }],
+    width: 20,
+  },
+  tickDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#475569',
+    marginBottom: 3,
+  },
+  tickDotActive: {
+    backgroundColor: '#3B82F6',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   scaleLabelText: {
     fontSize: 10,
     color: '#64748B',
     fontWeight: '700',
+  },
+  scaleLabelTextActive: {
+    color: '#3B82F6',
+    fontWeight: '900',
+    fontSize: 11.5,
   },
   breakdownCard: {
     flexDirection: 'row',
