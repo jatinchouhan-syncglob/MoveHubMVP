@@ -8,11 +8,21 @@ import {
   ScrollView,
   FlatList,
   SectionList,
+  Modal,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { ROUTES } from '../../constants/routes';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 
 interface ExerciseItem {
   id: string;
@@ -324,6 +334,18 @@ export const DemoSearchHubScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPill, setSelectedPill] = useState<'ALL' | 'DANCING' | 'GYM' | null>(null);
 
+  // Custom Activity Modal & Submission States
+  const [customModalVisible, setCustomModalVisible] = useState(false);
+  const [customActivityName, setCustomActivityName] = useState('');
+  const [customNotes, setCustomNotes] = useState('Activity was not available in catalog');
+  const [customSubmitting, setCustomSubmitting] = useState(false);
+
+  // Success Alert Modal states
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('Success');
+  const [alertMessage, setAlertMessage] = useState('Custom activity saved successfully');
+  const [savedActivityData, setSavedActivityData] = useState<any>(null);
+
   useEffect(() => {
     // Auto-select 'ALL' tab and search when user starts typing, reset to popular list if empty
     if (searchQuery.trim().length > 0) {
@@ -332,6 +354,72 @@ export const DemoSearchHubScreen: React.FC = () => {
       setSelectedPill(null);
     }
   }, [searchQuery]);
+
+  const handleOpenCustomModal = () => {
+    setCustomActivityName(searchQuery.trim());
+    setCustomNotes('Activity was not available in catalog');
+    setCustomModalVisible(true);
+  };
+
+  const handleSaveCustomActivity = async () => {
+    if (!customActivityName.trim()) {
+      Alert.alert('Required', 'Please enter an activity name.');
+      return;
+    }
+
+    setCustomSubmitting(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const activeUhid = cachedProfile?.uhid || 'SAMSUN9776';
+
+      const payload = {
+        uhid: activeUhid,
+        activityName: customActivityName.trim(),
+        categoryName: '',
+        durationMinutes: null,
+        caloriesBurned: null,
+        intensity: '',
+        notes: customNotes.trim() || 'Activity was not available in catalog',
+      };
+
+      const res = await apiService.saveCustomActivity(payload);
+      console.log('[DemoSearchHub] saveCustomActivity response:', res);
+
+      setCustomModalVisible(false);
+
+      const createdItem = {
+        activityCode: `custom-${res?.data?.id || Date.now()}`,
+        activityName: customActivityName.trim(),
+        category: 'Custom Activity',
+        baseMet: 4.5,
+        cardio: 70,
+        strength: 10,
+        balance: 10,
+        recovery: 10,
+      };
+      setSavedActivityData(createdItem);
+
+      setAlertTitle('Success');
+      setAlertMessage(res?.message || 'Custom activity saved successfully');
+      setAlertModalVisible(true);
+    } catch (error: any) {
+      console.error('[DemoSearchHub] Error saving custom activity:', error);
+      Alert.alert(
+        'Submission Failed',
+        error?.response?.data?.message ||
+          'Failed to save custom activity. Please try again.',
+      );
+    } finally {
+      setCustomSubmitting(false);
+    }
+  };
+
+  const handleAlertClose = () => {
+    setAlertModalVisible(false);
+    navigation.navigate(ROUTES.ACTIVITY_TRACKING, { initialTab: 'Workout' });
+  };
 
   const getFilteredList = () => {
     const query = searchQuery.trim().toLowerCase();
@@ -474,7 +562,31 @@ export const DemoSearchHubScreen: React.FC = () => {
 
       {/* Main content body */}
       <View style={styles.contentBody}>
-        {selectedPill === null ? (
+        {currentList.length === 0 && selectedPill !== null ? (
+          /* Empty State when no exercise matches search */
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyStateIconContainer}>
+              <Text style={{ fontSize: 32 }}>🔍</Text>
+            </View>
+            <Text style={styles.emptyStateTitle}>
+              {searchQuery.trim()
+                ? `No exercise found for "${searchQuery.trim()}"`
+                : 'No activities found'}
+            </Text>
+            <Text style={styles.emptyStateSubtitle}>
+              Can't find your activity in the catalog? You can add and submit it directly as a custom activity.
+            </Text>
+            <TouchableOpacity
+              style={styles.addCustomButton}
+              activeOpacity={0.8}
+              onPress={handleOpenCustomModal}
+            >
+              <Text style={styles.addCustomButtonText}>
+                + Add Custom Activity
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : selectedPill === null ? (
           /* Popular Workouts Block (Visible ONLY before any pill selection) */
           <View style={styles.popularBlock}>
             <Text style={styles.sectionTitle}>🔥 POPULAR WORKOUTS RIGHT NOW</Text>
@@ -525,6 +637,104 @@ export const DemoSearchHubScreen: React.FC = () => {
           />
         )}
       </View>
+
+      {/* Bottom Sticky Link to Add Custom Activity */}
+      <TouchableOpacity
+        style={styles.bottomAddCustomLink}
+        activeOpacity={0.8}
+        onPress={handleOpenCustomModal}
+      >
+        <Text style={styles.bottomAddCustomLinkText}>
+          Can't find your exercise? <Text style={styles.bottomAddCustomLinkBold}>+ Add Custom Activity</Text>
+        </Text>
+      </TouchableOpacity>
+
+      {/* Add Custom Activity Modal */}
+      <Modal
+        visible={customModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => !customSubmitting && setCustomModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.customModalCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={styles.modalHeaderIcon}>✨</Text>
+                <Text style={styles.customModalTitle}>Add Custom Activity</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => !customSubmitting && setCustomModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.customModalSub}>
+              Enter your activity name to submit and start logging your workout.
+            </Text>
+
+            <Text style={styles.inputLabel}>Activity Name *</Text>
+            <TextInput
+              style={styles.customInput}
+              placeholder="e.g. Paddle Boarding in Ocean"
+              placeholderTextColor="#64748B"
+              value={customActivityName}
+              onChangeText={setCustomActivityName}
+              autoFocus={true}
+            />
+
+            <Text style={[styles.inputLabel, { marginTop: 14 }]}>Notes</Text>
+            <TextInput
+              style={[styles.customInput, { height: 75, textAlignVertical: 'top', paddingTop: 10 }]}
+              placeholder="e.g. Activity was not available in catalog"
+              placeholderTextColor="#64748B"
+              value={customNotes}
+              onChangeText={setCustomNotes}
+              multiline={true}
+            />
+
+            <View style={styles.customModalBtnRow}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setCustomModalVisible(false)}
+                disabled={customSubmitting}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.submitCustomBtn,
+                  (!customActivityName.trim() || customSubmitting) && styles.submitCustomBtnDisabled,
+                ]}
+                onPress={handleSaveCustomActivity}
+                disabled={!customActivityName.trim() || customSubmitting}
+              >
+                {customSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitCustomBtnText}>Save & Log Workout</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Success Custom Alert Modal */}
+      <CustomAlertModal
+        visible={alertModalVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type="success"
+        buttonText="Go to Workout Logs"
+        onClose={handleAlertClose}
+      />
     </SafeAreaView>
   );
 };
@@ -658,5 +868,185 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#94A3B8',
     letterSpacing: 0.5,
+  },
+  // Empty State Styles
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginTop: 12,
+  },
+  emptyStateIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptyStateSubtitle: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  addCustomButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  addCustomButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  // Bottom Link
+  bottomAddCustomLink: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  bottomAddCustomLinkText: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  bottomAddCustomLinkBold: {
+    color: '#60A5FA',
+    fontWeight: '700',
+  },
+  // Custom Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  customModalCard: {
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalHeaderIcon: {
+    fontSize: 20,
+  },
+  customModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  customModalSub: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  customInput: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#F8FAFC',
+  },
+  customModalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#CBD5E1',
+  },
+  submitCustomBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 150,
+  },
+  submitCustomBtnDisabled: {
+    opacity: 0.5,
+  },
+  submitCustomBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -161,34 +161,35 @@ const getStatusDetails = (
 };
 
 const renderTrendIndicator = (trend?: string, value?: number | string) => {
-  const numVal = typeof value === 'string' ? parseFloat(value) : value;
-  if (!trend || numVal === 0 || isNaN(numVal as number)) {
-    return null;
-  }
-  const trendLower = trend.toLowerCase();
+  const trendLower = trend ? trend.toLowerCase() : '';
   if (trendLower === 'increase') {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
-        <Text style={[styles.metricArrow, { color: '#22c55e', fontSize: 13 }]}>▲</Text>
-        <Text style={{ color: '#22c55e', fontSize: 10, fontWeight: '700', marginLeft: 2 }}>Increase</Text>
+      <View style={styles.metricTrendBox}>
+        <Text style={[styles.metricArrow, { color: '#22c55e', fontSize: 12 }]}>▲</Text>
+        <Text style={{ color: '#22c55e', fontSize: 9.5, fontWeight: '700', marginLeft: 2 }}>Increase</Text>
       </View>
     );
   }
   if (trendLower === 'decrease') {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
-        <Text style={[styles.metricArrow, styles.metricArrowDown, { color: '#ef4444', fontSize: 13 }]}>▼</Text>
-        <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', marginLeft: 2 }}>Decrease</Text>
+      <View style={styles.metricTrendBox}>
+        <Text style={[styles.metricArrow, styles.metricArrowDown, { color: '#ef4444', fontSize: 12 }]}>▼</Text>
+        <Text style={{ color: '#ef4444', fontSize: 9.5, fontWeight: '700', marginLeft: 2 }}>Decrease</Text>
       </View>
     );
   }
-  return null;
+  return (
+    <View style={styles.metricTrendBox}>
+      <Text style={{ color: '#94a3b8', fontSize: 9.5, fontWeight: '600' }}>—</Text>
+    </View>
+  );
 };
 
 const BioSyncTab = ({
   chartWidth,
   energyEfficiency,
   integratedStamina,
+  pulsePaceIndex,
   weeklyPerformance,
   weeklyPerformanceSummary,
   pillarHealthData,
@@ -204,11 +205,16 @@ const BioSyncTab = ({
   const energyEfficiencyMax = getDynamicMax(energyEfficiency?.values || []);
   const integratedStaminaMax = getDynamicMax(integratedStamina?.values || []);
 
-  const cardioYieldTotals = cardioYieldData.map(item =>
-    item.stacks.reduce((a, b) => a + b, 0),
-  );
-  const cardioYieldMax = getDynamicMax(cardioYieldTotals);
-  const cardioYieldTicks = getDynamicTicks(cardioYieldMax);
+  const ppiData =
+    pulsePaceIndex && pulsePaceIndex.values.length > 0
+      ? pulsePaceIndex
+      : {
+          values: (cardioYieldData || []).map(item =>
+            item.stacks.reduce((a, b) => a + b, 0),
+          ),
+          labels: (cardioYieldData || []).map(item => item.day),
+        };
+  const pulsePaceIndexMax = getDynamicMax(ppiData.values);
 
   const statusDetails = getStatusDetails(status, pillarHealthData);
 
@@ -402,105 +408,29 @@ const BioSyncTab = ({
           <Text style={styles.cardTitle}>Pulse Pace Index (PPI) - Intensity</Text>
         </View>
 
-        {cardioYieldData?.length ? (
-          <>
-            <View style={styles.stackedChartContainer}>
-              <View style={styles.yAxis}>
-                {[...cardioYieldTicks].reverse().map(value => (
-                  <Text key={value} style={styles.yAxisLabel}>
-                    {value}
-                  </Text>
-                ))}
-              </View>
-              <View style={[styles.stackedChartWrapper, {width: chartWidth}]}>
-                {cardioYieldData.length > 7 && (
-                  <View style={styles.scrollIndicatorAbsolute}>
-                    <Text style={styles.scrollIndicatorText}>
-                      Scroll for more
-                    </Text>
-                    <Text style={styles.scrollIndicatorArrow}>→</Text>
-                  </View>
-                )}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View
-                    style={[
-                      {
-                        paddingHorizontal: 6,
-                        minWidth: chartWidth - 40,
-                        flexDirection: 'row',
-                        alignItems: 'flex-end',
-                        height: 200,
-                      },
-                    ]}>
-                    {cardioYieldData?.map((item, idx) => (
-                      <View
-                        key={`cy-${item.day}-${idx}`}
-                        style={[
-                          styles.dayColumn,
-                          {width: Math.max(40, (chartWidth - 40) / 7)},
-                        ]}>
-                        {!!item.trend && (
-                          <Text style={styles.trendTopText}>{item.trend}</Text>
-                        )}
-                        <View
-                          style={[
-                            styles.barWrapper,
-                            {borderRadius: 8, overflow: 'hidden'},
-                          ]}>
-                          <View
-                            style={[
-                              styles.stackPiece,
-                              {
-                                height: (item.stacks[0] / cardioYieldMax) * 160,
-                                backgroundColor: colors.amber,
-                              },
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.stackPiece,
-                              {
-                                height: (item.stacks[1] / cardioYieldMax) * 160,
-                                backgroundColor: colors.blue,
-                              },
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.stackPiece,
-                              {
-                                height: (item.stacks[2] / cardioYieldMax) * 160,
-                                backgroundColor: colors.purple,
-                              },
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.stackPiece,
-                              {
-                                height: (item.stacks[3] / cardioYieldMax) * 160,
-                                backgroundColor: colors.teal,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.dayLabel}>{item.day}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-            <View style={styles.legendRow}>
-              <LegendItem color={colors.amber} label="Morning" />
-              <LegendItem color={colors.blue} label="Afternoon" />
-              <LegendItem color={colors.purple} label="Evening" />
-              <LegendItem color={colors.teal} label="Night" />
-            </View>
-          </>
-        ) : (
-          <EmptyChart title="Pulse Pace Index (PPI)" />
-        )}
+        <View style={styles.chartWrapper}>
+          {ppiData?.values && ppiData.values.length > 0 ? (
+            <ScrollableChart
+              dataLength={ppiData.values.length}
+              visibleWidth={chartWidth}>
+              {computedWidth => (
+                <BarChart
+                  values={ppiData.values}
+                  labels={ppiData.labels}
+                  width={computedWidth}
+                  height={170}
+                  maxY={pulsePaceIndexMax}
+                  yTicks={getDynamicTicks(pulsePaceIndexMax)}
+                />
+              )}
+            </ScrollableChart>
+          ) : (
+            <EmptyChart title="Pulse Pace Index (PPI)" />
+          )}
+        </View>
+        <Text style={styles.caption}>
+          Pulse Pace Index (PPI) measures cardiovascular workout intensity over time.
+        </Text>
 
         {cardioYieldPerStepCharts &&
           (cardioYieldPerStepCharts.target !== undefined ||
@@ -696,28 +626,28 @@ const BioSyncTab = ({
                 <DualLineChart
                   series={[
                     {
-                      values: weeklyPerformance.cys,
-                      color: speedometerColor.main,
-                      filled: false,
-                      gradId: 'gradCys',
-                    },
-                    {
                       values: weeklyPerformance.eeKm,
-                      color: speedometerColor.base,
+                      color: '#F97316', // Power Orange for EE/KM (E3)
                       dashed: true,
                       filled: false,
                       gradId: 'gradEeKm',
                     },
                     {
                       values: weeklyPerformance.is,
-                      color: speedometerColor.medium,
+                      color: '#10B981', // Emerald Green for IS (Stamina)
                       filled: false,
                       gradId: 'gradIs',
+                    },
+                    {
+                      values: weeklyPerformance.cys,
+                      color: '#3B82F6', // Electric Blue for PPI (Intensity)
+                      filled: false,
+                      gradId: 'gradCys',
                     },
                   ]}
                   labels={weeklyPerformance.labels}
                   width={computedWidth}
-                  height={190}
+                  height={205}
                 />
               )}
             </ScrollableChart>
@@ -727,11 +657,11 @@ const BioSyncTab = ({
         </View>
 
         <View style={styles.legendRow}>
-          <LegendItem color={speedometerColor.base} label="EE/KM (E3)" dashed />
+          <LegendItem color="#F97316" label="EE/KM (E3)" dashed />
 
-          <LegendItem color={speedometerColor.medium} label="IS (Stamina)" />
+          <LegendItem color="#10B981" label="IS (Stamina)" />
 
-          <LegendItem color={speedometerColor.main} label="PPI (Intensity)" />
+          <LegendItem color="#3B82F6" label="PPI (Intensity)" />
         </View>
 
         <Text style={styles.caption}>

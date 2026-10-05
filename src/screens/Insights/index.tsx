@@ -77,13 +77,12 @@ const BASE_4_WEEKS = [
 const generateMonthsList = () => {
   const list: string[] = [];
   const startYear = 2024;
-  const endYear = 2026;
-  const currentMonthIdx = 5; // June (0-indexed: 5)
+  const currentYear = new Date().getFullYear();
+  const endYear = Math.max(2026, currentYear);
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   for (let year = startYear; year <= endYear; year++) {
-    const maxMonth = year === endYear ? currentMonthIdx : 11;
-    for (let m = 0; m <= maxMonth; m++) {
+    for (let m = 0; m <= 11; m++) {
       list.push(`${monthNames[m]} ${year}`);
     }
   }
@@ -205,32 +204,41 @@ const BIOSYNC_INTEGRATED_STAMINA_CHARTS = { target: '82', actual: '85.7', perfor
 const BIOSYNC_WEEKLY_TREND_CHARTS = { target: '78', actual: '83', performance: '106' };
 const BIOSYNC_CARDIO_YIELD_PER_STEP_CHARTS = { target: '70', actual: '73', performance: '104' };
 
+const formatDateLabel = (dateStr?: string, fallbackDay?: string): string => {
+  if (dateStr) {
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}`;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  if (fallbackDay) {
+    return fallbackDay.slice(0, 3);
+  }
+  return '';
+};
+
 const parseFitnessTrendArray = (arr?: any[]) => {
   if (!arr || arr.length === 0) return undefined;
-  const values = arr.map(item => item.values ?? 0);
-  const labels = arr.map(item => {
-    if (!item.date) return '';
-    try {
-      const d = new Date(item.date);
-      return d.toLocaleDateString('en-US', { weekday: 'short' });
-    } catch {
-      return '';
-    }
-  });
+  const values = arr.map(item =>
+    item.active_minutes !== undefined
+      ? item.active_minutes
+      : item.total !== undefined
+      ? item.total
+      : (item.values ?? 0)
+  );
+  const labels = arr.map(item => formatDateLabel(item.date, item.day));
   return { values, labels };
 };
 
 const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
   if (!weeklyTrend || weeklyTrend.length === 0) return undefined;
-  const labels = weeklyTrend.map(item => {
-    if (!item.date) return '';
-    try {
-      const d = new Date(item.date);
-      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-    } catch {
-      return '';
-    }
-  });
+  const labels = weeklyTrend.map(item => formatDateLabel(item.date, item.day));
   const cys = weeklyTrend.map(item => item.cys ?? 0);
   const eeKm = weeklyTrend.map(item => item.eeKm ?? 0);
   const is = weeklyTrend.map(item => item.isAvg ?? 0);
@@ -240,16 +248,18 @@ const parseWeeklyPerformance = (weeklyTrend?: any[]) => {
 const parseCardioYieldData = (arr?: any[]) => {
   if (!arr || arr.length === 0) return [];
   return arr.map(item => {
-    const dayLabel = item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) : `Day ${item.day}`;
+    const dayLabel = formatDateLabel(item.date, item.day) || `Day ${item.day || ''}`;
+    const totalVal = item.total !== undefined ? item.total : (item.values ?? 0);
+    const stacks = item.stacks || [
+      item.morning !== undefined ? item.morning : totalVal,
+      item.afternoon ?? 0,
+      item.evening ?? 0,
+      item.night ?? 0
+    ];
     return {
       day: dayLabel,
-      trend: '',
-      stacks: [
-        item.morning ?? 0,
-        item.afternoon ?? 0,
-        item.evening ?? 0,
-        item.night ?? 0
-      ]
+      trend: item.trend || '',
+      stacks
     };
   });
 };
@@ -257,8 +267,8 @@ const parseCardioYieldData = (arr?: any[]) => {
 const formatChartSummary = (summaryObj?: any) => {
   if (!summaryObj) return undefined;
   const target = summaryObj.target !== undefined && summaryObj.target !== null ? summaryObj.target : undefined;
-  const actual = summaryObj.actual !== undefined && summaryObj.actual !== null ? summaryObj.actual : undefined;
-  let perf = summaryObj.performance !== undefined && summaryObj.performance !== null ? summaryObj.performance : undefined;
+  const actual = summaryObj.value !== undefined ? summaryObj.value : (summaryObj.actual !== undefined && summaryObj.actual !== null ? summaryObj.actual : undefined);
+  let perf = summaryObj.performance_percent !== undefined ? summaryObj.performance_percent : (summaryObj.performance !== undefined && summaryObj.performance !== null ? summaryObj.performance : summaryObj.percent);
   if (typeof perf === 'string' && perf.endsWith('%')) {
     perf = perf.slice(0, -1);
   }
@@ -268,8 +278,34 @@ const formatChartSummary = (summaryObj?: any) => {
   return {
     target,
     actual,
-    performance: perf,
+    performance: perf !== undefined ? (typeof perf === 'number' ? Math.round(perf * 100) / 100 : perf) : undefined,
   };
+};
+
+const getDynamicMax = (values: number[]) => {
+  const max = Math.max(...values, 0);
+
+  if (max === 0) {
+    return 5;
+  }
+
+  if (max <= 10) {
+    return max + 5;
+  }
+
+  if (max <= 100) {
+    return Math.ceil((max + 20) / 10) * 10;
+  }
+
+  if (max <= 1000) {
+    return Math.ceil((max + 100) / 50) * 50;
+  }
+
+  if (max <= 10000) {
+    return Math.ceil((max + 500) / 100) * 100;
+  }
+
+  return Math.ceil((max + 1000) / 500) * 500;
 };
 
 const getBioSyncStatus = (score?: number) => {
@@ -281,7 +317,7 @@ const getBioSyncStatus = (score?: number) => {
 
 export const InsightsScreen: React.FC = () => {
   const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
-  const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('4weeks');
+  const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('7days');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [fitnessTrend, setFitnessTrend] = useState<any>(null);
@@ -291,14 +327,14 @@ export const InsightsScreen: React.FC = () => {
   const [targetDate, setTargetDate] = useState<string>('');
 
   // Interactive index for Activity Trends tooltip selection
-  const [selectedTrendIdx, setSelectedTrendIdx] = useState<number>(2); // Default to index 2 (e.g. Wk 43)
+  const [selectedTrendIdx, setSelectedTrendIdx] = useState<number>(2); // Default to Wednesday
 
   // Transformation states
   const [showGreenLine, setShowGreenLine] = useState(true);
   const [showEmeraldGradient, setShowEmeraldGradient] = useState(true);
 
   // Month selection states
-  const [selectedMonth, setSelectedMonth] = useState<string>('Jun 2026');
+  const [selectedMonth, setSelectedMonth] = useState<string>('Sep 2026');
   const [showMonthDropdown, setShowMonthDropdown] = useState<boolean>(false);
 
   // Weekly Report Dynamic API Data states
@@ -350,109 +386,136 @@ export const InsightsScreen: React.FC = () => {
           }
           if (dailyChartsRes.target_date) {
             setTargetDate(dailyChartsRes.target_date);
+            try {
+              const td = new Date(dailyChartsRes.target_date);
+              if (!isNaN(td.getTime())) {
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                setSelectedMonth(`${monthNames[td.getMonth()]} ${td.getFullYear()}`);
+              }
+            } catch {
+              // fallback
+            }
           }
           const metrics = dailyChartsRes.daily_metrics || {};
           const heartPointsObj = metrics.heart_points || {};
+          const energyExpendedObj = metrics.energy_expended_kcal || {};
+          const sdexObj = metrics.sdex || {};
+          const activeMinutesObj = metrics.active_minutes || {};
+          const stepsBreakdownObj = dailyChartsRes.daily_steps_breakdown || {};
           const bioSyncObj = dailyChartsRes.bio_sync_charts || {};
           const labelDate = dailyChartsRes.target_date || 'Today';
-          const totalSteps = dailyChartsRes.daily_steps_breakdown?.total_steps ?? metrics.steps ?? 0;
+
+          const hpValue = heartPointsObj.value ?? (typeof heartPointsObj === 'number' ? heartPointsObj : 0);
+          const sdexValue = sdexObj.value ?? (typeof sdexObj === 'number' ? sdexObj : 0);
+          const energyExpendedValue = energyExpendedObj.value ?? (typeof energyExpendedObj === 'number' ? energyExpendedObj : 0);
+          const activeMinutesValue = activeMinutesObj.value ?? (typeof activeMinutesObj === 'number' ? activeMinutesObj : 0);
+          const totalSteps = stepsBreakdownObj.total_steps ?? metrics.steps ?? 0;
+
+          // Days arrays for 7-day charts
+          const stepsDays = stepsBreakdownObj.days || [{ date: labelDate, day: 'Today', total: totalSteps }];
+          const hpDays = heartPointsObj.days || [{ date: labelDate, day: 'Today', total: hpValue }];
+          const sdexDays = sdexObj.days || [{ date: labelDate, day: 'Today', total: sdexValue }];
+          const energyDays = energyExpendedObj.days || [{ date: labelDate, day: 'Today', total: energyExpendedValue }];
+          const activeMinutesDays = activeMinutesObj.days || [{ date: labelDate, day: 'Today', active_minutes: activeMinutesValue }];
 
           const mappedFitnessTrend = {
-            dailyStepsBreakdown: [
-              { date: labelDate, values: totalSteps }
-            ],
-            dailyHeartPoints: [
-              { date: labelDate, values: heartPointsObj.value ?? 0 }
-            ],
-            dailySdex: [
-              { date: labelDate, values: metrics.sdex ?? 0 }
-            ],
-            energyExpanded: [
-              { date: labelDate, values: metrics.energy_expended_kcal ?? 0 }
-            ],
-            dailyActiveMinutes: [
-              { date: labelDate, values: 0 }
-            ],
-            totalHeartPoint: heartPointsObj.value ?? 0,
-            totalDailySdex: metrics.sdex ?? 0,
+            dailyStepsBreakdown: stepsDays,
+            dailyHeartPoints: hpDays,
+            dailySdex: sdexDays,
+            energyExpanded: energyDays,
+            dailyActiveMinutes: activeMinutesDays,
+            totalHeartPoint: hpValue,
+            totalDailySdex: sdexValue,
+            totalActiveMinutes: activeMinutesValue,
             dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
             dailyHeartPointsCharts: {
-              target: 21.4,
-              actual: heartPointsObj.value ?? 0,
-              performance: Math.round(((heartPointsObj.value ?? 0) / 21.4) * 100),
+              target: heartPointsObj.target ?? 21.4,
+              value: hpValue,
+              performance_percent: heartPointsObj.performance_percent ?? heartPointsObj.percent ?? Math.round((hpValue / 21.4) * 100),
             },
             dailySdexCharts: {
-              target: metrics.sdex_target,
-              actual: metrics.sdex,
-              performance: metrics.sdex_performance_percent
+              target: sdexObj.target,
+              value: sdexValue,
+              performance_percent: sdexObj.performance_percent ?? sdexObj.percent,
             },
             dailyStepsBreakdownCharts: {
-              target: dailyChartsRes.daily_steps_breakdown?.target,
-              actual: totalSteps,
-              performance: dailyChartsRes.daily_steps_breakdown?.performance_percent ?? dailyChartsRes.daily_steps_breakdown?.percent
+              target: stepsBreakdownObj.target,
+              value: totalSteps,
+              performance_percent: stepsBreakdownObj.performance_percent ?? stepsBreakdownObj.percent,
             },
             energyExpandedCharts: {
-              target: metrics.energy_expended_kcal_target,
-              actual: metrics.energy_expended_kcal,
-              performance: metrics.energy_expended_kcal_performance_percent
+              target: energyExpendedObj.target,
+              value: energyExpendedValue,
+              performance_percent: energyExpendedObj.performance_percent ?? energyExpendedObj.percent,
+            },
+            dailyActiveMinutesCharts: {
+              target: activeMinutesObj.target,
+              value: activeMinutesValue,
+              performance_percent: activeMinutesObj.performance_percent ?? activeMinutesObj.percent,
             }
           };
 
-          const ppiVal = bioSyncObj.ppi?.value ?? 0;
-          const e3Val = bioSyncObj.e3?.value ?? 0;
-          const isVal = bioSyncObj.is?.value ?? 0;
-          const bioSyncScore = bioSyncObj.bio_sync?.value ?? 0;
+          const ppiObj = bioSyncObj.ppi || {};
+          const e3Obj = bioSyncObj.e3 || {};
+          const isObj = bioSyncObj.is || {};
+          const bioSyncScoreObj = bioSyncObj.bio_sync || {};
+
+          const ppiVal = ppiObj.value ?? 0;
+          const e3Val = e3Obj.value ?? 0;
+          const isVal = isObj.value ?? 0;
+          const bioSyncScore = bioSyncScoreObj.value ?? 0;
+
+          const e3Days = e3Obj.days || [{ date: labelDate, day: 'Today', total: e3Val }];
+          const isDays = isObj.days || [{ date: labelDate, day: 'Today', total: isVal }];
+          const ppiDays = ppiObj.days || [{ date: labelDate, day: 'Today', total: ppiVal }];
+
+          // Build weeklyTrend array combining the 7 days
+          const baseDays = bioSyncScoreObj.days || e3Days || isDays || ppiDays;
+          const weeklyTrendCombined = baseDays.map((dayItem: any, idx: number) => {
+            return {
+              date: dayItem.date,
+              day: dayItem.day,
+              cys: ppiDays[idx]?.total ?? ppiVal,
+              eeKm: e3Days[idx]?.total ?? e3Val,
+              isAvg: isDays[idx]?.total ?? isVal,
+            };
+          });
 
           const mappedBioSyncTrend = {
-            weeklyTrend: [
-              {
-                date: labelDate,
-                cys: ppiVal,
-                eeKm: e3Val,
-                isAvg: isVal
-              }
-            ],
-            integratedStamina: [
-              { date: labelDate, values: isVal }
-            ],
+            weeklyTrend: weeklyTrendCombined,
+            e3Days: e3Days,
+            integratedStamina: isDays,
+            ppiDays: ppiDays,
             eeKmAvg: bioSyncObj.weekly_avg_e3?.value ?? e3Val,
             eeKmTrend: bioSyncObj.weekly_avg_e3?.trend,
             isAvg: bioSyncObj.weekly_avg_is?.value ?? isVal,
             isTrend: bioSyncObj.weekly_avg_is?.trend,
             cysTotal: bioSyncObj.weekly_avg_ppi?.value ?? ppiVal,
             cysTrend: bioSyncObj.weekly_avg_ppi?.trend,
-            stability: bioSyncObj.is?.performance_percent ?? bioSyncObj.is?.percent ?? isVal,
-            intensity: bioSyncObj.ppi?.performance_percent ?? bioSyncObj.ppi?.percent ?? ppiVal,
-            metabolic: bioSyncObj.e3?.performance_percent ?? bioSyncObj.e3?.percent ?? 0,
-            cardioYieldPerStep: [
-              {
-                date: labelDate,
-                morning: ppiVal,
-                afternoon: 0,
-                evening: 0,
-                night: 0
-              }
-            ],
+            stability: isObj.performance_percent ?? isObj.percent ?? isVal,
+            intensity: ppiObj.performance_percent ?? ppiObj.percent ?? ppiVal,
+            metabolic: e3Obj.performance_percent ?? e3Obj.percent ?? 0,
+            cardioYieldPerStep: ppiDays,
             weeklyBioSyncEfficiencyScore: bioSyncScore,
             eePerKmCharts: {
-              target: bioSyncObj.e3?.target,
-              actual: e3Val,
-              performance: bioSyncObj.e3?.performance_percent ?? bioSyncObj.e3?.percent
+              target: e3Obj.target,
+              value: e3Val,
+              performance_percent: e3Obj.performance_percent ?? e3Obj.percent,
             },
             integratedStaminaCharts: {
-              target: bioSyncObj.is?.target,
-              actual: isVal,
-              performance: bioSyncObj.is?.performance_percent ?? bioSyncObj.is?.percent
+              target: isObj.target,
+              value: isVal,
+              performance_percent: isObj.performance_percent ?? isObj.percent,
             },
             weeklyTrendCharts: {
-              target: bioSyncObj.bio_sync?.target,
-              actual: bioSyncScore,
-              performance: bioSyncObj.bio_sync?.performance_percent ?? bioSyncObj.bio_sync?.percent
+              target: bioSyncScoreObj.target,
+              value: bioSyncScore,
+              performance_percent: bioSyncScoreObj.performance_percent ?? bioSyncScoreObj.percent,
             },
             cardioYieldPerStepCharts: {
-              target: bioSyncObj.ppi?.target,
-              actual: ppiVal,
-              performance: bioSyncObj.ppi?.performance_percent ?? bioSyncObj.ppi?.percent
+              target: ppiObj.target,
+              value: ppiVal,
+              performance_percent: ppiObj.performance_percent ?? ppiObj.percent,
             },
             dailyInsightText: dailyChartsRes.daily_insight?.text || dailyChartsRes.daily_insight_text || ''
           };
@@ -491,34 +554,79 @@ export const InsightsScreen: React.FC = () => {
     loadData();
   };
 
-  const getTrendsData = () => {
-    if (fitnessTrend && fitnessTrend.dailyStepsBreakdown && fitnessTrend.dailyStepsBreakdown.length > 0) {
-      return fitnessTrend.dailyStepsBreakdown.map((item: any, idx: number) => {
-        const steps = item.values ?? 0;
-        const hr = fitnessTrend.dailyHeartPoints?.[idx]?.values ?? 0;
-        const calories = fitnessTrend.energyExpanded?.[idx]?.values ?? 0;
-        
-        let label = '';
-        if (item.date) {
-          try {
-            if (item.date.length === 3 || isNaN(Date.parse(item.date))) {
-              label = item.date.slice(0, 3);
-            } else {
-              const d = new Date(item.date);
-              label = d.toLocaleDateString('en-US', { weekday: 'short' });
-            }
-          } catch {
-            label = item.date ? String(item.date).slice(0, 3) : '';
+  const isDataForSelectedMonth = () => {
+    if (!fitnessTrend || !fitnessTrend.dailyStepsBreakdown || fitnessTrend.dailyStepsBreakdown.length === 0) {
+      return false;
+    }
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const [selMonthName, selYearStr] = selectedMonth.split(' ');
+    const selMonthIdx = monthNames.indexOf(selMonthName);
+    const selYear = parseInt(selYearStr, 10);
+
+    if (selMonthIdx === -1 || isNaN(selYear)) return false;
+
+    // Check targetDate
+    if (targetDate) {
+      try {
+        const td = new Date(targetDate);
+        if (!isNaN(td.getTime())) {
+          if (td.getMonth() === selMonthIdx && td.getFullYear() === selYear) {
+            return true;
           }
         }
-        
-        return {
-          label,
-          steps,
-          calories,
-          hr
-        };
-      });
+      } catch {
+        // ignore
+      }
+    }
+
+    // Check individual dates in dailyStepsBreakdown
+    return fitnessTrend.dailyStepsBreakdown.some((item: any) => {
+      if (item.date) {
+        try {
+          const d = new Date(item.date);
+          if (!isNaN(d.getTime())) {
+            return d.getMonth() === selMonthIdx && d.getFullYear() === selYear;
+          }
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    });
+  };
+
+  const getTrendsData = () => {
+    if (activeTimeframe === '7days') {
+      if (isDataForSelectedMonth() && fitnessTrend && fitnessTrend.dailyStepsBreakdown && fitnessTrend.dailyStepsBreakdown.length > 0) {
+        return fitnessTrend.dailyStepsBreakdown.map((item: any, idx: number) => {
+          const steps = item.total !== undefined ? item.total : (item.values ?? 0);
+          const hr = fitnessTrend.dailyHeartPoints?.[idx]?.total !== undefined
+            ? fitnessTrend.dailyHeartPoints?.[idx]?.total
+            : (fitnessTrend.dailyHeartPoints?.[idx]?.values ?? 0);
+          const calories = fitnessTrend.energyExpanded?.[idx]?.total !== undefined
+            ? fitnessTrend.energyExpanded?.[idx]?.total
+            : (fitnessTrend.energyExpanded?.[idx]?.values ?? 0);
+
+          const activeMin = fitnessTrend.dailyActiveMinutes?.[idx]?.active_minutes !== undefined
+            ? fitnessTrend.dailyActiveMinutes?.[idx]?.active_minutes
+            : fitnessTrend.dailyActiveMinutes?.[idx]?.total !== undefined
+            ? fitnessTrend.dailyActiveMinutes?.[idx]?.total
+            : (fitnessTrend.dailyActiveMinutes?.[idx]?.values ?? 0);
+
+          const label = formatDateLabel(item.date, item.day) || `Day ${idx + 1}`;
+
+          return {
+            label,
+            date: item.date,
+            day: item.day,
+            steps,
+            calories,
+            hr,
+            activeMinutes: activeMin,
+          };
+        });
+      }
     }
     return [];
   };
@@ -528,27 +636,37 @@ export const InsightsScreen: React.FC = () => {
   // Clamp selected index to bounds of current dataset
   useEffect(() => {
     if (selectedTrendIdx >= trendPoints.length) {
-      setSelectedTrendIdx(trendPoints.length - 1);
+      setSelectedTrendIdx(Math.max(0, trendPoints.length - 1));
     }
   }, [activeTimeframe, trendPoints.length, selectedTrendIdx]);
 
   // Dynamic values based on selected index in chart
-  const activePoint = trendPoints[selectedTrendIdx] || trendPoints[0];
+  const activePoint = trendPoints[selectedTrendIdx >= 0 && selectedTrendIdx < trendPoints.length ? selectedTrendIdx : 0] || trendPoints[0];
 
   const getSummaryMetrics = () => {
-    let totalDistance = 0.0;
+    let totalDistance: string | number = 0.0;
     let distanceDiff = '';
-    let activeMinutes = 0;
+    let activeMinutes: string | number = 0;
     let activeMinutesDiff = '';
 
-    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026';
+    const isDataAvailable = trendPoints && trendPoints.length > 0;
 
     if (isDataAvailable && fitnessTrend && fitnessTrend.dailyStepsBreakdown) {
-      const stepsSum = trendPoints.reduce((sum: number, p: any) => sum + (p.steps || 0), 0);
-      totalDistance = parseFloat((stepsSum * 0.0008).toFixed(1));
-      
-      const minsArray = fitnessTrend.dailyActiveMinutes || [];
-      activeMinutes = minsArray.reduce((sum: number, p: any) => sum + (p.values ?? 0), 0);
+      const safeIdx = selectedTrendIdx >= 0 && selectedTrendIdx < trendPoints.length ? selectedTrendIdx : 0;
+      const point = trendPoints[safeIdx];
+
+      if (point) {
+        totalDistance = parseFloat(((point.steps || 0) * 0.0008).toFixed(1));
+        activeMinutes = point.activeMinutes !== undefined ? point.activeMinutes : 0;
+      } else {
+        const stepsSum = trendPoints.reduce((sum: number, p: any) => sum + (p.steps || 0), 0);
+        totalDistance = parseFloat((stepsSum * 0.0008).toFixed(1));
+        const minsArray = fitnessTrend.dailyActiveMinutes || [];
+        activeMinutes = minsArray.reduce((sum: number, p: any) => sum + (p.active_minutes ?? p.total ?? p.values ?? 0), 0);
+      }
+    } else {
+      totalDistance = '--';
+      activeMinutes = '--';
     }
 
     return { totalDistance, distanceDiff, activeMinutes, activeMinutesDiff };
@@ -558,13 +676,52 @@ export const InsightsScreen: React.FC = () => {
 
   // Draw Activity SVG Chart
   const renderActivityTrendsChart = () => {
-    const isDataAvailable = activeTimeframe === '7days' && selectedMonth === 'Jun 2026' && trendPoints && trendPoints.length > 0;
+    const isDataAvailable = trendPoints && trendPoints.length > 0;
 
     if (!isDataAvailable) {
       return (
-        <View style={[styles.chartOuterContainer, { height: CHART_HEIGHT, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 16 }]}>
-          <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500' }}>
-            No data available for this selection.
+        <View
+          style={[
+            styles.chartOuterContainer,
+            {
+              height: CHART_HEIGHT,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#ffffff',
+              borderRadius: 20,
+              paddingHorizontal: 24,
+            },
+          ]}>
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              backgroundColor: 'rgba(99, 102, 241, 0.08)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}>
+            <Text style={{ fontSize: 24 }}>📅</Text>
+          </View>
+          <Text
+            style={{
+              color: '#1e293b',
+              fontSize: 15,
+              fontWeight: '700',
+              textAlign: 'center',
+              marginBottom: 4,
+            }}>
+            Data not available for {selectedMonth}
+          </Text>
+          <Text
+            style={{
+              color: '#94a3b8',
+              fontSize: 12.5,
+              fontWeight: '500',
+              textAlign: 'center',
+            }}>
+            No activity records found for this timeframe.
           </Text>
         </View>
       );
@@ -578,22 +735,28 @@ export const InsightsScreen: React.FC = () => {
     const cH = CHART_HEIGHT - pT - pB;
     const n = trendPoints.length;
 
-    // Steps values mapping (Left axis scale max)
-    const currentTf: string = activeTimeframe;
-    const isMonthlyView = currentTf === '3months' || currentTf === '6months' || currentTf === '9months' || currentTf === '12months';
-    const maxSteps = isMonthlyView ? 200000 : currentTf === '4weeks' ? 50000 : 15000;
+    // Calculate dynamic upper bounds from trendPoints data
+    const dataMaxSteps = Math.max(0, ...trendPoints.map((p: any) => p.steps || 0));
+    const dataMaxCal = Math.max(0, ...trendPoints.map((p: any) => p.calories || 0));
+    const dataMaxHR = Math.max(0, ...trendPoints.map((p: any) => p.hr || 0));
+
+    // Dynamic scale upper limits rounded to clean values
+    const maxSteps = Math.max(100, getDynamicMax([dataMaxSteps]));
+    const maxCal = Math.max(100, getDynamicMax([dataMaxCal]));
+    const maxHR = Math.max(10, getDynamicMax([dataMaxHR]));
+
     const toYSteps = (v: number) => pT + cH - lerp(v, 0, maxSteps, 0, cH);
-
-    // Calories mapping (Right axis scale max)
-    const maxCal = isMonthlyView ? 10000 : currentTf === '4weeks' ? 3000 : 600;
     const toYCal = (v: number) => pT + cH - lerp(v, 0, maxCal, 0, cH);
-
-    // Heart Rate mapping (scale: 0 to 200)
-    const toYHR = (v: number) => pT + cH - lerp(v, 0, 200, 0, cH);
+    const toYHR = (v: number) => pT + cH - lerp(v, 0, maxHR, 0, cH);
 
     const xs = trendPoints.map((_: any, i: number) =>
       n <= 1 ? pL + cW / 2 : pL + (i / (n - 1)) * cW
     );
+
+    const safeIdx = (selectedTrendIdx >= 0 && selectedTrendIdx < n)
+      ? selectedTrendIdx
+      : Math.min(2, Math.max(0, n - 1));
+    const currActivePoint = trendPoints[safeIdx] || activePoint || { steps: 0, calories: 0, hr: 0, label: 'Today' };
 
     const stepPts = trendPoints.map((p: any, i: number) => ({ x: xs[i], y: toYSteps(p.steps) }));
     const calPts = trendPoints.map((p: any, i: number) => ({ x: xs[i], y: toYCal(p.calories) }));
@@ -607,13 +770,15 @@ export const InsightsScreen: React.FC = () => {
 
     // Tooltip formatting
     const getTooltipDate = () => {
-      if (activeTimeframe === '7days') {
-        const parts = selectedMonth.split(' ');
-        const monthName = parts[0];
-        const year = parts[1];
-        return `${monthName} 14, ${year}`;
+      if (currActivePoint?.date) {
+        try {
+          const d = new Date(currActivePoint.date);
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+          // fallback
+        }
       }
-      return activePoint.label;
+      return currActivePoint?.day || currActivePoint?.label || 'Today';
     };
 
     return (
@@ -691,9 +856,9 @@ export const InsightsScreen: React.FC = () => {
 
           {/* Dotted indicator line for selected point */}
           <Line
-            x1={xs[selectedTrendIdx]}
+            x1={xs[safeIdx]}
             y1={pT}
-            x2={xs[selectedTrendIdx]}
+            x2={xs[safeIdx]}
             y2={baseY}
             stroke="#64748b"
             strokeWidth={1.2}
@@ -714,24 +879,24 @@ export const InsightsScreen: React.FC = () => {
 
           {/* Highlight circles on selected points */}
           <Circle
-            cx={xs[selectedTrendIdx]}
-            cy={toYSteps(activePoint.steps)}
+            cx={xs[safeIdx]}
+            cy={toYSteps(currActivePoint.steps)}
             r={5.5}
             fill="#ffffff"
             stroke={C.blue}
             strokeWidth={2.5}
           />
           <Circle
-            cx={xs[selectedTrendIdx]}
-            cy={toYCal(activePoint.calories)}
+            cx={xs[safeIdx]}
+            cy={toYCal(currActivePoint.calories)}
             r={5.5}
             fill="#ffffff"
             stroke={C.purple}
             strokeWidth={2.5}
           />
           <Circle
-            cx={xs[selectedTrendIdx]}
-            cy={toYHR(activePoint.hr)}
+            cx={xs[safeIdx]}
+            cy={toYHR(currActivePoint.hr)}
             r={5.5}
             fill="#ffffff"
             stroke={C.orange}
@@ -740,7 +905,7 @@ export const InsightsScreen: React.FC = () => {
 
           {/* X Labels */}
           {trendPoints.map((p: any, i: number) => {
-            const showLabel = trendPoints.length <= 6 || i % 2 === 0 || i === selectedTrendIdx;
+            const showLabel = trendPoints.length <= 6 || i % 2 === 0 || i === safeIdx;
             if (!showLabel) return null;
 
             return (
@@ -750,8 +915,8 @@ export const InsightsScreen: React.FC = () => {
                 y={CHART_HEIGHT - 4}
                 textAnchor="middle"
                 fontSize={trendPoints.length > 6 ? 7.5 : 8.5}
-                fill={i === selectedTrendIdx ? C.blue : C.textGray}
-                fontWeight={i === selectedTrendIdx ? '800' : '500'}
+                fill={i === safeIdx ? C.blue : C.textGray}
+                fontWeight={i === safeIdx ? '800' : '500'}
               >
                 {p.label}
               </SvgText>
@@ -760,8 +925,8 @@ export const InsightsScreen: React.FC = () => {
 
           {/* Top Floating Tooltip Card */}
           {(() => {
-            const tx = xs[selectedTrendIdx];
-            const tooltipW = scale(230);
+            const tx = xs[safeIdx];
+            const tooltipW = scale(250);
             let rectX = tx - tooltipW / 2;
             // clamp left & right boundaries
             if (rectX < pL) rectX = pL;
@@ -783,11 +948,11 @@ export const InsightsScreen: React.FC = () => {
                   x={rectX + tooltipW / 2}
                   y={19}
                   textAnchor="middle"
-                  fontSize={8.2}
+                  fontSize={7.8}
                   fill="#ffffff"
                   fontWeight="700"
                 >
-                  {`${getTooltipDate()}: ${activePoint.steps.toLocaleString()} Steps, ${activePoint.calories.toLocaleString()} Cal, ${activePoint.hr} Heart Points`}
+                  {`${getTooltipDate()}: ${currActivePoint.steps.toLocaleString()} Steps, ${currActivePoint.calories.toLocaleString()} Cal, ${currActivePoint.hr} HP, ${currActivePoint.activeMinutes ?? 0}m Active`}
                 </SvgText>
               </G>
             );
@@ -1034,12 +1199,15 @@ export const InsightsScreen: React.FC = () => {
               dailyHeartPoints={parseFitnessTrendArray(fitnessTrend?.dailyHeartPoints)}
               sdexActivity={parseFitnessTrendArray(fitnessTrend?.dailySdex)}
               energyExpended={parseFitnessTrendArray(fitnessTrend?.energyExpanded)}
+              dailyActiveMinutes={parseFitnessTrendArray(fitnessTrend?.dailyActiveMinutes)}
               totalHeartPoint={fitnessTrend?.totalHeartPoint ?? 0}
               totalDailySdex={fitnessTrend?.totalDailySdex ?? 0}
+              totalActiveMinutes={fitnessTrend?.totalActiveMinutes ?? 0}
               dailyHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyHeartPointsCharts)}
               dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
               dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
               energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
+              dailyActiveMinutesCharts={formatChartSummary(fitnessTrend?.dailyActiveMinutesCharts)}
               dailyInsightText={fitnessTrend?.dailyInsightText}
             />
           )
@@ -1057,14 +1225,14 @@ export const InsightsScreen: React.FC = () => {
             <BioSyncTab
               chartWidth={CHART_WIDTH}
               energyEfficiency={parseFitnessTrendArray(
-                bioSyncTrend?.weeklyTrend
-                  ? bioSyncTrend.weeklyTrend.map((item: any) => ({
-                      ...item,
-                      values: item.eeKm,
-                    }))
-                  : undefined
+                bioSyncTrend?.e3Days ||
+                bioSyncTrend?.weeklyTrend?.map((item: any) => ({
+                  ...item,
+                  total: item.eeKm,
+                }))
               )}
               integratedStamina={parseFitnessTrendArray(bioSyncTrend?.integratedStamina)}
+              pulsePaceIndex={parseFitnessTrendArray(bioSyncTrend?.ppiDays)}
               weeklyPerformance={parseWeeklyPerformance(bioSyncTrend?.weeklyTrend)}
               weeklyPerformanceSummary={{
                 eeKmAvg: bioSyncTrend?.eeKmAvg ?? 0,
@@ -1192,7 +1360,9 @@ export const InsightsScreen: React.FC = () => {
                 </View>
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Total Distance</Text>
-                  <Text style={styles.summaryValue}>{summary.totalDistance} km</Text>
+                  <Text style={styles.summaryValue}>
+                    {summary.totalDistance === '--' ? '--' : `${summary.totalDistance} km`}
+                  </Text>
                   {!!summary.distanceDiff && (
                     <Text style={styles.summarySubtext}>
                       <Text style={styles.positiveGrowthText}>{summary.distanceDiff}</Text> vs last mth
@@ -1211,7 +1381,9 @@ export const InsightsScreen: React.FC = () => {
                 </View>
                 <View style={styles.summaryContent}>
                   <Text style={styles.summaryLabel}>Active Minutes</Text>
-                  <Text style={styles.summaryValue}>{summary.activeMinutes} min</Text>
+                  <Text style={styles.summaryValue}>
+                    {summary.activeMinutes === '--' ? '--' : `${summary.activeMinutes} min`}
+                  </Text>
                   {!!summary.activeMinutesDiff && (
                     <Text style={styles.summarySubtext}>
                       <Text style={styles.positiveGrowthText}>{summary.activeMinutesDiff}</Text> vs last mth

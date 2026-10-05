@@ -409,6 +409,8 @@ export const styles = ScaledSheet.create({
   metricItem: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: '4@ms',
     borderRightWidth: 1,
     borderRightColor: '#E2E8F0',
   },
@@ -416,20 +418,29 @@ export const styles = ScaledSheet.create({
     fontSize: '14@ms',
     fontWeight: '800',
     color: '#0F172A',
+    textAlign: 'center',
+  },
+  metricTrendBox: {
+    height: '20@ms',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: '2@ms',
   },
   metricArrow: {
     fontSize: '9@ms',
     color: '#10B981',
-    marginVertical: '2@ms',
   },
   metricArrowDown: {
     color: '#EF4444',
   },
   metricLabel: {
-    fontSize: '8.5@ms',
+    fontSize: '8@ms',
     fontWeight: '700',
     color: '#64748B',
     textTransform: 'uppercase',
+    textAlign: 'center',
+    lineHeight: '11@ms',
   },
   metricItemLast: {
     borderRightWidth: 0,

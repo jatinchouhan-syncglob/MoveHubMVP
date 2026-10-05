@@ -27,6 +27,7 @@ import { CustomButton } from '../../components/common/CustomButton';
 import { Loader } from '../../components/common/Loader';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ActivityCard } from '../../components/cards/ActivityCard';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { apiService } from '../../services/api';
 import { Activity, UserProfile } from '../../types';
 import { storageHelper } from '../../storage/storageHelper';
@@ -36,25 +37,64 @@ import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
 import { StepsLogsTab } from './components/StepsLogsTab';
 import Svg, { Circle, G } from 'react-native-svg';
 import { useDrawer } from '../../navigation/DrawerContext';
-import { useNavigation } from '@react-navigation/native';
-const getActivityEmoji = (activityName: string, categoryName?: string): string => {
+import { useNavigation, useRoute } from '@react-navigation/native';
+const getActivityEmoji = (
+  activityName: string,
+  categoryName?: string,
+): string => {
   const nameLower = activityName.toLowerCase();
   if (nameLower.includes('walk')) return '🚶';
   if (nameLower.includes('run') || nameLower.includes('jog')) return '🏃';
   if (nameLower.includes('cycle') || nameLower.includes('bike')) return '🚴';
   if (nameLower.includes('swim')) return '🏊';
-  if (nameLower.includes('yoga') || nameLower.includes('stretch') || nameLower.includes('meditat')) return '🧘';
-  if (nameLower.includes('zumba') || nameLower.includes('aerobic') || nameLower.includes('dance')) return '💃';
+  if (
+    nameLower.includes('yoga') ||
+    nameLower.includes('stretch') ||
+    nameLower.includes('meditat')
+  )
+    return '🧘';
+  if (
+    nameLower.includes('zumba') ||
+    nameLower.includes('aerobic') ||
+    nameLower.includes('dance')
+  )
+    return '💃';
   if (nameLower.includes('cricket')) return '🏏';
   if (nameLower.includes('badminton')) return '🏸';
-  if (nameLower.includes('soccer') || nameLower.includes('football')) return '⚽';
-  if (nameLower.includes('lift') || nameLower.includes('strength') || nameLower.includes('weight') || nameLower.includes('squat') || nameLower.includes('bench') || nameLower.includes('deadlift') || nameLower.includes('press') || nameLower.includes('row')) return '🏋️';
-  
+  if (nameLower.includes('soccer') || nameLower.includes('football'))
+    return '⚽';
+  if (
+    nameLower.includes('lift') ||
+    nameLower.includes('strength') ||
+    nameLower.includes('weight') ||
+    nameLower.includes('squat') ||
+    nameLower.includes('bench') ||
+    nameLower.includes('deadlift') ||
+    nameLower.includes('press') ||
+    nameLower.includes('row')
+  )
+    return '🏋️';
+
   if (categoryName) {
     const catLower = categoryName.toLowerCase();
-    if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance')) return '🏋️';
-    if (catLower.includes('condition') || catLower.includes('cardio') || catLower.includes('endurance')) return '🏃';
-    if (catLower.includes('sport') || catLower.includes('game') || catLower.includes('court')) return '⚽';
+    if (
+      catLower.includes('strength') ||
+      catLower.includes('weight') ||
+      catLower.includes('resistance')
+    )
+      return '🏋️';
+    if (
+      catLower.includes('condition') ||
+      catLower.includes('cardio') ||
+      catLower.includes('endurance')
+    )
+      return '🏃';
+    if (
+      catLower.includes('sport') ||
+      catLower.includes('game') ||
+      catLower.includes('court')
+    )
+      return '⚽';
   }
   return '🏃';
 };
@@ -67,10 +107,17 @@ const PICKER_DATA = ['', ...MINUTES_LIST, ''];
 export const ActivityTrackingScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activeTab, setActiveTab] = useState<'Steps' | 'Workout'>('Workout');
+
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      setActiveTab(route.params.initialTab);
+    }
+  }, [route.params?.initialTab]);
 
   // Modal & Form States
   const [modalVisible, setModalVisible] = useState(false);
@@ -115,22 +162,49 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [seeAllVisible, setSeeAllVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Custom Activity Modal & Submission States
+  const [customModalVisible, setCustomModalVisible] = useState(false);
+  const [customActivityName, setCustomActivityName] = useState('');
+  const [customNotes, setCustomNotes] = useState(
+    'Activity was not available in catalog',
+  );
+  const [customSubmitting, setCustomSubmitting] = useState(false);
+
+  // Success Alert Modal states
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('Success');
+  const [alertMessage, setAlertMessage] = useState(
+    'Custom activity saved successfully',
+  );
+  const [savedCustomActivity, setSavedCustomActivity] = useState<any>(null);
+
   const [dynamicActivities, setDynamicActivities] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedDynamicActivity, setSelectedDynamicActivity] = useState<any | null>(null);
+  const [selectedDynamicActivity, setSelectedDynamicActivity] = useState<
+    any | null
+  >(null);
   const [catalogActivities, setCatalogActivities] = useState<any[]>([]);
   const [modalSearchActivities, setModalSearchActivities] = useState<any[]>([]);
   const [apiPopularWorkouts, setApiPopularWorkouts] = useState<any[]>([]);
-  const [apiCategoryCounts, setApiCategoryCounts] = useState<Record<string, number>>({});
+  const [apiCategoryCounts, setApiCategoryCounts] = useState<
+    Record<string, number>
+  >({});
   const [modalLoading, setModalLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [trainingProfile, setTrainingProfile] = useState('Working Set');
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
-  const [modalSelectedPill, setModalSelectedPill] = useState<string | null>(null);
-  const [selectedBioGoal, setSelectedBioGoal] = useState<'FAT_LOSS' | 'AEROBIC' | 'RECOVERY' | null>(null);
-  const [sectionsExpanded, setSectionsExpanded] = useState<Record<string, boolean>>({
+  const [modalSelectedPill, setModalSelectedPill] = useState<string | null>(
+    null,
+  );
+  const [selectedBioGoal, setSelectedBioGoal] = useState<
+    'FAT_LOSS' | 'AEROBIC' | 'RECOVERY' | null
+  >(null);
+  const [sectionsExpanded, setSectionsExpanded] = useState<
+    Record<string, boolean>
+  >({
     light: false,
     moderate: false,
     vigorous: false,
@@ -157,17 +231,25 @@ export const ActivityTrackingScreen: React.FC = () => {
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
-        trackRef.current?.measure((x: number, y: number, width: number, height: number, pageXOffset: number) => {
-          if (width > 0) {
-            trackLeftOffset.current = pageXOffset;
-            trackWidth.current = width;
-            const relativeX = evt.nativeEvent.pageX - pageXOffset;
-            let pct = relativeX / width;
-            pct = Math.max(0, Math.min(1, pct));
-            const newRpe = Math.min(10, Math.max(1, Math.round(pct * 9 + 1)));
-            setSliderVal(newRpe);
-          }
-        });
+        trackRef.current?.measure(
+          (
+            x: number,
+            y: number,
+            width: number,
+            height: number,
+            pageXOffset: number,
+          ) => {
+            if (width > 0) {
+              trackLeftOffset.current = pageXOffset;
+              trackWidth.current = width;
+              const relativeX = evt.nativeEvent.pageX - pageXOffset;
+              let pct = relativeX / width;
+              pct = Math.max(0, Math.min(1, pct));
+              const newRpe = Math.min(10, Math.max(1, Math.round(pct * 9 + 1)));
+              setSliderVal(newRpe);
+            }
+          },
+        );
       },
       onPanResponderMove: (evt, gestureState) => {
         if (trackWidth.current > 0) {
@@ -178,7 +260,7 @@ export const ActivityTrackingScreen: React.FC = () => {
           setSliderVal(newRpe);
         }
       },
-    })
+    }),
   ).current;
 
   const getRpeDescription = (val: number) => {
@@ -191,7 +273,12 @@ export const ActivityTrackingScreen: React.FC = () => {
 
   const getWorkoutBreakdown = () => {
     if (!activeRegistryItem) {
-      return { cardioPct: 50, strengthPct: 20, balancePct: 15, recoveryPct: 15 };
+      return {
+        cardioPct: 50,
+        strengthPct: 20,
+        balancePct: 15,
+        recoveryPct: 15,
+      };
     }
     const itemAny = activeRegistryItem as any;
     if (
@@ -209,7 +296,7 @@ export const ActivityTrackingScreen: React.FC = () => {
     }
     const cat = activeRegistryItem.category;
     const nameLower = activeRegistryItem.name.toLowerCase();
-    
+
     if (cat === 'distance') {
       return { cardioPct: 80, strengthPct: 10, balancePct: 5, recoveryPct: 5 };
     } else if (cat === 'strength') {
@@ -217,30 +304,45 @@ export const ActivityTrackingScreen: React.FC = () => {
     } else {
       // duration based
       if (
-        nameLower.includes('yoga') || 
-        nameLower.includes('stretch') || 
-        nameLower.includes('meditat') || 
-        nameLower.includes('pilates') || 
+        nameLower.includes('yoga') ||
+        nameLower.includes('stretch') ||
+        nameLower.includes('meditat') ||
+        nameLower.includes('pilates') ||
         nameLower.includes('stroll') ||
-        nameLower.includes('roll') || 
+        nameLower.includes('roll') ||
         nameLower.includes('mobility')
       ) {
-        return { cardioPct: 10, strengthPct: 10, balancePct: 40, recoveryPct: 40 };
+        return {
+          cardioPct: 10,
+          strengthPct: 10,
+          balancePct: 40,
+          recoveryPct: 40,
+        };
       } else if (
-        nameLower.includes('zumba') || 
-        nameLower.includes('dance') || 
-        nameLower.includes('aerobic') || 
-        nameLower.includes('badminton') || 
-        nameLower.includes('cricket') || 
-        nameLower.includes('football') || 
+        nameLower.includes('zumba') ||
+        nameLower.includes('dance') ||
+        nameLower.includes('aerobic') ||
+        nameLower.includes('badminton') ||
+        nameLower.includes('cricket') ||
+        nameLower.includes('football') ||
         nameLower.includes('kabaddi') ||
         nameLower.includes('sport') ||
         nameLower.includes('boxing') ||
         nameLower.includes('martial')
       ) {
-        return { cardioPct: 70, strengthPct: 10, balancePct: 10, recoveryPct: 10 };
+        return {
+          cardioPct: 70,
+          strengthPct: 10,
+          balancePct: 10,
+          recoveryPct: 10,
+        };
       } else {
-        return { cardioPct: 50, strengthPct: 20, balancePct: 15, recoveryPct: 15 };
+        return {
+          cardioPct: 50,
+          strengthPct: 20,
+          balancePct: 15,
+          recoveryPct: 15,
+        };
       }
     }
   };
@@ -261,23 +363,54 @@ export const ActivityTrackingScreen: React.FC = () => {
     const cat = String(item.categoryName || '').toLowerCase();
     const name = String(item.activityName || '').toLowerCase();
 
-    if (cat.includes('dance') || cat.includes('dancing') || cat.includes('rhythm')) {
+    if (
+      cat.includes('dance') ||
+      cat.includes('dancing') ||
+      cat.includes('rhythm')
+    ) {
       return '💃 DANCING';
     }
-    if (cat.includes('condition') || cat.includes('resistance') || cat.includes('gym') || cat.includes('strength') || name.includes('exercube') || name.includes('deadlift') || name.includes('squat')) {
+    if (
+      cat.includes('condition') ||
+      cat.includes('resistance') ||
+      cat.includes('gym') ||
+      cat.includes('strength') ||
+      name.includes('exercube') ||
+      name.includes('deadlift') ||
+      name.includes('squat')
+    ) {
       return '🏋️ GYM';
     }
-    if (cat.includes('bicycling') || cat.includes('cycling') || cat.includes('bike')) {
+    if (
+      cat.includes('bicycling') ||
+      cat.includes('cycling') ||
+      cat.includes('bike')
+    ) {
       return '🚴 BIKE';
     }
-    if (cat.includes('running') || cat.includes('jogging') || cat.includes('endurance') || cat.includes('track') || cat.includes('walk') || cat.includes('walking')) {
+    if (
+      cat.includes('running') ||
+      cat.includes('jogging') ||
+      cat.includes('endurance') ||
+      cat.includes('track') ||
+      cat.includes('walk') ||
+      cat.includes('walking')
+    ) {
       return '🏃 RUN';
     }
-    if (cat.includes('swimming') || cat.includes('water') || cat.includes('swim')) {
+    if (
+      cat.includes('swimming') ||
+      cat.includes('water') ||
+      cat.includes('swim')
+    ) {
       return '🏊 SWIM';
     }
     // Default fallbacks based on name keywords
-    if (name.includes('bike') || name.includes('cycle') || name.includes('cycling')) {
+    if (
+      name.includes('bike') ||
+      name.includes('cycle') ||
+      name.includes('cycling')
+    ) {
       return '🚴 BIKE';
     }
     if (name.includes('run') || name.includes('walk') || name.includes('jog')) {
@@ -313,9 +446,13 @@ export const ActivityTrackingScreen: React.FC = () => {
     if (modalSearchQuery.trim().length > 0) {
       const counts = getModalCounts();
       if (!modalSelectedPill || counts[modalSelectedPill] === 0) {
-        const firstAvailableCat = ['💃 DANCING', '🏋️ GYM', '🚴 BIKE', '🏃 RUN', '🏊 SWIM'].find(
-          cat => counts[cat] > 0
-        );
+        const firstAvailableCat = [
+          '💃 DANCING',
+          '🏋️ GYM',
+          '🚴 BIKE',
+          '🏃 RUN',
+          '🏊 SWIM',
+        ].find(cat => counts[cat] > 0);
         if (firstAvailableCat) {
           setModalSelectedPill(firstAvailableCat);
         }
@@ -327,7 +464,9 @@ export const ActivityTrackingScreen: React.FC = () => {
 
   const getFilteredModalList = () => {
     if (modalSelectedPill) {
-      return modalSearchActivities.filter(e => getFriendlyCategory(e) === modalSelectedPill);
+      return modalSearchActivities.filter(
+        e => getFriendlyCategory(e) === modalSelectedPill,
+      );
     }
     return [];
   };
@@ -336,8 +475,12 @@ export const ActivityTrackingScreen: React.FC = () => {
   const currentModalList = getFilteredModalList();
 
   const getModalSectionData = () => {
-    const light = currentModalList.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
-    const moderate = currentModalList.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+    const light = currentModalList.filter(
+      e => (e.intensityBand || '').toUpperCase() === 'LIGHT',
+    );
+    const moderate = currentModalList.filter(
+      e => (e.intensityBand || '').toUpperCase() === 'MODERATE',
+    );
     const vigorous = currentModalList.filter(e => {
       const band = (e.intensityBand || '').toUpperCase();
       return band === 'VIGOROUS' || band === 'VIGOUR';
@@ -350,7 +493,15 @@ export const ActivityTrackingScreen: React.FC = () => {
     ].filter(sec => sec.data.length > 0);
   };
 
-
+  const isSelectedDistanceBased = Boolean(
+    selectedDynamicActivity &&
+      (selectedDynamicActivity.metricType === 'DISTANCE_BASED' ||
+        String(selectedDynamicActivity.metricType || '')
+          .toUpperCase()
+          .includes('DISTANCE') ||
+        (selectedDynamicActivity.category === 'distance' &&
+          !selectedDynamicActivity.metricType)),
+  );
 
   const fetchActivities = async () => {
     try {
@@ -371,7 +522,10 @@ export const ActivityTrackingScreen: React.FC = () => {
       console.log('[ActivityLogger] Fetching initial catalog URL:', url);
       const response = await fetch(url);
       const json = await response.json();
-      console.log('[ActivityLogger] Initial Catalog Response:', JSON.stringify(json, null, 2));
+      console.log(
+        '[ActivityLogger] Initial Catalog Response:',
+        JSON.stringify(json, null, 2),
+      );
 
       if (json.status === 'Success') {
         if (Array.isArray(json.data)) {
@@ -390,7 +544,10 @@ export const ActivityTrackingScreen: React.FC = () => {
             setCatalogActivities(json.data.activities);
             setModalSearchActivities(json.data.activities);
           }
-          if (json.data.categoryCounts && typeof json.data.categoryCounts === 'object') {
+          if (
+            json.data.categoryCounts &&
+            typeof json.data.categoryCounts === 'object'
+          ) {
             setApiCategoryCounts(json.data.categoryCounts);
           }
           if (Array.isArray(json.data.popularWorkouts)) {
@@ -418,7 +575,10 @@ export const ActivityTrackingScreen: React.FC = () => {
         console.log('[ActivityLogger] Modal Fetching catalog URL:', url);
         const response = await fetch(url);
         const json = await response.json();
-        console.log('[ActivityLogger] Modal Catalog Response:', JSON.stringify(json, null, 2));
+        console.log(
+          '[ActivityLogger] Modal Catalog Response:',
+          JSON.stringify(json, null, 2),
+        );
 
         if (json.status === 'Success') {
           if (Array.isArray(json.data)) {
@@ -426,7 +586,8 @@ export const ActivityTrackingScreen: React.FC = () => {
             const counts: Record<string, number> = { ALL: json.data.length };
             json.data.forEach((item: any) => {
               if (item.categoryName) {
-                counts[item.categoryName] = (counts[item.categoryName] || 0) + 1;
+                counts[item.categoryName] =
+                  (counts[item.categoryName] || 0) + 1;
               }
             });
             setApiCategoryCounts(counts);
@@ -434,7 +595,10 @@ export const ActivityTrackingScreen: React.FC = () => {
             if (Array.isArray(json.data.activities)) {
               setModalSearchActivities(json.data.activities);
             }
-            if (json.data.categoryCounts && typeof json.data.categoryCounts === 'object') {
+            if (
+              json.data.categoryCounts &&
+              typeof json.data.categoryCounts === 'object'
+            ) {
               setApiCategoryCounts(json.data.categoryCounts);
             }
             if (Array.isArray(json.data.popularWorkouts)) {
@@ -485,7 +649,10 @@ export const ActivityTrackingScreen: React.FC = () => {
         console.log('[ActivityLogger] Fetching catalog URL:', url);
         const response = await fetch(url);
         const json = await response.json();
-        console.log('[ActivityLogger] Dynamic Catalog Response:', JSON.stringify(json, null, 2));
+        console.log(
+          '[ActivityLogger] Dynamic Catalog Response:',
+          JSON.stringify(json, null, 2),
+        );
 
         if (json.status === 'Success') {
           if (Array.isArray(json.data)) {
@@ -514,11 +681,86 @@ export const ActivityTrackingScreen: React.FC = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, seeAllVisible]);
+
+  const handleOpenCustomModal = (defaultName?: string) => {
+    const name =
+      typeof defaultName === 'string'
+        ? defaultName
+        : modalSearchQuery.trim() || searchQuery.trim();
+    setCustomActivityName(name);
+    setCustomNotes('Activity was not available in catalog');
+    setCustomModalVisible(true);
+  };
+
+  const handleSaveCustomActivity = async () => {
+    if (!customActivityName.trim()) {
+      Alert.alert('Required', 'Please enter an activity name.');
+      return;
+    }
+
+    setCustomSubmitting(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const activeUhid = cachedProfile?.uhid || 'SAMSUN9776';
+
+      const payload = {
+        uhid: activeUhid,
+        activityName: customActivityName.trim(),
+        categoryName: '',
+        durationMinutes: null,
+        caloriesBurned: null,
+        intensity: '',
+        notes: customNotes.trim() || 'Activity was not available in catalog',
+      };
+
+      const res = await apiService.saveCustomActivity(payload);
+      console.log('[ActivityTracking] saveCustomActivity response:', res);
+
+      setCustomModalVisible(false);
+      setSeeAllVisible(false);
+      setModalVisible(false);
+
+      const createdObj = {
+        activityCode: `custom-${res?.data?.id || Date.now()}`,
+        activityName: customActivityName.trim(),
+        categoryName: 'Custom Activity',
+        category: 'duration',
+        metricType: 'TIME_BASED',
+      };
+      setSavedCustomActivity(createdObj);
+
+      setAlertTitle('Success');
+      setAlertMessage(res?.message || 'Custom activity saved successfully');
+      setAlertModalVisible(true);
+
+      // Pre-select activity
+      setActivityType(customActivityName.trim());
+      setSelectedCategory('Custom Activity');
+    } catch (error: any) {
+      console.error('[ActivityTracking] Error saving custom activity:', error);
+      Alert.alert(
+        'Submission Failed',
+        error?.response?.data?.message ||
+          'Failed to save custom activity. Please try again.',
+      );
+    } finally {
+      setCustomSubmitting(false);
+    }
+  };
+
+  const handleAlertClose = () => {
+    setAlertModalVisible(false);
+    setActiveTab('Workout');
+    fetchActivities();
+  };
+
   // Auto-resolve dynamic activity metadata when activityType changes
   useEffect(() => {
     if (activityType) {
       const found = catalogActivities.find(
-        item => item.activityName.toLowerCase() === activityType.toLowerCase()
+        item => item.activityName.toLowerCase() === activityType.toLowerCase(),
       );
       if (found) {
         setSelectedDynamicActivity(found);
@@ -529,25 +771,50 @@ export const ActivityTrackingScreen: React.FC = () => {
   useEffect(() => {
     if (modalVisible) {
       const foundInCatalog = catalogActivities.find(
-        item => item.activityName.toLowerCase() === activityType.toLowerCase()
+        item => item.activityName.toLowerCase() === activityType.toLowerCase(),
       );
       if (foundInCatalog && foundInCatalog.categoryName) {
         setSelectedCategory(foundInCatalog.categoryName);
         return;
       }
-      
+
       const keys = Object.keys(categoryMainOptions);
       if (keys.length > 0) {
         const item = WELLNESS_ACTIVITIES_REGISTRY.find(
-          act => act.name.toLowerCase() === activityType.toLowerCase()
+          act => act.name.toLowerCase() === activityType.toLowerCase(),
         );
         if (item) {
           const actCat = item.category;
           const matchedKey = keys.find(key => {
             const catLower = key.toLowerCase();
-            if (actCat === 'distance' && (catLower.includes('run') || catLower.includes('walk') || catLower.includes('cycle') || catLower.includes('swim') || catLower.includes('endurance') || catLower.includes('bicycling'))) return true;
-            if (actCat === 'strength' && (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || catLower.includes('condition'))) return true;
-            if (actCat === 'duration' && (catLower.includes('mind') || catLower.includes('body') || catLower.includes('yoga') || catLower.includes('stretch') || catLower.includes('recovery') || catLower.includes('studio'))) return true;
+            if (
+              actCat === 'distance' &&
+              (catLower.includes('run') ||
+                catLower.includes('walk') ||
+                catLower.includes('cycle') ||
+                catLower.includes('swim') ||
+                catLower.includes('endurance') ||
+                catLower.includes('bicycling'))
+            )
+              return true;
+            if (
+              actCat === 'strength' &&
+              (catLower.includes('strength') ||
+                catLower.includes('weight') ||
+                catLower.includes('resistance') ||
+                catLower.includes('condition'))
+            )
+              return true;
+            if (
+              actCat === 'duration' &&
+              (catLower.includes('mind') ||
+                catLower.includes('body') ||
+                catLower.includes('yoga') ||
+                catLower.includes('stretch') ||
+                catLower.includes('recovery') ||
+                catLower.includes('studio'))
+            )
+              return true;
             return false;
           });
           if (matchedKey) {
@@ -568,7 +835,10 @@ export const ActivityTrackingScreen: React.FC = () => {
           uniqueCats.push(cat);
         }
       });
-      if (uniqueCats.length > 0 && (!selectedCategory || !uniqueCats.includes(selectedCategory))) {
+      if (
+        uniqueCats.length > 0 &&
+        (!selectedCategory || !uniqueCats.includes(selectedCategory))
+      ) {
         setSelectedCategory(uniqueCats[0]);
       }
     }
@@ -582,16 +852,32 @@ export const ActivityTrackingScreen: React.FC = () => {
   const activeRegistryItem = (() => {
     // 1. Search in catalogActivities first for dynamic exercises fetched from the API!
     const catalogItem = catalogActivities.find(
-      act => (act.displayName || act.activityName || '').toLowerCase() === activityType.toLowerCase()
+      act =>
+        (act.displayName || act.activityName || '').toLowerCase() ===
+        activityType.toLowerCase(),
     );
     if (catalogItem) {
       const catLower = (catalogItem.categoryName || '').toLowerCase();
-      const nameLower = (catalogItem.displayName || catalogItem.activityName || '').toLowerCase();
-      
+      const nameLower = (
+        catalogItem.displayName ||
+        catalogItem.activityName ||
+        ''
+      ).toLowerCase();
+
       let category: 'distance' | 'strength' | 'duration' = 'duration';
       let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
-      
-      if (nameLower.includes('walk') || nameLower.includes('run') || nameLower.includes('cycle') || nameLower.includes('swim') || nameLower.includes('hike') || nameLower.includes('jog') || catLower.includes('bicycling') || catLower.includes('running') || catalogItem.metricType === 'DISTANCE_BASED') {
+
+      if (
+        nameLower.includes('walk') ||
+        nameLower.includes('run') ||
+        nameLower.includes('cycle') ||
+        nameLower.includes('swim') ||
+        nameLower.includes('hike') ||
+        nameLower.includes('jog') ||
+        catLower.includes('bicycling') ||
+        catLower.includes('running') ||
+        catalogItem.metricType === 'DISTANCE_BASED'
+      ) {
         category = 'distance';
         if (nameLower.includes('walk')) {
           metric = 'steps';
@@ -600,9 +886,21 @@ export const ActivityTrackingScreen: React.FC = () => {
         } else {
           metric = 'km';
         }
-      } else if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || nameLower.includes('deadlift') || nameLower.includes('bench') || nameLower.includes('squat') || nameLower.includes('exercube')) {
+      } else if (
+        catLower.includes('strength') ||
+        catLower.includes('weight') ||
+        catLower.includes('resistance') ||
+        nameLower.includes('deadlift') ||
+        nameLower.includes('bench') ||
+        nameLower.includes('squat') ||
+        nameLower.includes('exercube')
+      ) {
         category = 'strength';
-        if (nameLower.includes('squat') || nameLower.includes('press') || nameLower.includes('deadlift')) {
+        if (
+          nameLower.includes('squat') ||
+          nameLower.includes('press') ||
+          nameLower.includes('deadlift')
+        ) {
           metric = 'sets';
         } else {
           metric = 'reps';
@@ -611,34 +909,66 @@ export const ActivityTrackingScreen: React.FC = () => {
 
       return {
         name: catalogItem.displayName || catalogItem.activityName,
-        emoji: getActivityEmoji(catalogItem.activityName, catalogItem.categoryName),
+        emoji: getActivityEmoji(
+          catalogItem.activityName,
+          catalogItem.categoryName,
+        ),
         baseMET: catalogItem.baseMet || 4.0,
         metric,
         category,
-        color: catalogItem.categoryName?.toLowerCase().includes('conditioning') ? '#DB2777' : '#0EA5E9',
-        cardioPct: typeof catalogItem.cardioPct === 'number' ? catalogItem.cardioPct : undefined,
-        strengthPct: typeof catalogItem.strengthPct === 'number' ? catalogItem.strengthPct : undefined,
-        balancePct: typeof catalogItem.balancePct === 'number' ? catalogItem.balancePct : undefined,
-        recoveryPct: typeof catalogItem.recoveryPct === 'number' ? catalogItem.recoveryPct : undefined,
+        color: catalogItem.categoryName?.toLowerCase().includes('conditioning')
+          ? '#DB2777'
+          : '#0EA5E9',
+        cardioPct:
+          typeof catalogItem.cardioPct === 'number'
+            ? catalogItem.cardioPct
+            : undefined,
+        strengthPct:
+          typeof catalogItem.strengthPct === 'number'
+            ? catalogItem.strengthPct
+            : undefined,
+        balancePct:
+          typeof catalogItem.balancePct === 'number'
+            ? catalogItem.balancePct
+            : undefined,
+        recoveryPct:
+          typeof catalogItem.recoveryPct === 'number'
+            ? catalogItem.recoveryPct
+            : undefined,
       };
     }
 
     const staticItem = WELLNESS_ACTIVITIES_REGISTRY.find(
-      act => act.name.toLowerCase() === activityType.toLowerCase()
+      act => act.name.toLowerCase() === activityType.toLowerCase(),
     );
     if (staticItem) return staticItem;
 
-    if (selectedDynamicActivity && selectedDynamicActivity.activityName.toLowerCase() === activityType.toLowerCase()) {
+    if (
+      selectedDynamicActivity &&
+      selectedDynamicActivity.activityName.toLowerCase() ===
+        activityType.toLowerCase()
+    ) {
       const name = selectedDynamicActivity.activityName;
       const baseMET = selectedDynamicActivity.baseMet || 4.0;
-      
+
       let category: 'distance' | 'strength' | 'duration' = 'duration';
       let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
-      
-      const catLower = (selectedDynamicActivity.categoryName || '').toLowerCase();
+
+      const catLower = (
+        selectedDynamicActivity.categoryName || ''
+      ).toLowerCase();
       const nameLower = name.toLowerCase();
-      
-      if (nameLower.includes('walk') || nameLower.includes('run') || nameLower.includes('cycle') || nameLower.includes('swim') || nameLower.includes('hike') || nameLower.includes('jog') || catLower.includes('bicycling') || catLower.includes('running')) {
+
+      if (
+        nameLower.includes('walk') ||
+        nameLower.includes('run') ||
+        nameLower.includes('cycle') ||
+        nameLower.includes('swim') ||
+        nameLower.includes('hike') ||
+        nameLower.includes('jog') ||
+        catLower.includes('bicycling') ||
+        catLower.includes('running')
+      ) {
         category = 'distance';
         if (nameLower.includes('walk')) {
           metric = 'steps';
@@ -647,9 +977,20 @@ export const ActivityTrackingScreen: React.FC = () => {
         } else {
           metric = 'km';
         }
-      } else if (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || nameLower.includes('deadlift') || nameLower.includes('bench') || nameLower.includes('squat')) {
+      } else if (
+        catLower.includes('strength') ||
+        catLower.includes('weight') ||
+        catLower.includes('resistance') ||
+        nameLower.includes('deadlift') ||
+        nameLower.includes('bench') ||
+        nameLower.includes('squat')
+      ) {
         category = 'strength';
-        if (nameLower.includes('squat') || nameLower.includes('press') || nameLower.includes('deadlift')) {
+        if (
+          nameLower.includes('squat') ||
+          nameLower.includes('press') ||
+          nameLower.includes('deadlift')
+        ) {
           metric = 'sets';
         } else {
           metric = 'reps';
@@ -681,7 +1022,9 @@ export const ActivityTrackingScreen: React.FC = () => {
     activeRegistryItem?.metric === 'sets' ||
     activeRegistryItem?.metric === 'reps' ||
     selectedDynamicActivity?.metricType === 'REPETITION_BASED' ||
-    (selectedDynamicActivity?.displayName || '').includes('Resistance (weight lifting') ||
+    (selectedDynamicActivity?.displayName || '').includes(
+      'Resistance (weight lifting',
+    ) ||
     activityType.includes('Resistance (weight lifting');
 
   const parsedDuration = parseFloat(duration) || 0;
@@ -703,7 +1046,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   const getInterpolatedOffset = (percentage: number) => {
     const radius = 42;
     const circumference = 2 * Math.PI * radius;
-    const targetOffset = circumference - (circumference * percentage);
+    const targetOffset = circumference - circumference * percentage;
     return animValue.interpolate({
       inputRange: [0, 1],
       outputRange: [circumference, targetOffset],
@@ -840,8 +1183,6 @@ export const ActivityTrackingScreen: React.FC = () => {
       // Add the newly saved activity to the main list so it displays instantly on the screen
       setActivities(prev => [savedActivity, ...prev]);
 
-
-
       // Store results for the Benefits Summary Modal using response values
       const resDuration =
         responseData.durationMinutes !== undefined
@@ -899,8 +1240,10 @@ export const ActivityTrackingScreen: React.FC = () => {
       navigation.navigate('DemoPostWorkoutSummary', {
         activityName: responseData.type || activityType,
         baseMet: calculatedMET,
-        cardio: Math.round((resCardioPoints / (resGainPoints || 1)) * 100) || 50,
-        strength: Math.round((resMusculoPoints / (resGainPoints || 1)) * 100) || 50,
+        cardio:
+          Math.round((resCardioPoints / (resGainPoints || 1)) * 100) || 50,
+        strength:
+          Math.round((resMusculoPoints / (resGainPoints || 1)) * 100) || 50,
         balance: 15,
         recovery: 15,
         duration: resDuration,
@@ -911,7 +1254,8 @@ export const ActivityTrackingScreen: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Failed to log workout details:', error);
-      const errMsg = error.response?.data?.message || error.message || 'Unknown error';
+      const errMsg =
+        error.response?.data?.message || error.message || 'Unknown error';
       Alert.alert('Error', `Failed to save workout details. Reason: ${errMsg}`);
     } finally {
       setSaving(false);
@@ -946,56 +1290,118 @@ export const ActivityTrackingScreen: React.FC = () => {
     emoji: act.emoji,
   }));
 
-  const categoryMainOptions: Record<string, { name: string; emoji: string }[]> = (() => {
-    const result: Record<string, { name: string; emoji: string }[]> = {};
+  const categoryMainOptions: Record<string, { name: string; emoji: string }[]> =
+    (() => {
+      const result: Record<string, { name: string; emoji: string }[]> = {};
 
-    catalogActivities.forEach((item: any) => {
-      const name = item.activityName;
-      const catName = item.categoryName || 'General';
+      catalogActivities.forEach((item: any) => {
+        const name = item.activityName;
+        const catName = item.categoryName || 'General';
 
-      if (!result[catName]) {
-        result[catName] = [];
-      }
-
-      // Show exactly up to 5 exercises per category, as requested
-      if (result[catName].length < 5) {
-        if (!result[catName].some((opt: { name: string; emoji: string }) => opt.name.toLowerCase() === name.toLowerCase())) {
-          const itemEmoji = getActivityEmoji(name, catName);
-          result[catName].push({ name, emoji: itemEmoji });
+        if (!result[catName]) {
+          result[catName] = [];
         }
-      }
-    });
 
-    return result;
-  })();
+        // Show exactly up to 5 exercises per category, as requested
+        if (result[catName].length < 5) {
+          if (
+            !result[catName].some(
+              (opt: { name: string; emoji: string }) =>
+                opt.name.toLowerCase() === name.toLowerCase(),
+            )
+          ) {
+            const itemEmoji = getActivityEmoji(name, catName);
+            result[catName].push({ name, emoji: itemEmoji });
+          }
+        }
+      });
+
+      return result;
+    })();
 
   const getCategoryEmoji = (catName: string): string => {
     const nameLower = catName.toLowerCase();
-    if (nameLower.includes('run') || nameLower.includes('cardio') || nameLower.includes('endurance') || nameLower.includes('cycle') || nameLower.includes('bike') || nameLower.includes('walk')) return '🏃';
-    if (nameLower.includes('strength') || nameLower.includes('weight') || nameLower.includes('resistance') || nameLower.includes('condition')) return '🏋️';
-    if (nameLower.includes('mind') || nameLower.includes('body') || nameLower.includes('yoga') || nameLower.includes('stretch') || nameLower.includes('recovery') || nameLower.includes('studio')) return '🧘';
+    if (
+      nameLower.includes('run') ||
+      nameLower.includes('cardio') ||
+      nameLower.includes('endurance') ||
+      nameLower.includes('cycle') ||
+      nameLower.includes('bike') ||
+      nameLower.includes('walk')
+    )
+      return '🏃';
+    if (
+      nameLower.includes('strength') ||
+      nameLower.includes('weight') ||
+      nameLower.includes('resistance') ||
+      nameLower.includes('condition')
+    )
+      return '🏋️';
+    if (
+      nameLower.includes('mind') ||
+      nameLower.includes('body') ||
+      nameLower.includes('yoga') ||
+      nameLower.includes('stretch') ||
+      nameLower.includes('recovery') ||
+      nameLower.includes('studio')
+    )
+      return '🧘';
     if (nameLower.includes('water') || nameLower.includes('swim')) return '🏊';
-    if (nameLower.includes('sport') || nameLower.includes('game') || nameLower.includes('court')) return '⚽';
+    if (
+      nameLower.includes('sport') ||
+      nameLower.includes('game') ||
+      nameLower.includes('court')
+    )
+      return '⚽';
     return '🏃';
   };
 
-  const mainOptions = (selectedCategory && categoryMainOptions[selectedCategory]) || [];
+  const mainOptions =
+    (selectedCategory && categoryMainOptions[selectedCategory]) || [];
   const isCurrentCategorySelected = (() => {
     if (!activeRegistryItem) return false;
-    
-    if (selectedDynamicActivity && selectedDynamicActivity.activityName.toLowerCase() === activityType.toLowerCase()) {
-      return (selectedDynamicActivity.categoryName || 'General') === selectedCategory;
+
+    if (
+      selectedDynamicActivity &&
+      selectedDynamicActivity.activityName.toLowerCase() ===
+        activityType.toLowerCase()
+    ) {
+      return (
+        (selectedDynamicActivity.categoryName || 'General') === selectedCategory
+      );
     }
-    
+
     const catLower = selectedCategory.toLowerCase();
     const actCat = activeRegistryItem.category;
-    if (actCat === 'distance' && (catLower.includes('run') || catLower.includes('walk') || catLower.includes('cycle') || catLower.includes('swim') || catLower.includes('endurance') || catLower.includes('bicycling'))) {
+    if (
+      actCat === 'distance' &&
+      (catLower.includes('run') ||
+        catLower.includes('walk') ||
+        catLower.includes('cycle') ||
+        catLower.includes('swim') ||
+        catLower.includes('endurance') ||
+        catLower.includes('bicycling'))
+    ) {
       return true;
     }
-    if (actCat === 'strength' && (catLower.includes('strength') || catLower.includes('weight') || catLower.includes('resistance') || catLower.includes('condition'))) {
+    if (
+      actCat === 'strength' &&
+      (catLower.includes('strength') ||
+        catLower.includes('weight') ||
+        catLower.includes('resistance') ||
+        catLower.includes('condition'))
+    ) {
       return true;
     }
-    if (actCat === 'duration' && (catLower.includes('mind') || catLower.includes('body') || catLower.includes('yoga') || catLower.includes('stretch') || catLower.includes('recovery') || catLower.includes('studio'))) {
+    if (
+      actCat === 'duration' &&
+      (catLower.includes('mind') ||
+        catLower.includes('body') ||
+        catLower.includes('yoga') ||
+        catLower.includes('stretch') ||
+        catLower.includes('recovery') ||
+        catLower.includes('studio'))
+    ) {
       return true;
     }
     return false;
@@ -1005,12 +1411,17 @@ export const ActivityTrackingScreen: React.FC = () => {
   if (isCurrentCategorySelected) {
     // If the selected activity is a newly-searched custom activity not present in the list,
     // prepend it to visibleOptions so the user can see it selected on the screen.
-    const exists = mainOptions.some((opt: { name: string; emoji: string }) => opt.name.toLowerCase() === activityType.toLowerCase());
+    const exists = mainOptions.some(
+      (opt: { name: string; emoji: string }) =>
+        opt.name.toLowerCase() === activityType.toLowerCase(),
+    );
     if (!exists && activeRegistryItem) {
-      visibleOptions = [{ name: activeRegistryItem.name, emoji: activeRegistryItem.emoji }, ...mainOptions];
+      visibleOptions = [
+        { name: activeRegistryItem.name, emoji: activeRegistryItem.emoji },
+        ...mainOptions,
+      ];
     }
   }
-
 
   const getPillarBreakdown = (gainPoints: number, category: string) => {
     let cardioPct = 0.5;
@@ -1144,15 +1555,22 @@ export const ActivityTrackingScreen: React.FC = () => {
   const sanitizeString = (str: string): string => {
     if (!str) return '';
     return str
-      .replace(/\uFFFD/g, '-')
+      .replace(/[\uFFFD\uFFFE\uFFFF\u0000-\u001F\u007F-\u009F]/g, ' - ')
+      .replace(/[]/g, ' - ')
+      .replace(/\s*-\s*-\s*/g, ' - ')
       .replace(/\s+/g, ' ')
       .trim();
   };
 
   const renderModalExerciseCard = (item: any) => {
-    const displayNameClean = sanitizeString(item.displayName || item.activityName || '');
+    const displayNameClean = sanitizeString(
+      item.displayName || item.activityName || '',
+    );
     const activityNameClean = sanitizeString(item.activityName || '');
-    const isSelected = !!activityType && activityType.toLowerCase() === displayNameClean.toLowerCase();
+    const isSelected =
+      !!activityType &&
+      (activityType.toLowerCase() === displayNameClean.toLowerCase() ||
+        activityType.toLowerCase() === activityNameClean.toLowerCase());
     const emoji = getActivityEmoji(item.activityName, item.categoryName);
     return (
       <TouchableOpacity
@@ -1162,18 +1580,64 @@ export const ActivityTrackingScreen: React.FC = () => {
           setActivityType(displayNameClean);
           setSelectedDynamicActivity(item);
           const band = (item.intensityBand || '').toUpperCase();
-          setSliderVal(band === 'LIGHT' ? 3.0 : band === 'VIGOROUS' || band === 'VIGOUR' ? 8.0 : 5.0);
+          setSliderVal(
+            band === 'LIGHT'
+              ? 3.0
+              : band === 'VIGOROUS' || band === 'VIGOUR'
+              ? 8.0
+              : 5.0,
+          );
         }}
         activeOpacity={0.8}
       >
         <Text style={styles.cardEmoji}>{emoji}</Text>
         <View style={styles.cardTextWrapper}>
-          <Text style={[styles.cardTitle, isSelected && styles.cardTitleActive]}>
+          <Text
+            style={[
+              styles.cardTitle,
+              isSelected && styles.cardTitleActive,
+            ]}
+          >
             {displayNameClean}
           </Text>
           <Text style={styles.cardSub}>{activityNameClean}</Text>
         </View>
       </TouchableOpacity>
+    );
+  };
+
+  const renderAppealCard = () => {
+    const query = modalSearchQuery.trim() || searchQuery.trim();
+    return (
+      <View style={styles.appealContainer}>
+        <Text style={styles.appealEmptyText}>
+          No activities found in this category.
+        </Text>
+        {query.length > 0 && (
+          <View style={styles.appealCard}>
+            <View style={styles.appealHeaderRow}>
+              <View style={styles.appealBadge}>
+                <Text style={styles.appealBadgeIcon}>✨</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.appealTitle}>Exercise not found?</Text>
+                <Text style={styles.appealSubtitle}>
+                  Appeal or request to add "{query}" as a custom exercise.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.appealActionButton}
+              onPress={() => handleOpenCustomModal(query)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.appealActionButtonText}>
+                + Appeal for Custom Exercise ({query})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -1268,7 +1732,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         <StepsLogsTab />
       )}
 
-            {/* Interactive Activity Logging Form Modal */}
+      {/* Interactive Activity Logging Form Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1299,8 +1763,10 @@ export const ActivityTrackingScreen: React.FC = () => {
               >
                 {/* Card 1: Select Activity */}
                 <View style={styles.formCard}>
-                  <Text style={styles.formCardTitle}>🎯 Select Activity Type</Text>
-                  
+                  <Text style={styles.formCardTitle}>
+                    🎯 Select Activity Type
+                  </Text>
+
                   {/* Search Bar Input */}
                   <View style={styles.modalSearchBar}>
                     <TextInput
@@ -1329,28 +1795,50 @@ export const ActivityTrackingScreen: React.FC = () => {
                       >
                         {/* ALL Pill (Static, Non-selectable) */}
                         <View
-                          style={[styles.modalPill, { opacity: 0.8, borderColor: 'rgba(255, 255, 255, 0.1)' }]}
+                          style={[
+                            styles.modalPill,
+                            {
+                              opacity: 0.8,
+                              borderColor: 'rgba(255, 255, 255, 0.1)',
+                            },
+                          ]}
                         >
-                          <Text style={[styles.modalPillText, { color: '#94a3b8' }]}>
+                          <Text
+                            style={[styles.modalPillText, { color: '#94a3b8' }]}
+                          >
                             🎽 ALL ({modalCounts['🎽 ALL'] || 0})
                           </Text>
                         </View>
 
                         {/* Selectable Category Pills */}
-                        {['💃 DANCING', '🏋️ GYM', '🚴 BIKE', '🏃 RUN', '🏊 SWIM'].map((catName: string) => {
+                        {[
+                          '💃 DANCING',
+                          '🏋️ GYM',
+                          '🚴 BIKE',
+                          '🏃 RUN',
+                          '🏊 SWIM',
+                        ].map((catName: string) => {
                           const count = modalCounts[catName] || 0;
                           const isActive = modalSelectedPill === catName;
                           return (
                             <TouchableOpacity
                               key={catName}
-                              style={[styles.modalPill, isActive && styles.modalPillActive]}
+                              style={[
+                                styles.modalPill,
+                                isActive && styles.modalPillActive,
+                              ]}
                               onPress={() => {
                                 setModalSelectedPill(catName);
                                 setSelectedBioGoal(null);
                               }}
                               activeOpacity={0.8}
                             >
-                              <Text style={[styles.modalPillText, isActive && styles.modalPillTextActive]}>
+                              <Text
+                                style={[
+                                  styles.modalPillText,
+                                  isActive && styles.modalPillTextActive,
+                                ]}
+                              >
                                 {catName} ({count})
                               </Text>
                             </TouchableOpacity>
@@ -1362,21 +1850,26 @@ export const ActivityTrackingScreen: React.FC = () => {
 
                   {/* Main exercise results list */}
                   <View style={{ marginTop: 8 }}>
-                    {modalSelectedPill === null ? (
+                    {modalLoading ? (
+                      <View
+                        style={{ paddingVertical: 32, alignItems: 'center' }}
+                      >
+                        <ActivityIndicator size="small" color="#3B82F6" />
+                      </View>
+                    ) : modalSelectedPill === null ? (
                       modalSearchQuery.trim().length > 0 ? (
-                        <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                          <Text style={{ color: '#64748B', fontSize: 14 }}>
-                            No activities found in this category.
-                          </Text>
-                        </View>
+                        renderAppealCard()
                       ) : (
                         /* Popular Workouts Block (first 4 items of catalogActivities) */
                         <View style={styles.popularBlock}>
-                          <Text style={styles.sectionTitle}>🔥 POPULAR WORKOUTS RIGHT NOW</Text>
+                          <Text style={styles.sectionTitle}>
+                            🔥 POPULAR WORKOUTS RIGHT NOW
+                          </Text>
                           <View style={styles.popularList}>
-                            {(apiPopularWorkouts.length > 0 ? apiPopularWorkouts : catalogActivities.slice(0, 4)).map(item =>
-                              renderModalExerciseCard(item)
-                            )}
+                            {(apiPopularWorkouts.length > 0
+                              ? apiPopularWorkouts
+                              : catalogActivities.slice(0, 4)
+                            ).map(item => renderModalExerciseCard(item))}
                           </View>
                         </View>
                       )
@@ -1386,58 +1879,81 @@ export const ActivityTrackingScreen: React.FC = () => {
                         const count = catActivities.length;
 
                         // 1. Get Category-Specific Popular Workouts
-                        const categoryPopularWorkouts = (apiPopularWorkouts.length > 0 ? apiPopularWorkouts : catalogActivities)
-                          .filter(item => getFriendlyCategory(item) === modalSelectedPill)
+                        const categoryPopularWorkouts = (
+                          apiPopularWorkouts.length > 0
+                            ? apiPopularWorkouts
+                            : catalogActivities
+                        )
+                          .filter(
+                            item =>
+                              getFriendlyCategory(item) === modalSelectedPill,
+                          )
                           .slice(0, 4);
 
                         // 2. Structural Type Routing Check
-                        const isRepetitionCategory = modalSelectedPill === '🏋️ GYM' || catActivities.some(item => item.metricType === 'REPETITION_BASED');
+                        const isRepetitionCategory =
+                          modalSelectedPill === '🏋️ GYM' ||
+                          catActivities.some(
+                            item => item.metricType === 'REPETITION_BASED',
+                          );
 
                         if (count <= 8) {
                           // Simple Flat List
                           return (
                             <View>
                               <View style={styles.popularList}>
-                                {catActivities.map(item => renderModalExerciseCard(item))}
-                                {count === 0 && (
-                                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                    <Text style={{ color: '#64748B', fontSize: 13 }}>
-                                      No activities found in this category.
+                                {catActivities.map(item =>
+                                  renderModalExerciseCard(item),
+                                )}
+                                {count === 0 && renderAppealCard()}
+                              </View>
+                              {count > 0 &&
+                                categoryPopularWorkouts.length > 0 && (
+                                  <View
+                                    style={[
+                                      styles.popularBlock,
+                                      { marginTop: 12, marginBottom: 16 },
+                                    ]}
+                                  >
+                                    <Text style={styles.sectionTitle}>
+                                      🔥 POPULAR{' '}
+                                      {modalSelectedPill
+                                        .replace(
+                                          /[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g,
+                                          '',
+                                        )
+                                        .toUpperCase()}{' '}
+                                      WORKOUTS
                                     </Text>
+                                    <View style={styles.popularList}>
+                                      {categoryPopularWorkouts.map(item =>
+                                        renderModalExerciseCard(item),
+                                      )}
+                                    </View>
                                   </View>
                                 )}
-                              </View>
-                              {count > 0 && categoryPopularWorkouts.length > 0 && (
-                                <View style={[styles.popularBlock, { marginTop: 12, marginBottom: 16 }]}>
-                                  <Text style={styles.sectionTitle}>
-                                    🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
-                                  </Text>
-                                  <View style={styles.popularList}>
-                                    {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
-                                  </View>
-                                </View>
-                              )}
                             </View>
                           );
                         }
 
                         if (isRepetitionCategory) {
                           // REPETITION_BASED Routing -> Light, Moderate, Vigorous at top, Popular shifted BELOW
-                          const light = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
-                          const moderate = catActivities.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+                          const light = catActivities.filter(
+                            e =>
+                              (e.intensityBand || '').toUpperCase() === 'LIGHT',
+                          );
+                          const moderate = catActivities.filter(
+                            e =>
+                              (e.intensityBand || '').toUpperCase() ===
+                              'MODERATE',
+                          );
                           const vigorous = catActivities.filter(e => {
                             const band = (e.intensityBand || '').toUpperCase();
                             return band === 'VIGOROUS' || band === 'VIGOUR';
                           });
                           return (
                             <View>
-                              {count === 0 && (
-                                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                  <Text style={{ color: '#64748B', fontSize: 13 }}>
-                                    No activities found in this category.
-                                  </Text>
-                                </View>
-                              )}
+                              {count === 0 && renderAppealCard()}
 
                               {light.length > 0 && (
                                 <View style={{ marginBottom: 12 }}>
@@ -1446,12 +1962,18 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     onPress={() => toggleSection('light')}
                                     activeOpacity={0.8}
                                   >
-                                    <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
-                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
+                                    <Text style={styles.modalSectionHeaderText}>
+                                      🟢 LIGHT CONDITIONING ({light.length})
+                                    </Text>
+                                    <Text style={styles.collapsibleArrow}>
+                                      {sectionsExpanded.light ? '▼' : '▶'}
+                                    </Text>
                                   </TouchableOpacity>
                                   {sectionsExpanded.light && (
                                     <View style={styles.popularList}>
-                                      {light.map(item => renderModalExerciseCard(item))}
+                                      {light.map(item =>
+                                        renderModalExerciseCard(item),
+                                      )}
                                     </View>
                                   )}
                                 </View>
@@ -1464,12 +1986,19 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     onPress={() => toggleSection('moderate')}
                                     activeOpacity={0.8}
                                   >
-                                    <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
-                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
+                                    <Text style={styles.modalSectionHeaderText}>
+                                      🟡 MODERATE CONDITIONING (
+                                      {moderate.length})
+                                    </Text>
+                                    <Text style={styles.collapsibleArrow}>
+                                      {sectionsExpanded.moderate ? '▼' : '▶'}
+                                    </Text>
                                   </TouchableOpacity>
                                   {sectionsExpanded.moderate && (
                                     <View style={styles.popularList}>
-                                      {moderate.map(item => renderModalExerciseCard(item))}
+                                      {moderate.map(item =>
+                                        renderModalExerciseCard(item),
+                                      )}
                                     </View>
                                   )}
                                 </View>
@@ -1482,35 +2011,57 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     onPress={() => toggleSection('vigorous')}
                                     activeOpacity={0.8}
                                   >
-                                    <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
-                                    <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
+                                    <Text style={styles.modalSectionHeaderText}>
+                                      🔴 VIGOROUS CIRCUITS ({vigorous.length})
+                                    </Text>
+                                    <Text style={styles.collapsibleArrow}>
+                                      {sectionsExpanded.vigorous ? '▼' : '▶'}
+                                    </Text>
                                   </TouchableOpacity>
                                   {sectionsExpanded.vigorous && (
                                     <View style={styles.popularList}>
-                                      {vigorous.map(item => renderModalExerciseCard(item))}
+                                      {vigorous.map(item =>
+                                        renderModalExerciseCard(item),
+                                      )}
                                     </View>
                                   )}
                                 </View>
                               )}
 
                               {/* Popular Workouts shifted BELOW Light / Moderate / Vigorous sections only when count > 0 */}
-                              {count > 0 && categoryPopularWorkouts.length > 0 && (
-                                <View style={[styles.popularBlock, { marginTop: 8, marginBottom: 16 }]}>
-                                  <Text style={styles.sectionTitle}>
-                                    🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
-                                  </Text>
-                                  <View style={styles.popularList}>
-                                    {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                              {count > 0 &&
+                                categoryPopularWorkouts.length > 0 && (
+                                  <View
+                                    style={[
+                                      styles.popularBlock,
+                                      { marginTop: 8, marginBottom: 16 },
+                                    ]}
+                                  >
+                                    <Text style={styles.sectionTitle}>
+                                      🔥 POPULAR{' '}
+                                      {modalSelectedPill
+                                        .replace(
+                                          /[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g,
+                                          '',
+                                        )
+                                        .toUpperCase()}{' '}
+                                      WORKOUTS
+                                    </Text>
+                                    <View style={styles.popularList}>
+                                      {categoryPopularWorkouts.map(item =>
+                                        renderModalExerciseCard(item),
+                                      )}
+                                    </View>
                                   </View>
-                                </View>
-                              )}
+                                )}
                             </View>
                           );
                         }
 
                         // DURATION_BASED or DISTANCE_BASED Routing -> Biological Goal Filter Pills at TOP, followed by Popular & Filtered lists
                         const filteredByBioGoal = catActivities.filter(e => {
-                          const cardioPct = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          const cardioPct =
+                            e.cardioPct !== undefined ? e.cardioPct : 50;
                           if (selectedBioGoal === 'FAT_LOSS') {
                             return cardioPct >= 80;
                           }
@@ -1524,22 +2075,32 @@ export const ActivityTrackingScreen: React.FC = () => {
                         });
 
                         const countFatLoss = catActivities.filter(e => {
-                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          const c =
+                            e.cardioPct !== undefined ? e.cardioPct : 50;
                           return c >= 80;
                         }).length;
 
                         const countAerobic = catActivities.filter(e => {
-                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          const c =
+                            e.cardioPct !== undefined ? e.cardioPct : 50;
                           return c >= 60 && c <= 79;
                         }).length;
 
                         const countRecovery = catActivities.filter(e => {
-                          const c = e.cardioPct !== undefined ? e.cardioPct : 50;
+                          const c =
+                            e.cardioPct !== undefined ? e.cardioPct : 50;
                           return c < 60;
                         }).length;
 
-                        const light = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'LIGHT');
-                        const moderate = filteredByBioGoal.filter(e => (e.intensityBand || '').toUpperCase() === 'MODERATE');
+                        const light = filteredByBioGoal.filter(
+                          e =>
+                            (e.intensityBand || '').toUpperCase() === 'LIGHT',
+                        );
+                        const moderate = filteredByBioGoal.filter(
+                          e =>
+                            (e.intensityBand || '').toUpperCase() ===
+                            'MODERATE',
+                        );
                         const vigorous = filteredByBioGoal.filter(e => {
                           const band = (e.intensityBand || '').toUpperCase();
                           return band === 'VIGOROUS' || band === 'VIGOUR';
@@ -1550,55 +2111,107 @@ export const ActivityTrackingScreen: React.FC = () => {
                             {/* Horizontal Row of Biological Goal Filter Pills - RENDERED AT TOP */}
                             <View style={styles.bioGoalPillsContainer}>
                               <TouchableOpacity
-                                style={[styles.bioGoalPill, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillActive]}
-                                onPress={() => setSelectedBioGoal(prev => prev === 'FAT_LOSS' ? null : 'FAT_LOSS')}
+                                style={[
+                                  styles.bioGoalPill,
+                                  selectedBioGoal === 'FAT_LOSS' &&
+                                    styles.bioGoalPillActive,
+                                ]}
+                                onPress={() =>
+                                  setSelectedBioGoal(prev =>
+                                    prev === 'FAT_LOSS' ? null : 'FAT_LOSS',
+                                  )
+                                }
                                 activeOpacity={0.8}
                               >
-                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'FAT_LOSS' && styles.bioGoalPillTextActive]}>
+                                <Text
+                                  style={[
+                                    styles.bioGoalPillText,
+                                    selectedBioGoal === 'FAT_LOSS' &&
+                                      styles.bioGoalPillTextActive,
+                                  ]}
+                                >
                                   🔥 Fat Loss ({countFatLoss})
                                 </Text>
                               </TouchableOpacity>
 
                               <TouchableOpacity
-                                style={[styles.bioGoalPill, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillActive]}
-                                onPress={() => setSelectedBioGoal(prev => prev === 'AEROBIC' ? null : 'AEROBIC')}
+                                style={[
+                                  styles.bioGoalPill,
+                                  selectedBioGoal === 'AEROBIC' &&
+                                    styles.bioGoalPillActive,
+                                ]}
+                                onPress={() =>
+                                  setSelectedBioGoal(prev =>
+                                    prev === 'AEROBIC' ? null : 'AEROBIC',
+                                  )
+                                }
                                 activeOpacity={0.8}
                               >
-                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'AEROBIC' && styles.bioGoalPillTextActive]}>
+                                <Text
+                                  style={[
+                                    styles.bioGoalPillText,
+                                    selectedBioGoal === 'AEROBIC' &&
+                                      styles.bioGoalPillTextActive,
+                                  ]}
+                                >
                                   ⚡ Aerobic ({countAerobic})
                                 </Text>
                               </TouchableOpacity>
 
                               <TouchableOpacity
-                                style={[styles.bioGoalPill, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillActive]}
-                                onPress={() => setSelectedBioGoal(prev => prev === 'RECOVERY' ? null : 'RECOVERY')}
+                                style={[
+                                  styles.bioGoalPill,
+                                  selectedBioGoal === 'RECOVERY' &&
+                                    styles.bioGoalPillActive,
+                                ]}
+                                onPress={() =>
+                                  setSelectedBioGoal(prev =>
+                                    prev === 'RECOVERY' ? null : 'RECOVERY',
+                                  )
+                                }
                                 activeOpacity={0.8}
                               >
-                                <Text style={[styles.bioGoalPillText, selectedBioGoal === 'RECOVERY' && styles.bioGoalPillTextActive]}>
+                                <Text
+                                  style={[
+                                    styles.bioGoalPillText,
+                                    selectedBioGoal === 'RECOVERY' &&
+                                      styles.bioGoalPillTextActive,
+                                  ]}
+                                >
                                   🧘 Recovery ({countRecovery})
                                 </Text>
                               </TouchableOpacity>
                             </View>
 
-                            {count === 0 && (
-                              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                <Text style={{ color: '#64748B', fontSize: 13 }}>
-                                  No activities found in this category.
-                                </Text>
-                              </View>
-                            )}
+                            {count === 0 && renderAppealCard()}
 
                             {/* When NO sub-category is selected: Show Popular Workouts directly below the sub-category tabs ONLY IF count > 0 */}
-                            {selectedBioGoal === null && count > 0 && categoryPopularWorkouts.length > 0 && (
-                              <View style={[styles.popularBlock, { marginBottom: 16 }]}>
-                                <Text style={styles.sectionTitle}>
-                                  🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
-                                </Text>
-                                <View style={styles.popularList}>
-                                  {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                            {selectedBioGoal === null &&
+                              count > 0 &&
+                              categoryPopularWorkouts.length > 0 && (
+                                <View
+                                  style={[
+                                    styles.popularBlock,
+                                    { marginBottom: 16 },
+                                  ]}
+                                >
+                                  <Text style={styles.sectionTitle}>
+                                    🔥 POPULAR{' '}
+                                    {modalSelectedPill
+                                      .replace(
+                                        /[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g,
+                                        '',
+                                      )
+                                      .toUpperCase()}{' '}
+                                    WORKOUTS
+                                  </Text>
+                                  <View style={styles.popularList}>
+                                    {categoryPopularWorkouts.map(item =>
+                                      renderModalExerciseCard(item),
+                                    )}
+                                  </View>
                                 </View>
-                              </View>
-                            )}
+                              )}
 
                             {/* Collapsible intensity groups for filtered list */}
                             {selectedBioGoal !== null && (
@@ -1606,16 +2219,26 @@ export const ActivityTrackingScreen: React.FC = () => {
                                 {light.length > 0 && (
                                   <View style={{ marginBottom: 12 }}>
                                     <TouchableOpacity
-                                      style={styles.modalSectionHeaderCollapsible}
+                                      style={
+                                        styles.modalSectionHeaderCollapsible
+                                      }
                                       onPress={() => toggleSection('light')}
                                       activeOpacity={0.8}
                                     >
-                                      <Text style={styles.modalSectionHeaderText}>🟢 LIGHT CONDITIONING ({light.length})</Text>
-                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.light ? '▼' : '▶'}</Text>
+                                      <Text
+                                        style={styles.modalSectionHeaderText}
+                                      >
+                                        🟢 LIGHT CONDITIONING ({light.length})
+                                      </Text>
+                                      <Text style={styles.collapsibleArrow}>
+                                        {sectionsExpanded.light ? '▼' : '▶'}
+                                      </Text>
                                     </TouchableOpacity>
                                     {sectionsExpanded.light && (
                                       <View style={styles.popularList}>
-                                        {light.map(item => renderModalExerciseCard(item))}
+                                        {light.map(item =>
+                                          renderModalExerciseCard(item),
+                                        )}
                                       </View>
                                     )}
                                   </View>
@@ -1624,16 +2247,27 @@ export const ActivityTrackingScreen: React.FC = () => {
                                 {moderate.length > 0 && (
                                   <View style={{ marginBottom: 12 }}>
                                     <TouchableOpacity
-                                      style={styles.modalSectionHeaderCollapsible}
+                                      style={
+                                        styles.modalSectionHeaderCollapsible
+                                      }
                                       onPress={() => toggleSection('moderate')}
                                       activeOpacity={0.8}
                                     >
-                                      <Text style={styles.modalSectionHeaderText}>🟡 MODERATE CONDITIONING ({moderate.length})</Text>
-                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.moderate ? '▼' : '▶'}</Text>
+                                      <Text
+                                        style={styles.modalSectionHeaderText}
+                                      >
+                                        🟡 MODERATE CONDITIONING (
+                                        {moderate.length})
+                                      </Text>
+                                      <Text style={styles.collapsibleArrow}>
+                                        {sectionsExpanded.moderate ? '▼' : '▶'}
+                                      </Text>
                                     </TouchableOpacity>
                                     {sectionsExpanded.moderate && (
                                       <View style={styles.popularList}>
-                                        {moderate.map(item => renderModalExerciseCard(item))}
+                                        {moderate.map(item =>
+                                          renderModalExerciseCard(item),
+                                        )}
                                       </View>
                                     )}
                                   </View>
@@ -1642,40 +2276,79 @@ export const ActivityTrackingScreen: React.FC = () => {
                                 {vigorous.length > 0 && (
                                   <View style={{ marginBottom: 12 }}>
                                     <TouchableOpacity
-                                      style={styles.modalSectionHeaderCollapsible}
+                                      style={
+                                        styles.modalSectionHeaderCollapsible
+                                      }
                                       onPress={() => toggleSection('vigorous')}
                                       activeOpacity={0.8}
                                     >
-                                      <Text style={styles.modalSectionHeaderText}>🔴 VIGOROUS CIRCUITS ({vigorous.length})</Text>
-                                      <Text style={styles.collapsibleArrow}>{sectionsExpanded.vigorous ? '▼' : '▶'}</Text>
+                                      <Text
+                                        style={styles.modalSectionHeaderText}
+                                      >
+                                        🔴 VIGOROUS CIRCUITS ({vigorous.length})
+                                      </Text>
+                                      <Text style={styles.collapsibleArrow}>
+                                        {sectionsExpanded.vigorous ? '▼' : '▶'}
+                                      </Text>
                                     </TouchableOpacity>
                                     {sectionsExpanded.vigorous && (
                                       <View style={styles.popularList}>
-                                        {vigorous.map(item => renderModalExerciseCard(item))}
+                                        {vigorous.map(item =>
+                                          renderModalExerciseCard(item),
+                                        )}
                                       </View>
                                     )}
                                   </View>
                                 )}
 
-                                {filteredByBioGoal.length === 0 && (
-                                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                                    <Text style={{ color: '#64748B', fontSize: 13 }}>
-                                      No activities match this biological goal.
-                                    </Text>
-                                  </View>
-                                )}
+                                {filteredByBioGoal.length === 0 &&
+                                  (count === 0 ? (
+                                    renderAppealCard()
+                                  ) : (
+                                    <View
+                                      style={{
+                                        paddingVertical: 20,
+                                        alignItems: 'center',
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: '#64748B',
+                                          fontSize: 13,
+                                        }}
+                                      >
+                                        No activities match this biological
+                                        goal.
+                                      </Text>
+                                    </View>
+                                  ))}
 
                                 {/* Popular Workouts below the filtered results only if items match */}
-                                {filteredByBioGoal.length > 0 && categoryPopularWorkouts.length > 0 && (
-                                  <View style={[styles.popularBlock, { marginTop: 8, marginBottom: 16 }]}>
-                                    <Text style={styles.sectionTitle}>
-                                      🔥 POPULAR {modalSelectedPill.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g, '').toUpperCase()} WORKOUTS
-                                    </Text>
-                                    <View style={styles.popularList}>
-                                      {categoryPopularWorkouts.map(item => renderModalExerciseCard(item))}
+                                {filteredByBioGoal.length > 0 &&
+                                  categoryPopularWorkouts.length > 0 && (
+                                    <View
+                                      style={[
+                                        styles.popularBlock,
+                                        { marginTop: 8, marginBottom: 16 },
+                                      ]}
+                                    >
+                                      <Text style={styles.sectionTitle}>
+                                        🔥 POPULAR{' '}
+                                        {modalSelectedPill
+                                          .replace(
+                                            /[\uD800-\uDBFF][\uDC00-\uDFFF]\s*/g,
+                                            '',
+                                          )
+                                          .toUpperCase()}{' '}
+                                        WORKOUTS
+                                      </Text>
+                                      <View style={styles.popularList}>
+                                        {categoryPopularWorkouts.map(item =>
+                                          renderModalExerciseCard(item),
+                                        )}
+                                      </View>
                                     </View>
-                                  </View>
-                                )}
+                                  )}
                               </View>
                             )}
                           </View>
@@ -1685,6 +2358,28 @@ export const ActivityTrackingScreen: React.FC = () => {
                   </View>
                 </View>
               </ScrollView>
+
+              {/* Distance-Based / Dynamic API Notice Message */}
+              {isSelectedDistanceBased && (
+                <View style={styles.distanceNoticeBox}>
+                  <Text style={styles.distanceNoticeIcon}>ℹ️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.distanceNoticeTitle}>
+                      {sanitizeString(
+                        selectedDynamicActivity?.displayName ||
+                          selectedDynamicActivity?.activityName ||
+                          'Notice',
+                      )}
+                    </Text>
+                    <Text style={styles.distanceNoticeSubtitle}>
+                      {sanitizeString(
+                        selectedDynamicActivity?.message ||
+                          'Please use auto sync',
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Modal Footer */}
               <View style={styles.modalFooter}>
@@ -1696,17 +2391,37 @@ export const ActivityTrackingScreen: React.FC = () => {
                 />
                 <CustomButton
                   title="Next"
-                  disabled={!activityType || activityType.trim().length === 0}
+                  disabled={
+                    !activityType ||
+                    activityType.trim().length === 0 ||
+                    isSelectedDistanceBased
+                  }
                   onPress={() => {
+                    if (isSelectedDistanceBased) {
+                      Alert.alert(
+                        'Notice',
+                        sanitizeString(
+                          selectedDynamicActivity?.message ||
+                            'Please use auto sync',
+                        ),
+                      );
+                      return;
+                    }
                     if (!activityType || activityType.trim().length === 0) {
-                      Alert.alert('Selection Required', 'Please select an exercise first.');
+                      Alert.alert(
+                        'Selection Required',
+                        'Please select an exercise first.',
+                      );
                       return;
                     }
                     setModalVisible(false);
                     setMetricsModalVisible(true);
                   }}
                   variant="primary"
-                  style={styles.footerButton}
+                  style={[
+                    styles.footerButton,
+                    isSelectedDistanceBased && { opacity: 0.5 },
+                  ]}
                 />
               </View>
             </SafeAreaView>
@@ -1779,36 +2494,52 @@ export const ActivityTrackingScreen: React.FC = () => {
                     </Text>
 
                     <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                      <Text style={styles.label}>Select Training Target Profile</Text>
+                      <Text style={styles.label}>
+                        Select Training Target Profile
+                      </Text>
                       <TouchableOpacity
                         style={styles.dropdownSelector}
-                        onPress={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                        onPress={() =>
+                          setProfileDropdownOpen(!profileDropdownOpen)
+                        }
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.dropdownSelectorText}>{trainingProfile}</Text>
-                        <Text style={styles.dropdownArrow}>{profileDropdownOpen ? '▲' : '▼'}</Text>
+                        <Text style={styles.dropdownSelectorText}>
+                          {trainingProfile}
+                        </Text>
+                        <Text style={styles.dropdownArrow}>
+                          {profileDropdownOpen ? '▲' : '▼'}
+                        </Text>
                       </TouchableOpacity>
-                      
+
                       {profileDropdownOpen && (
                         <View style={styles.dropdownOptionsContainer}>
-                          {['Working Set', 'Warmup', 'To Failure'].map(option => (
-                            <TouchableOpacity
-                              key={option}
-                              style={[
-                                styles.dropdownOptionItem,
-                                trainingProfile === option && styles.dropdownOptionItemActive
-                              ]}
-                              onPress={() => {
-                                setTrainingProfile(option);
-                                setProfileDropdownOpen(false);
-                              }}
-                            >
-                              <Text style={[
-                                styles.dropdownOptionText,
-                                trainingProfile === option && styles.dropdownOptionTextActive
-                              ]}>{option}</Text>
-                            </TouchableOpacity>
-                          ))}
+                          {['Working Set', 'Warmup', 'To Failure'].map(
+                            option => (
+                              <TouchableOpacity
+                                key={option}
+                                style={[
+                                  styles.dropdownOptionItem,
+                                  trainingProfile === option &&
+                                    styles.dropdownOptionItemActive,
+                                ]}
+                                onPress={() => {
+                                  setTrainingProfile(option);
+                                  setProfileDropdownOpen(false);
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.dropdownOptionText,
+                                    trainingProfile === option &&
+                                      styles.dropdownOptionTextActive,
+                                  ]}
+                                >
+                                  {option}
+                                </Text>
+                              </TouchableOpacity>
+                            ),
+                          )}
                         </View>
                       )}
                     </View>
@@ -1891,7 +2622,14 @@ export const ActivityTrackingScreen: React.FC = () => {
                     {!syncWearable && (
                       <>
                         {/* Duration Input - Scroll Wheel */}
-                        <Text style={[styles.label, { textAlign: 'center', marginBottom: 8 }]}>Duration (minutes)</Text>
+                        <Text
+                          style={[
+                            styles.label,
+                            { textAlign: 'center', marginBottom: 8 },
+                          ]}
+                        >
+                          Duration (minutes)
+                        </Text>
                         <View style={styles.pickerContainer}>
                           <View style={styles.activeSelectionBox} />
 
@@ -1902,7 +2640,9 @@ export const ActivityTrackingScreen: React.FC = () => {
                             nestedScrollEnabled={true}
                             onTouchStart={() => setParentScrollEnabled(false)}
                             onTouchEnd={() => setParentScrollEnabled(true)}
-                            onMomentumScrollEnd={() => setParentScrollEnabled(true)}
+                            onMomentumScrollEnd={() =>
+                              setParentScrollEnabled(true)
+                            }
                             renderItem={({ item, index }) => {
                               const isSelected = item === parseInt(duration);
                               if (item === '') {
@@ -1913,15 +2653,25 @@ export const ActivityTrackingScreen: React.FC = () => {
                                   activeOpacity={0.7}
                                   onPress={() => {
                                     setDuration(item.toString());
-                                    flatListRef.current?.scrollToIndex({ index: index - 1, animated: true });
+                                    flatListRef.current?.scrollToIndex({
+                                      index: index - 1,
+                                      animated: true,
+                                    });
                                   }}
                                   style={styles.pickerItem}
                                 >
-                                  <Text style={[styles.pickerItemText, isSelected && styles.pickerItemTextActive]}>
+                                  <Text
+                                    style={[
+                                      styles.pickerItemText,
+                                      isSelected && styles.pickerItemTextActive,
+                                    ]}
+                                  >
                                     {item}
                                   </Text>
                                   {isSelected && (
-                                    <Text style={styles.minutesLabel}>MINUTES</Text>
+                                    <Text style={styles.minutesLabel}>
+                                      MINUTES
+                                    </Text>
                                   )}
                                 </TouchableOpacity>
                               );
@@ -1944,49 +2694,69 @@ export const ActivityTrackingScreen: React.FC = () => {
                         {/* RPE Scale Section */}
                         <View style={styles.rpeSection}>
                           <View style={styles.rpeLabelRow}>
-                            <Text style={styles.rpeTitle}>RPE Scale (Intensity)</Text>
+                            <Text style={styles.rpeTitle}>
+                              RPE Scale (Intensity)
+                            </Text>
                             <View style={styles.rpeBadge}>
                               <Text style={styles.rpeBadgeText}>
                                 {rpe} - {getRpeDescription(rpe)}
                               </Text>
                             </View>
                           </View>
-                          <View 
+                          <View
                             ref={trackRef}
-                            onLayout={(e) => {
+                            onLayout={e => {
                               trackWidth.current = e.nativeEvent.layout.width;
                             }}
                             style={styles.rpeTrack}
                             {...panResponder.panHandlers}
                           >
                             {/* Active filled track */}
-                            <View 
+                            <View
                               style={[
-                                styles.rpeFill, 
-                                { width: `${((rpe - 1) / 9) * 100}%` }
-                              ]} 
+                                styles.rpeFill,
+                                { width: `${((rpe - 1) / 9) * 100}%` },
+                              ]}
                             />
                             {/* Thumb */}
-                            <View 
+                            <View
                               style={[
-                                styles.rpeThumb, 
-                                { left: `${((rpe - 1) / 9) * 100}%` }
-                              ]} 
+                                styles.rpeThumb,
+                                { left: `${((rpe - 1) / 9) * 100}%` },
+                              ]}
                             />
                           </View>
                           <View style={styles.rpeScaleLabels}>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
                               const isSelected = rpe === num;
                               return (
                                 <TouchableOpacity
                                   key={num}
-                                  style={[styles.scaleTickButton, { left: `${((num - 1) / 9) * 100}%` }]}
+                                  style={[
+                                    styles.scaleTickButton,
+                                    { left: `${((num - 1) / 9) * 100}%` },
+                                  ]}
                                   onPress={() => setSliderVal(num)}
                                   activeOpacity={0.7}
-                                  hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                                  hitSlop={{
+                                    top: 12,
+                                    bottom: 12,
+                                    left: 6,
+                                    right: 6,
+                                  }}
                                 >
-                                  <View style={[styles.tickDot, isSelected && styles.tickDotActive]} />
-                                  <Text style={[styles.scaleLabelText, isSelected && styles.scaleLabelTextActive]}>
+                                  <View
+                                    style={[
+                                      styles.tickDot,
+                                      isSelected && styles.tickDotActive,
+                                    ]}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.scaleLabelText,
+                                      isSelected && styles.scaleLabelTextActive,
+                                    ]}
+                                  >
                                     {num}
                                   </Text>
                                 </TouchableOpacity>
@@ -2009,9 +2779,11 @@ export const ActivityTrackingScreen: React.FC = () => {
                                   strokeWidth={10}
                                   fill="transparent"
                                 />
-                                
+
                                 {/* Segment 1: Cardio */}
-                                <G transform={`rotate(${segments.cardio.rotation}, 55, 55)`}>
+                                <G
+                                  transform={`rotate(${segments.cardio.rotation}, 55, 55)`}
+                                >
                                   <AnimatedCircle
                                     cx={55}
                                     cy={55}
@@ -2020,13 +2792,17 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     strokeWidth={10}
                                     fill="transparent"
                                     strokeDasharray={circumference}
-                                    strokeDashoffset={getInterpolatedOffset(segments.cardio.percentage)}
+                                    strokeDashoffset={getInterpolatedOffset(
+                                      segments.cardio.percentage,
+                                    )}
                                     strokeLinecap="round"
                                   />
                                 </G>
 
                                 {/* Segment 2: Strength */}
-                                <G transform={`rotate(${segments.strength.rotation}, 55, 55)`}>
+                                <G
+                                  transform={`rotate(${segments.strength.rotation}, 55, 55)`}
+                                >
                                   <AnimatedCircle
                                     cx={55}
                                     cy={55}
@@ -2035,13 +2811,17 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     strokeWidth={10}
                                     fill="transparent"
                                     strokeDasharray={circumference}
-                                    strokeDashoffset={getInterpolatedOffset(segments.strength.percentage)}
+                                    strokeDashoffset={getInterpolatedOffset(
+                                      segments.strength.percentage,
+                                    )}
                                     strokeLinecap="round"
                                   />
                                 </G>
 
                                 {/* Segment 3: Balance */}
-                                <G transform={`rotate(${segments.balance.rotation}, 55, 55)`}>
+                                <G
+                                  transform={`rotate(${segments.balance.rotation}, 55, 55)`}
+                                >
                                   <AnimatedCircle
                                     cx={55}
                                     cy={55}
@@ -2050,13 +2830,17 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     strokeWidth={10}
                                     fill="transparent"
                                     strokeDasharray={circumference}
-                                    strokeDashoffset={getInterpolatedOffset(segments.balance.percentage)}
+                                    strokeDashoffset={getInterpolatedOffset(
+                                      segments.balance.percentage,
+                                    )}
                                     strokeLinecap="round"
                                   />
                                 </G>
 
                                 {/* Segment 4: Recovery */}
-                                <G transform={`rotate(${segments.recovery.rotation}, 55, 55)`}>
+                                <G
+                                  transform={`rotate(${segments.recovery.rotation}, 55, 55)`}
+                                >
                                   <AnimatedCircle
                                     cx={55}
                                     cy={55}
@@ -2065,7 +2849,9 @@ export const ActivityTrackingScreen: React.FC = () => {
                                     strokeWidth={10}
                                     fill="transparent"
                                     strokeDasharray={circumference}
-                                    strokeDashoffset={getInterpolatedOffset(segments.recovery.percentage)}
+                                    strokeDashoffset={getInterpolatedOffset(
+                                      segments.recovery.percentage,
+                                    )}
                                     strokeLinecap="round"
                                   />
                                 </G>
@@ -2076,20 +2862,48 @@ export const ActivityTrackingScreen: React.FC = () => {
                           {/* Legend Grid */}
                           <View style={styles.legendWrapper}>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                              <Text style={styles.legendText}>Cardio: {breakdown.cardioPct}%</Text>
+                              <View
+                                style={[
+                                  styles.legendDot,
+                                  { backgroundColor: '#EF4444' },
+                                ]}
+                              />
+                              <Text style={styles.legendText}>
+                                Cardio: {breakdown.cardioPct}%
+                              </Text>
                             </View>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#F97316' }]} />
-                              <Text style={styles.legendText}>Strength: {breakdown.strengthPct}%</Text>
+                              <View
+                                style={[
+                                  styles.legendDot,
+                                  { backgroundColor: '#F97316' },
+                                ]}
+                              />
+                              <Text style={styles.legendText}>
+                                Strength: {breakdown.strengthPct}%
+                              </Text>
                             </View>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                              <Text style={styles.legendText}>Balance: {breakdown.balancePct}%</Text>
+                              <View
+                                style={[
+                                  styles.legendDot,
+                                  { backgroundColor: '#10B981' },
+                                ]}
+                              />
+                              <Text style={styles.legendText}>
+                                Balance: {breakdown.balancePct}%
+                              </Text>
                             </View>
                             <View style={styles.legendRow}>
-                              <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
-                              <Text style={styles.legendText}>Recovery: {breakdown.recoveryPct}%</Text>
+                              <View
+                                style={[
+                                  styles.legendDot,
+                                  { backgroundColor: '#8B5CF6' },
+                                ]}
+                              />
+                              <Text style={styles.legendText}>
+                                Recovery: {breakdown.recoveryPct}%
+                              </Text>
                             </View>
                           </View>
                         </View>
@@ -2097,7 +2911,10 @@ export const ActivityTrackingScreen: React.FC = () => {
                         {/* Distance Input (Conditional) */}
                         {isDistanceBased && (
                           <View
-                            style={[styles.inputGroup, { marginTop: theme.spacing.lg, marginBottom: 0 }]}
+                            style={[
+                              styles.inputGroup,
+                              { marginTop: theme.spacing.lg, marginBottom: 0 },
+                            ]}
                           >
                             <Text style={styles.label}>Distance (KM)</Text>
                             <TextInput
@@ -2120,8 +2937,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                         )}
                       </>
                     )}
-
-
                   </View>
                 )}
               </ScrollView>
@@ -2191,8 +3006,15 @@ export const ActivityTrackingScreen: React.FC = () => {
               {/* List of filtered activities */}
               {searchLoading ? (
                 <View style={{ padding: 24, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color={theme.colors.primary} />
-                  <Text style={{ marginTop: 8, color: theme.colors.textSecondary }}>Searching catalog...</Text>
+                  <ActivityIndicator
+                    size="large"
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    style={{ marginTop: 8, color: theme.colors.textSecondary }}
+                  >
+                    Searching catalog...
+                  </Text>
                 </View>
               ) : (
                 <ScrollView
@@ -2200,13 +3022,34 @@ export const ActivityTrackingScreen: React.FC = () => {
                   keyboardShouldPersistTaps="handled"
                 >
                   {dynamicActivities.length === 0 ? (
-                    <View style={{ padding: 24, alignItems: 'center' }}>
-                      <Text style={{ color: theme.colors.textSecondary }}>No exercises found.</Text>
+                    <View style={styles.searchEmptyContainer}>
+                      <Text style={{ fontSize: 32, marginBottom: 8 }}>🔍</Text>
+                      <Text style={styles.searchEmptyTitle}>
+                        {searchQuery.trim()
+                          ? `No exercise found for "${searchQuery.trim()}"`
+                          : 'No exercises found'}
+                      </Text>
+                      <Text style={styles.searchEmptySub}>
+                        Can't find your activity in the catalog? You can add and
+                        submit it directly as a custom activity.
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.addCustomActivityBtn}
+                        onPress={() => handleOpenCustomModal()}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.addCustomActivityBtnText}>
+                          + Add Custom Activity
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
                     dynamicActivities.map((item: any) => {
                       const isSelected = activityType === item.activityName;
-                      const itemEmoji = getActivityEmoji(item.activityName, item.categoryName);
+                      const itemEmoji = getActivityEmoji(
+                        item.activityName,
+                        item.categoryName,
+                      );
                       return (
                         <TouchableOpacity
                           key={item.activityCode + '-' + item.activityName}
@@ -2217,9 +3060,9 @@ export const ActivityTrackingScreen: React.FC = () => {
                           onPress={() => {
                             setActivityType(item.activityName);
                             setSelectedDynamicActivity(item);
-                            
+
                             setSelectedCategory(item.categoryName || 'General');
-                            
+
                             setSeeAllVisible(false);
                             setSearchQuery('');
                           }}
@@ -2246,6 +3089,101 @@ export const ActivityTrackingScreen: React.FC = () => {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* Add Custom Activity Modal */}
+      <Modal
+        visible={customModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => !customSubmitting && setCustomModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.customModalCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={styles.modalHeaderIcon}>✨</Text>
+                <Text style={styles.customModalTitle}>Add Custom Activity</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() =>
+                  !customSubmitting && setCustomModalVisible(false)
+                }
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.customModalSub}>
+              Enter your activity name to submit and start logging your workout.
+            </Text>
+
+            <Text style={styles.inputLabel}>Activity Name *</Text>
+            <TextInput
+              style={styles.customInput}
+              placeholder="e.g. Paddle Boarding in Ocean"
+              placeholderTextColor="#64748B"
+              value={customActivityName}
+              onChangeText={setCustomActivityName}
+              autoFocus={true}
+            />
+
+            <Text style={[styles.inputLabel, { marginTop: 14 }]}>Notes</Text>
+            <TextInput
+              style={[
+                styles.customInput,
+                { height: 75, textAlignVertical: 'top', paddingTop: 10 },
+              ]}
+              placeholder="e.g. Activity was not available in catalog"
+              placeholderTextColor="#64748B"
+              value={customNotes}
+              onChangeText={setCustomNotes}
+              multiline={true}
+            />
+
+            <View style={styles.customModalBtnRow}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setCustomModalVisible(false)}
+                disabled={customSubmitting}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.submitCustomBtn,
+                  (!customActivityName.trim() || customSubmitting) &&
+                    styles.submitCustomBtnDisabled,
+                ]}
+                onPress={handleSaveCustomActivity}
+                disabled={!customActivityName.trim() || customSubmitting}
+              >
+                {customSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitCustomBtnText}>
+                    Save & Log Workout
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Success Custom Alert Modal */}
+      <CustomAlertModal
+        visible={alertModalVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type="success"
+        buttonText="Go to Workout Logs"
+        onClose={handleAlertClose}
+      />
 
       <Modal
         animationType="fade"
@@ -2307,7 +3245,12 @@ export const ActivityTrackingScreen: React.FC = () => {
                         <View style={styles.summaryGrid}>
                           {/* Active Energy Column */}
                           <View style={styles.summaryCol}>
-                            <View style={[styles.colBadgeCircle, styles.colBadgeActiveEnergy]}>
+                            <View
+                              style={[
+                                styles.colBadgeCircle,
+                                styles.colBadgeActiveEnergy,
+                              ]}
+                            >
                               <Text style={styles.colEmoji}>🔥</Text>
                             </View>
                             <Text style={styles.colLabel}>
@@ -2323,7 +3266,12 @@ export const ActivityTrackingScreen: React.FC = () => {
 
                           {/* Gain Points Column */}
                           <View style={styles.summaryCol}>
-                            <View style={[styles.colBadgeCircle, styles.colBadgeGainPoints]}>
+                            <View
+                              style={[
+                                styles.colBadgeCircle,
+                                styles.colBadgeGainPoints,
+                              ]}
+                            >
                               <Text style={styles.colEmoji}>💓</Text>
                             </View>
                             <Text style={styles.colLabel}>
@@ -2339,7 +3287,12 @@ export const ActivityTrackingScreen: React.FC = () => {
 
                           {/* Heart Points Column */}
                           <View style={styles.summaryCol}>
-                            <View style={[styles.colBadgeCircle, styles.colBadgeHeartPoints]}>
+                            <View
+                              style={[
+                                styles.colBadgeCircle,
+                                styles.colBadgeHeartPoints,
+                              ]}
+                            >
                               <Text style={styles.colEmoji}>❤️</Text>
                             </View>
                             <Text style={styles.colLabel}>
@@ -3898,6 +4851,278 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.primary,
     letterSpacing: 0.5,
+  },
+  // Custom Activity Search Empty Styles
+  searchEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginHorizontal: 16,
+    marginVertical: 12,
+  },
+  searchEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  searchEmptySub: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  addCustomActivityBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  addCustomActivityBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  // Custom Activity Modal in ActivityTracking
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  customModalCard: {
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalHeaderIcon: {
+    fontSize: 20,
+  },
+  customModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  customModalSub: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  customInput: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#F8FAFC',
+  },
+  customModalBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 20,
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#CBD5E1',
+  },
+  submitCustomBtn: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 150,
+  },
+  submitCustomBtnDisabled: {
+    opacity: 0.5,
+  },
+  submitCustomBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // Appeal for Custom Exercise Card Styles
+  appealContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  appealEmptyText: {
+    color: '#94A3B8',
+    fontSize: 13.5,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  appealCard: {
+    width: '100%',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  appealHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 12,
+    width: '100%',
+  },
+  appealBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  appealBadgeIcon: {
+    fontSize: 18,
+  },
+  appealTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC',
+    marginBottom: 2,
+  },
+  appealSubtitle: {
+    fontSize: 12,
+    color: '#94A3B8',
+    lineHeight: 16,
+  },
+  appealActionButton: {
+    width: '100%',
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  appealActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  distanceNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  distanceNoticeIcon: {
+    fontSize: 20,
+  },
+  distanceNoticeTitle: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  distanceNoticeSubtitle: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  distanceTag: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  distanceTagText: {
+    color: '#F87171',
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
 

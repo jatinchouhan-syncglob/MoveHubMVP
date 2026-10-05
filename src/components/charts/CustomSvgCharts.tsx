@@ -225,16 +225,16 @@ export const DualLineChart: React.FC<LineChartProps> = ({
   width,
   height,
 }) => {
-  const pL = scale(18);
-  const pR = scale(18);
-  const pT = verticalScale(8);
+  const pL = scale(38);
+  const pR = scale(16);
+  const pT = verticalScale(14);
   const pB = verticalScale(22);
   const cW = width - pL - pR;
   const cH = height - pT - pB;
   const n = labels.length;
-  const allVals = series.flatMap(s => s.values);
+  const allVals = series.flatMap(s => s.values.filter(v => v !== undefined && v !== null && !isNaN(v)));
   const rawMax = allVals?.length > 0 ? Math.max(...allVals) : 0;
-  const maxV = rawMax === 0 ? 5 : rawMax * 1.18;
+  const maxV = rawMax === 0 ? 5 : rawMax * 1.15;
   const baseY = pT + cH;
 
   const xs = labels.map((_, i) =>
@@ -243,6 +243,19 @@ export const DualLineChart: React.FC<LineChartProps> = ({
   const toY = (v: number) => pT + cH - lerp(v, 0, maxV, 0, cH);
 
   const pts = (vals: number[]) => vals.map((v, i) => ({ x: xs[i], y: toY(v) }));
+
+  const formatSideVal = (val: number) => {
+    if (val >= 10000) return `${Math.round(val / 1000)}k`;
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
+    return `${val}`;
+  };
+
+  const formatPointVal = (val: number) => {
+    if (val >= 10000) return `${(val / 1000).toFixed(1)}k`;
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}k`;
+    if (val % 1 !== 0) return val.toFixed(1);
+    return `${val}`;
+  };
 
   return (
     <Svg width={width} height={height}>
@@ -261,20 +274,31 @@ export const DualLineChart: React.FC<LineChartProps> = ({
         ))}
       </Defs>
 
-      {/* Grid lines */}
-      {[0.25, 0.5, 0.75, 1].map(f => {
+      {/* Grid lines with Left Y-Axis Side Values */}
+      {[0, 0.33, 0.66, 1].map((f, i) => {
         const y = pT + cH * (1 - f);
+        const val = Math.round(maxV * f);
         return (
-          <Line
-            key={f}
-            x1={pL}
-            y1={y}
-            x2={width - pR}
-            y2={y}
-            stroke={'#E2E8F0'}
-            strokeWidth={0.8}
-            opacity={0.3}
-          />
+          <G key={`grid-${i}`}>
+            <Line
+              x1={pL}
+              y1={y}
+              x2={width - pR}
+              y2={y}
+              stroke={'#E2E8F0'}
+              strokeWidth={0.8}
+              opacity={0.35}
+            />
+            <SvgText
+              x={pL - 6}
+              y={y + 3}
+              textAnchor="end"
+              fontSize={moderateScale(7.5)}
+              fill={C.textGray}
+              fontWeight="600">
+              {formatSideVal(val)}
+            </SvgText>
+          </G>
         );
       })}
 
@@ -301,19 +325,60 @@ export const DualLineChart: React.FC<LineChartProps> = ({
         />
       ))}
 
-      {series.map((s, index) =>
-        pts(s.values).map((p, i) => (
-          <Circle
-            key={`d${s.gradId || index}${i}`}
-            cx={p.x}
-            cy={p.y}
-            r={moderateScale(3.5)}
-            fill="white"
-            stroke={s.color}
-            strokeWidth={2}
-          />
-        )),
-      )}
+      {/* Data Points with Values on Top (Collision-Free) */}
+      {series.map((s, sIdx) => {
+        const points = pts(s.values);
+        return points.map((p, i) => {
+          const val = s.values[i];
+          if (val === undefined || val === null || isNaN(val)) return null;
+
+          // Check if another series plotted a point at the exact same or very close Y
+          let isDuplicateZero = false;
+          let yOffset = verticalScale(5);
+
+          if (sIdx > 0) {
+            for (let prevIdx = 0; prevIdx < sIdx; prevIdx++) {
+              const prevVal = series[prevIdx]?.values[i];
+              if (prevVal !== undefined && prevVal !== null) {
+                const prevY = toY(prevVal);
+                if (Math.abs(p.y - prevY) < 14) {
+                  if (val === 0 && prevVal === 0) {
+                    isDuplicateZero = true;
+                  } else {
+                    yOffset = verticalScale(14); // Shift label slightly higher to avoid collision
+                  }
+                }
+              }
+            }
+          }
+
+          const labelY = Math.max(pT + 8, p.y - yOffset);
+
+          return (
+            <G key={`d${s.gradId || sIdx}-${i}`}>
+              <Circle
+                cx={p.x}
+                cy={p.y}
+                r={moderateScale(3.5)}
+                fill="white"
+                stroke={s.color}
+                strokeWidth={2}
+              />
+              {!isDuplicateZero && (
+                <SvgText
+                  x={p.x}
+                  y={labelY}
+                  textAnchor="middle"
+                  fontSize={moderateScale(7)}
+                  fill={s.color}
+                  fontWeight="700">
+                  {formatPointVal(val)}
+                </SvgText>
+              )}
+            </G>
+          );
+        });
+      })}
 
       {labels.map((l, i) => (
         <SvgText
@@ -322,7 +387,8 @@ export const DualLineChart: React.FC<LineChartProps> = ({
           y={height - verticalScale(4)}
           textAnchor="middle"
           fontSize={moderateScale(7.5)}
-          fill={C.textGray}>
+          fill={C.textGray}
+          fontWeight="500">
           {l}
         </SvgText>
       ))}

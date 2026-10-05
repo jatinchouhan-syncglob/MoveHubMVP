@@ -74,8 +74,13 @@ export interface IFitnessTabProps {
     values: number[];
     labels: string[];
   };
+  dailyActiveMinutes?: {
+    values: number[];
+    labels: string[];
+  };
   totalHeartPoint?: number;
   totalDailySdex?: number;
+  totalActiveMinutes?: number;
   dailyHeartPointsCharts?: {
     target?: number | string;
     actual?: number | string;
@@ -96,6 +101,11 @@ export interface IFitnessTabProps {
     actual?: number | string;
     performance?: number | string;
   };
+  dailyActiveMinutesCharts?: {
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
+  };
   dailyInsightText?: string;
 }
 
@@ -112,6 +122,10 @@ export interface IBioSyncTabProps {
     labels: string[];
   };
   integratedStamina?: {
+    values: number[];
+    labels: string[];
+  };
+  pulsePaceIndex?: {
     values: number[];
     labels: string[];
   };

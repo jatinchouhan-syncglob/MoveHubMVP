@@ -106,12 +106,15 @@ const FitnessTab = ({
   dailyHeartPoints,
   sdexActivity,
   energyExpended,
+  dailyActiveMinutes,
   totalHeartPoint = 0,
   totalDailySdex = 0,
+  totalActiveMinutes = 0,
   dailyHeartPointsCharts,
   dailySdexCharts,
   dailyStepsBreakdownCharts,
   energyExpandedCharts,
+  dailyActiveMinutesCharts,
   dailyInsightText,
 }: IFitnessTabProps) => {
   const animValue = useRef(new Animated.Value(0)).current;
@@ -132,6 +135,8 @@ const FitnessTab = ({
   const sdexMax = getDynamicMax(sdexActivity?.values || []);
 
   const energyExpendedMax = getDynamicMax(energyExpended?.values || []);
+
+  const activeMinutesMax = getDynamicMax(dailyActiveMinutes?.values || []);
 
   const isINOXuser = false;
 
@@ -560,6 +565,74 @@ const FitnessTab = ({
                     dailySdexCharts.performance !== null && (
                       <Text style={styles.summaryMetricPerformance}>
                         Performance: {dailySdexCharts.performance}%
+                      </Text>
+                    )}
+                </View>
+              )}
+          </View>
+          <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: DC.purpleLight }]}>
+            <View style={styles.cardTitleRow}>
+              <View
+                style={[
+                  styles.cardIconContainer,
+                  { backgroundColor: DC.purpleLight },
+                ]}
+              >
+                <Text style={styles.emptyChartIcon}>⏱️</Text>
+              </View>
+              <Text style={styles.cardTitle}>
+                Daily Active Minutes Breakdown
+              </Text>
+            </View>
+
+            <View style={styles.chartWrapper}>
+              {dailyActiveMinutes?.values && dailyActiveMinutes.values.length > 0 ? (
+                <ScrollableChart
+                  dataLength={dailyActiveMinutes?.values?.length || 0}
+                  visibleWidth={chartWidth}
+                >
+                  {computedWidth => (
+                    <BarChart
+                      values={
+                        dailyActiveMinutes.values?.length ? dailyActiveMinutes.values : [0]
+                      }
+                      labels={dailyActiveMinutes.labels}
+                      width={computedWidth}
+                      height={180}
+                      maxY={activeMinutesMax}
+                      yTicks={getDynamicTicks(activeMinutesMax)}
+                    />
+                  )}
+                </ScrollableChart>
+              ) : (
+                <EmptyChart title="active minutes" />
+              )}
+            </View>
+            <Text style={styles.caption}>
+              Active minutes recorded across the week.
+            </Text>
+
+            {dailyActiveMinutesCharts &&
+              (dailyActiveMinutesCharts.target !== undefined ||
+                dailyActiveMinutesCharts.actual !== undefined ||
+                dailyActiveMinutesCharts.performance !== undefined) && (
+                <View style={styles.summaryMetricsRow}>
+                  {dailyActiveMinutesCharts.target !== undefined &&
+                    dailyActiveMinutesCharts.target !== null && (
+                      <Text style={styles.summaryMetricTarget}>
+                        Target: {dailyActiveMinutesCharts.target}
+                      </Text>
+                    )}
+                  {dailyActiveMinutesCharts.actual !== undefined &&
+                    dailyActiveMinutesCharts.actual !== null && (
+                      <Text style={styles.summaryMetricActual}>
+                        Actual: {dailyActiveMinutesCharts.actual} min
+                      </Text>
+                    )}
+                  {dailyActiveMinutesCharts.performance !== undefined &&
+                    dailyActiveMinutesCharts.performance !== null && (
+                      <Text style={styles.summaryMetricPerformance}>
+                        Performance: {dailyActiveMinutesCharts.performance}%
                       </Text>
                     )}
                 </View>

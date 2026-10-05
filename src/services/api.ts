@@ -509,6 +509,37 @@ export const apiService = {
     }
   },
 
+  async saveCustomActivity(payload: {
+    uhid: string;
+    activityName: string;
+    categoryName?: string;
+    durationMinutes?: number | null;
+    caloriesBurned?: number | null;
+    intensity?: string;
+    notes?: string;
+  }): Promise<{ status: string; message: string; data?: any }> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/saveCustomActivity`;
+      const body = {
+        uhid: payload.uhid,
+        activityName: payload.activityName,
+        categoryName: payload.categoryName || '',
+        durationMinutes: payload.durationMinutes ?? null,
+        caloriesBurned: payload.caloriesBurned ?? null,
+        intensity: payload.intensity || '',
+        notes: payload.notes || 'Activity was not available in catalog',
+      };
+      console.log('[apiService] POST saveCustomActivity URL:', url);
+      console.log('[apiService] POST saveCustomActivity Body:', JSON.stringify(body, null, 2));
+      const response = await axios.post(url, body);
+      console.log('[apiService] POST saveCustomActivity Response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error) {
+      console.error('Error in saveCustomActivity:', error);
+      throw error;
+    }
+  },
+
   async postStatusFlare(uhid: string, flareToken: string): Promise<any> {
     try {
       const url = `https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/api/v1/user/status/flare`;
