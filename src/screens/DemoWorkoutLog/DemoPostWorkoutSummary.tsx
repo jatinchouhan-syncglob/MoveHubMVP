@@ -9,10 +9,15 @@ import {
   Dimensions,
   Alert,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ROUTES } from '../../constants/routes';
 import Svg, { Circle, G, Path } from 'react-native-svg';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -31,6 +36,7 @@ interface RouteParams {
   gainPoints?: number;
   showBenefitsNext?: boolean;
   fromActivityTracking?: boolean;
+  uhid?: string;
 }
 
 const getActivityEmoji = (activityName: string): string => {
@@ -91,38 +97,124 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const [showDetailedAnalytics, setShowDetailedAnalytics] = React.useState(false);
+  const [latestLog, setLatestLog] = React.useState<any | null>(null);
+  const [loadingLog, setLoadingLog] = React.useState(true);
 
   const params: RouteParams = route.params || {};
+
+  // Fetch Latest Workout Log from API
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchLatestWorkoutLog = async () => {
+      try {
+        setLoadingLog(true);
+        let uhid = params.uhid;
+        if (!uhid) {
+          const cachedProfile = await storageHelper.getItem<UserProfile>(
+            STORAGE_KEYS.USER_PROFILE,
+          );
+          uhid = cachedProfile?.uhid || 'SAUSHA9775';
+        }
+        console.log('[DemoPostWorkoutSummary] Fetching latest workout log for UHID:', uhid);
+        const res = await apiService.getLatestWorkoutLog(uhid);
+        if (isMounted && res && res.status === 'Success' && res.data) {
+          console.log('[DemoPostWorkoutSummary] Latest workout log retrieved:', res.data);
+          setLatestLog(res.data);
+        }
+      } catch (err) {
+        console.warn('[DemoPostWorkoutSummary] Error fetching latest workout log:', err);
+      } finally {
+        if (isMounted) {
+          setLoadingLog(false);
+        }
+      }
+    };
+
+    fetchLatestWorkoutLog();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [params.uhid]);
 
   // Donut Ring Animation Setup
   const animValue = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    animValue.setValue(0);
     Animated.timing(animValue, {
       toValue: 1,
-      duration: 1500,
+      duration: 1200,
       useNativeDriver: false,
     }).start();
-  }, []);
+  }, [latestLog]);
 
-  // Extract or fallback to screenshot parameters
-  const activityName = params.activityName || 'Zumba Gold';
-  const baseMet = params.baseMet || 4.5;
-  const cardioPct = params.cardio !== undefined ? params.cardio : 30;
-  const strengthPct = params.strength !== undefined ? params.strength : 40;
-  const balancePct = params.balance !== undefined ? params.balance : 20;
-  const recoveryPct = params.recovery !== undefined ? params.recovery : 10;
-  const duration = params.duration || 45;
+  // Extract or fallback to parameters
+  const activityName =
+    params.activityName ||
+    (latestLog?.metricType ? latestLog.metricType.replace(/_/g, ' ') : 'Zumba Gold');
+  const baseMet = latestLog?.metValueApplied ? Number(latestLog.metValueApplied) : (params.baseMet || 4.5);
+  const duration = latestLog?.durationMinutes !== undefined ? Number(latestLog.durationMinutes) : (params.duration || 45);
 
-  const workoutCalories = params.calories !== undefined ? params.calories : Math.round(duration * baseMet * 1.73);
-  const gainPoints = params.gainPoints !== undefined ? params.gainPoints : Math.round(duration * 5.55);
+  const workoutCalories =
+    latestLog?.calculatedKcalBurned !== undefined
+      ? Math.round(Number(latestLog.calculatedKcalBurned))
+      : (params.calories !== undefined ? params.calories : Math.round(duration * baseMet * 1.73));
 
-  // Scale points (250 points base for 45 minutes duration)
-  const totalPointsBase = gainPoints;
-  const strengthPoints = Math.round(totalPointsBase * (strengthPct / 100));
-  const cardioPoints = Math.round(totalPointsBase * (cardioPct / 100));
-  const balancePoints = Math.round(totalPointsBase * (balancePct / 100));
-  const recoveryPoints = Math.round(totalPointsBase * (recoveryPct / 100));
+  const totalPointsBase =
+    latestLog?.vitalityPointsAwarded !== undefined
+      ? Number(latestLog.vitalityPointsAwarded)
+      : (params.gainPoints !== undefined ? params.gainPoints : Math.round(duration * 5.55));
+
+  const gainPoints = totalPointsBase;
+
+  // Pillar points and percentages from API or fallback params
+  const hasApiPillars =
+    latestLog &&
+    (latestLog.awardedStrengthPoints !== undefined ||
+      latestLog.awardedCardioPoints !== undefined ||
+      latestLog.awardedBalancePoints !== undefined ||
+      latestLog.awardedRecoveryPoints !== undefined);
+
+  let strengthPoints: number;
+  let cardioPoints: number;
+  let balancePoints: number;
+  let recoveryPoints: number;
+
+  let strengthPct: number;
+  let cardioPct: number;
+  let balancePct: number;
+  let recoveryPct: number;
+
+  if (hasApiPillars) {
+    const rawStrength = Number(latestLog?.awardedStrengthPoints ?? 0);
+    const rawCardio = Number(latestLog?.awardedCardioPoints ?? 0);
+    const rawBalance = Number(latestLog?.awardedBalancePoints ?? 0);
+    const rawRecovery = Number(latestLog?.awardedRecoveryPoints ?? 0);
+
+    strengthPoints = Number.isInteger(rawStrength) ? rawStrength : Number(rawStrength.toFixed(1));
+    cardioPoints = Number.isInteger(rawCardio) ? rawCardio : Number(rawCardio.toFixed(1));
+    balancePoints = Number.isInteger(rawBalance) ? rawBalance : Number(rawBalance.toFixed(1));
+    recoveryPoints = Number.isInteger(rawRecovery) ? rawRecovery : Number(rawRecovery.toFixed(1));
+
+    const sumPillars = rawStrength + rawCardio + rawBalance + rawRecovery;
+    const denom = sumPillars > 0 ? sumPillars : (totalPointsBase > 0 ? totalPointsBase : 1);
+
+    cardioPct = Math.round((rawCardio / denom) * 100);
+    strengthPct = Math.round((rawStrength / denom) * 100);
+    balancePct = Math.round((rawBalance / denom) * 100);
+    recoveryPct = Math.round((rawRecovery / denom) * 100);
+  } else {
+    cardioPct = params.cardio !== undefined ? params.cardio : 30;
+    strengthPct = params.strength !== undefined ? params.strength : 40;
+    balancePct = params.balance !== undefined ? params.balance : 20;
+    recoveryPct = params.recovery !== undefined ? params.recovery : 10;
+
+    strengthPoints = Math.round(totalPointsBase * (strengthPct / 100));
+    cardioPoints = Math.round(totalPointsBase * (cardioPct / 100));
+    balancePoints = Math.round(totalPointsBase * (balancePct / 100));
+    recoveryPoints = Math.round(totalPointsBase * (recoveryPct / 100));
+  }
 
   // TDEE calculations
   const tdee = 1500 + workoutCalories;
@@ -135,32 +227,32 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
   const pBalance = balancePct / 100;
   const pRecovery = recoveryPct / 100;
 
-  const donutSegments = {
-    cardio: {
+  const donutSegments = [
+    {
       percentage: pCardio,
       color: '#06B6D4', // Teal/Cyan matching Cardio
       offset: circumference - (circumference * pCardio),
       rotation: -90,
     },
-    strength: {
+    {
       percentage: pStrength,
       color: '#F97316', // Orange matching Strength
       offset: circumference - (circumference * pStrength),
       rotation: -90 + (360 * pCardio),
     },
-    balance: {
+    {
       percentage: pBalance,
       color: '#2DD4BF', // Teal matching Balance
       offset: circumference - (circumference * pBalance),
       rotation: -90 + (360 * (pCardio + pStrength)),
     },
-    recovery: {
+    {
       percentage: pRecovery,
       color: '#FB923C', // Soft Orange matching Recovery
       offset: circumference - (circumference * pRecovery),
       rotation: -90 + (360 * (pCardio + pStrength + pBalance)),
     },
-  };
+  ].filter(seg => seg.percentage > 0);
 
   const getInterpolatedOffset = (percentage: number) => {
     const targetOffset = circumference - (circumference * percentage);
@@ -216,23 +308,23 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
   const pillars = [
     {
       title: 'STRENGTH & POWER',
-      points: strengthPoints || 100,
+      points: strengthPoints || 0,
       percentage: strengthPct,
       focus: 'Focus: Heavy sets and explosive movements.',
       color: '#F97316', // Orange
       icon: '🏋️‍♂️',
     },
     {
-      title: 'CARDIOVASCULAR ENDURANCE',
-      points: cardioPoints || 75,
+      title: 'CARDIOVASCULAR',
+      points: cardioPoints || 0,
       percentage: cardioPct,
       focus: 'Focus: Sustained effort and elevated heart rate.',
       color: '#06B6D4', // Teal/Cyan
       icon: '🏃',
     },
     {
-      title: 'FLEXIBILITY & MOBILITY',
-      points: balancePoints || 50,
+      title: 'FLEXIBILITY & BALANCE',
+      points: balancePoints || 0,
       percentage: balancePct,
       focus: 'Focus: Full range of motion and joint health.',
       color: '#2DD4BF', // Teal
@@ -240,7 +332,7 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
     },
     {
       title: 'NUTRITION & RECOVERY',
-      points: recoveryPoints || 25,
+      points: recoveryPoints || 0,
       percentage: recoveryPct,
       focus: 'Focus: Balanced meals and consistent rest.',
       color: '#FB923C', // Soft Orange
@@ -265,8 +357,8 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
       minute: '2-digit',
     });
 
-    const hpp = Math.round(((cardioPoints || 0) / 11) * 10) / 10;
-    const category = params.cardio !== undefined && params.cardio > 50 ? 'distance' : (params.strength !== undefined && params.strength > 50 ? 'strength' : 'duration');
+    const hpp = Math.round(((Number(cardioPoints) || 0) / 11) * 10) / 10;
+    const category = cardioPct > 50 ? 'distance' : (strengthPct > 50 ? 'strength' : 'duration');
     const breakdown = getPillarBreakdown(gainPoints, category);
 
     return (
@@ -479,7 +571,7 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
             </Svg>
           </View>
           <View style={styles.summaryTextContainer}>
-            <Text style={styles.totalPointsLabel}>TOTAL POINTS EARNED:</Text>
+            <Text style={styles.totalPointsLabel}>TOTAL VITALITY POINTS:</Text>
             <Text style={styles.totalPointsText}>
               {totalPointsBase} <Text style={styles.ptsText}>PTS</Text>
             </Text>
@@ -496,9 +588,6 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
             </Svg>
           </View>
           <View style={styles.tdeeDetailsContainer}>
-            <Text style={styles.tdeeRowText}>
-              ESTIMATED TOTAL: <Text style={styles.tdeeValueText}>{tdee.toLocaleString()} KCAL</Text>
-            </Text>
             <Text style={styles.tdeeRowText}>
               WORKOUT CALORIES: <Text style={styles.tdeeValueText}>{workoutCalories} KCAL</Text>
             </Text>

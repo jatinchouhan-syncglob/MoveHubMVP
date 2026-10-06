@@ -433,6 +433,22 @@ export const apiService = {
     }
   },
 
+  async getLatestWorkoutLog(uhid: string): Promise<any> {
+    const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(uhid)}`;
+    console.log(`[API Request] GET getLatestWorkoutLog: ${url}`);
+    try {
+      const response = await axios.get(url);
+      console.log(
+        `[API Response] GET getLatestWorkoutLog SUCCESS for UHID: ${uhid}`,
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`[API Error] GET getLatestWorkoutLog FAILED: ${url}`, error);
+      throw error;
+    }
+  },
+
   async getDailyFitnessTrend(uhId: string, challengeId: string): Promise<any> {
     try {
       const response = await axios.get(

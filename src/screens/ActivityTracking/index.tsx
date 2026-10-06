@@ -1252,6 +1252,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         gainPoints: resGainPoints,
         showBenefitsNext: true,
         fromActivityTracking: true,
+        uhid: targetUhid,
       });
     } catch (error: any) {
       console.error('Failed to log workout details:', error);
