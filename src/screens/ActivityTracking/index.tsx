@@ -1143,6 +1143,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         metric: metric,
         durationMinutes: durationMin,
         caloriesBurned: calories,
+        rpe: rpe,
         notes: formattedNotes,
         modifier: isRepetitionBased ? trainingProfile : null,
       };

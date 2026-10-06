@@ -465,11 +465,13 @@ export const apiService = {
     metric: string;
     durationMinutes: number;
     caloriesBurned: number;
+    rpe?: number;
     notes?: string;
+    modifier?: string | null;
   }): Promise<any> {
     try {
       const response = await axios.post(
-        `${BACKEND_8082_URL}/backend/health-connect/saveUserActivity`,
+        `https://izz3geluwa.execute-api.ap-south-1.amazonaws.com/workouts`,
         activityData,
       );
       return response.data;
