@@ -449,6 +449,41 @@ export const apiService = {
     }
   },
 
+  async submitAssessment(uhid: string = 'JATCHO5525'): Promise<any> {
+    const url = 'http://13.204.123.149:8000/api/v1/assessments/submit';
+    console.log(`[API Request] POST submitAssessment: ${url} for UHID: ${uhid}`);
+    try {
+      const formData = new FormData();
+      formData.append('uhid', uhid);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log(
+        `[API Response] POST submitAssessment SUCCESS for UHID: ${uhid}`,
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.warn(`[API Warning] POST submitAssessment with FormData failed, attempting json fallback:`, error?.message);
+      try {
+        const response = await axios.post(url, { uhid }, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        console.log(
+          `[API Response] POST submitAssessment JSON fallback SUCCESS for UHID: ${uhid}`,
+          JSON.stringify(response.data, null, 2),
+        );
+        return response.data;
+      } catch (errJson) {
+        console.error(`[API Error] POST submitAssessment FAILED:`, errJson);
+        throw errJson;
+      }
+    }
+  },
+
   async getDailyFitnessTrend(uhId: string, challengeId: string): Promise<any> {
     try {
       const response = await axios.get(

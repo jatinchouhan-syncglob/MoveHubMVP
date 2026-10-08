@@ -32,6 +32,7 @@ import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
+import { PrescriptionScreen } from '../screens/Prescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
 import MealLogScreen from '../screens/Nutrition/meal-log';
 import MealAnalysisScreen from '../screens/Nutrition/meal-analysis';
@@ -326,6 +327,8 @@ const DrawerNavigatorContent: React.FC = () => {
     switch (activeScreen) {
       case 'FitnessPrescription':
         return <WellnessPrescriptionScreen showDrawer={true} />;
+      case 'Prescription':
+        return <PrescriptionScreen showDrawer={true} />;
       case 'Awards':
         return <AwardsScreen />;
       case 'MealLog':
@@ -402,6 +405,11 @@ const DrawerNavigatorContent: React.FC = () => {
         screen: 'FitnessPrescription',
         label: 'Fitness Prescription',
         icon: '📋',
+      },
+      {
+        screen: 'Prescription',
+        label: 'Prescription',
+        icon: '📑',
       },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
       { screen: 'NutritionalProfiler', label: 'Nutritional Profiler', icon: '🥗' },
