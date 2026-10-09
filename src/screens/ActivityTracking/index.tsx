@@ -505,7 +505,10 @@ export const ActivityTrackingScreen: React.FC = () => {
 
   const fetchActivities = async () => {
     try {
-      const data = await apiService.getActivities();
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const data = await apiService.getActivities(cachedProfile?.uhid);
       setActivities(data);
     } catch (error) {
       console.error('Failed to fetch activities:', error);

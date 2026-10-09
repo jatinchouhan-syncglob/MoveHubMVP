@@ -256,10 +256,8 @@ export const DashboardScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [profileData, activitiesData] = await Promise.all([
-        apiService.getProfile(),
-        apiService.getActivities(),
-      ]);
+      const profileData = await apiService.getProfile();
+      const activitiesData = await apiService.getActivities(profileData?.uhid);
 
       setProfile(profileData);
       setActivities(activitiesData);

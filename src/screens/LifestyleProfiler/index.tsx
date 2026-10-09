@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,14 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useDrawer } from '../../navigation/DrawerContext';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { ILifestyleSketchPayload, ILifestyleFinalPayload } from './types';
 import { LIFESTYLE_STEPS, LIFESTYLE_QUESTIONS } from './questions';
 import { styles } from './styles';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
 
 const DEFAULT_FORM: ILifestyleSketchPayload = {
   // Block 1
@@ -46,7 +51,12 @@ export const LifestyleProfilerScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [form, setForm] = useState<ILifestyleSketchPayload>(DEFAULT_FORM);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [alertModalVisible, setAlertModalVisible] = useState<boolean>(false);
+  const [alertTitle, setAlertTitle] = useState<string>('');
+  const [alertMessage, setAlertMessage] = useState<string>('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
 
   const currentStep = LIFESTYLE_STEPS[currentStepIndex];
   const totalSteps = LIFESTYLE_STEPS.length;
@@ -55,6 +65,66 @@ export const LifestyleProfilerScreen: React.FC = () => {
   useEffect(() => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   }, [currentStepIndex]);
+
+  // Load latest questionnaire from GET API on mount
+  const loadLatestQuestionnaire = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      console.log(`[LifestyleProfiler] Loading latest questionnaire for UHID: ${targetUhid}...`);
+
+      const res = await apiService.getLatestLifestyleQuestionnaire(targetUhid);
+      if (res && res.status === 'Success' && res.data) {
+        const d = res.data;
+        console.log('[LifestyleProfiler] Existing questionnaire loaded:', d);
+        setForm({
+          diagnosed_cardiovascular_conditions:
+            d.q1CardiovascularConditions === true ? 'Yes' : d.q1CardiovascularConditions === false ? 'No' : '',
+          metabolic_disorders:
+            d.q2MetabolicDisorders === true ? 'Yes' : d.q2MetabolicDisorders === false ? 'No' : '',
+          respiratory_system_health:
+            d.q3RespiratoryHealth === true ? 'Yes' : d.q3RespiratoryHealth === false ? 'No' : '',
+          structural_orthopedic_conditions:
+            d.q4OrthopedicConditions === true ? 'Yes' : d.q4OrthopedicConditions === false ? 'No' : '',
+          early_onset_cardiovascular_disease:
+            d.q5EarlyOnsetCardiovascularDisease === true ? 'Yes' : d.q5EarlyOnsetCardiovascularDisease === false ? 'No' : '',
+          familial_diabetes_track:
+            d.q6FamilialDiabetes === true ? 'Yes' : d.q6FamilialDiabetes === false ? 'No' : '',
+          neurological_decline_track:
+            d.q7NeurologicalDecline === true ? 'Yes' : d.q7NeurologicalDecline === false ? 'No' : '',
+          familial_bone_density_deficits:
+            d.q8BoneDensityDeficits === true ? 'Yes' : d.q8BoneDensityDeficits === false ? 'No' : '',
+          tobacco_nicotine_exposure:
+            d.q9TobaccoNicotineExposure === true ? 'Yes' : d.q9TobaccoNicotineExposure === false ? 'No' : '',
+          alcohol_consumption_volume:
+            d.q10AlcoholConsumption === true ? 'Yes' : d.q10AlcoholConsumption === false ? 'No' : '',
+          sedentary_off_work_habits:
+            d.q11SedentaryHabits === true ? 'Yes' : d.q11SedentaryHabits === false ? 'No' : '',
+          chronic_sleep_duration:
+            d.q12ChronicSleepDuration === true ? 'Yes' : d.q12ChronicSleepDuration === false ? 'No' : '',
+          ultra_processed_food_frequency:
+            d.q13UltraProcessedFood === true ? 'Yes' : d.q13UltraProcessedFood === false ? 'No' : '',
+          daily_protein_allocation:
+            d.q14ProteinAllocation === true ? 'Yes' : d.q14ProteinAllocation === false ? 'No' : '',
+          hydration_baseline:
+            d.q15HydrationBaseline === true ? 'Yes' : d.q15HydrationBaseline === false ? 'No' : '',
+          chronic_caloric_mismatch:
+            d.q16CaloricMismatch === true ? 'Yes' : d.q16CaloricMismatch === false ? 'No' : '',
+        });
+      }
+    } catch (err) {
+      console.warn('[LifestyleProfiler] Non-fatal error loading previous questionnaire:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLatestQuestionnaire();
+  }, [loadLatestQuestionnaire]);
 
   // Counts how many questions (out of 16) have been answered
   const countAnsweredQuestions = (): number => {
@@ -140,37 +210,49 @@ export const LifestyleProfilerScreen: React.FC = () => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const finalPayload: ILifestyleFinalPayload = {
-      uhid: 'SAUSHA5546', // Dynamically linked or user profile default
-      timestamp_epoch: Math.floor(Date.now() / 1000),
-      lifestyle_questionnaire_payload: form,
-    };
-
     try {
-      // Simulate network dispatch / storage
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 600));
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const userId = cachedProfile?.userId ? `USR_${cachedProfile.userId}` : 'USR_101';
 
-      Alert.alert(
-        'Lifestyle Questionnaire Saved! 🎉',
-        'Your personal, family, and lifestyle data has been recorded successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setForm(DEFAULT_FORM);
-              setCurrentStepIndex(0);
-              scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-            },
-          },
-        ],
-        { cancelable: false }
-      );
-    } catch (error) {
-      Alert.alert(
-        'Submission Failed',
-        'Unable to save questionnaire data. Please try again.',
-        [{ text: 'OK' }]
-      );
+      const payload = {
+        uhid: targetUhid,
+        userId: userId,
+        q1CardiovascularConditions: form.diagnosed_cardiovascular_conditions === 'Yes',
+        q2MetabolicDisorders: form.metabolic_disorders === 'Yes',
+        q3RespiratoryHealth: form.respiratory_system_health === 'Yes',
+        q4OrthopedicConditions: form.structural_orthopedic_conditions === 'Yes',
+        q5EarlyOnsetCardiovascularDisease: form.early_onset_cardiovascular_disease === 'Yes',
+        q6FamilialDiabetes: form.familial_diabetes_track === 'Yes',
+        q7NeurologicalDecline: form.neurological_decline_track === 'Yes',
+        q8BoneDensityDeficits: form.familial_bone_density_deficits === 'Yes',
+        q9TobaccoNicotineExposure: form.tobacco_nicotine_exposure === 'Yes',
+        q10AlcoholConsumption: form.alcohol_consumption_volume === 'Yes',
+        q11SedentaryHabits: form.sedentary_off_work_habits === 'Yes',
+        q12ChronicSleepDuration: form.chronic_sleep_duration === 'Yes',
+        q13UltraProcessedFood: form.ultra_processed_food_frequency === 'Yes',
+        q14ProteinAllocation: form.daily_protein_allocation === 'Yes',
+        q15HydrationBaseline: form.hydration_baseline === 'Yes',
+        q16CaloricMismatch: form.chronic_caloric_mismatch === 'Yes',
+        notes: 'Completed from mobile app',
+      };
+
+      console.log('[LifestyleProfiler] Submitting questionnaire payload:', JSON.stringify(payload, null, 2));
+      const res = await apiService.saveLifestyleQuestionnaire(payload);
+      console.log('[LifestyleProfiler] Save response:', res);
+
+      setAlertTitle('Questionnaire Saved! 🎉');
+      setAlertMessage(res?.message || 'Your personal, family, and lifestyle data has been recorded successfully.');
+      setAlertType('success');
+      setAlertModalVisible(true);
+    } catch (error: any) {
+      console.error('[LifestyleProfiler] Error saving questionnaire:', error);
+      setAlertTitle('Submission Failed');
+      setAlertMessage(error?.response?.data?.message || 'Unable to save questionnaire data. Please try again.');
+      setAlertType('error');
+      setAlertModalVisible(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -269,21 +351,30 @@ export const LifestyleProfilerScreen: React.FC = () => {
       </View>
 
       {/* Main Body */}
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View>
-          <View style={styles.blockBadgeContainer}>
-            <Text style={styles.blockBadgeText}>Block {currentStep.blockNumber}</Text>
-          </View>
-          <Text style={styles.blockHeading}>{currentStep.blockTitle}</Text>
-          <Text style={styles.blockSubheading}>{currentStep.blockSubtitle}</Text>
-
-          {currentStep.questionIds.map(qId => renderQuestionCard(qId))}
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontWeight: '500' }}>
+            Loading your lifestyle profile...
+          </Text>
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View>
+            <View style={styles.blockBadgeContainer}>
+              <Text style={styles.blockBadgeText}>Block {currentStep.blockNumber}</Text>
+            </View>
+            <Text style={styles.blockHeading}>{currentStep.blockTitle}</Text>
+            <Text style={styles.blockSubheading}>{currentStep.blockSubtitle}</Text>
+
+            {currentStep.questionIds.map(qId => renderQuestionCard(qId))}
+          </View>
+        </ScrollView>
+      )}
 
       {/* Footer Navigation Bar */}
       <View style={styles.footerNav}>
@@ -317,6 +408,16 @@ export const LifestyleProfilerScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Custom Success & Error Feedback Modal */}
+      <CustomAlertModal
+        visible={alertModalVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
+        onClose={() => setAlertModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };

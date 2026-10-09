@@ -230,15 +230,15 @@ export const apiService = {
   },
 
   // --- Activities ---
-  async getActivities(): Promise<Activity[]> {
+  async getActivities(uhid?: string): Promise<Activity[]> {
     try {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-      const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/getActivitiesForCurrentDate?uhid=${targetUhid}`,
-      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(`[apiService] GET getActivities (kafka_raw_workout_activity): ${url}`);
+      const response = await axios.get(url);
 
       if (
         response &&
@@ -246,45 +246,97 @@ export const apiService = {
         response.data.status === 'Success' &&
         Array.isArray(response.data.data)
       ) {
-        const mapped = response.data.data.map((item: any, index: number) => {
+        const userWeight = cachedProfile?.weight || 70;
+        const mapped: Activity[] = response.data.data.map((item: any, index: number) => {
           let parsedTimestamp = new Date().toISOString();
-          const rawTime =
-            item.timestamp || item.created_at || item.activityDate;
-          if (rawTime) {
-            let tsStr = String(rawTime).trim();
-            if (tsStr.includes(' ') && !tsStr.includes('T')) {
-              tsStr = tsStr.replace(' ', 'T');
-            }
-            if (
-              tsStr.includes('T') &&
-              !tsStr.endsWith('Z') &&
-              !tsStr.includes('+') &&
-              !tsStr.includes('-')
-            ) {
-              tsStr = tsStr + 'Z';
-            }
-            const dateObj = new Date(tsStr);
+          if (item.receivedAt) {
+            const dateObj = new Date(item.receivedAt);
             if (!isNaN(dateObj.getTime())) {
               parsedTimestamp = dateObj.toISOString();
             }
+          } else if (item.kafkaTimestampMs) {
+            const dateObj = new Date(Number(item.kafkaTimestampMs));
+            if (!isNaN(dateObj.getTime())) {
+              parsedTimestamp = dateObj.toISOString();
+            }
+          } else {
+            const rawTime =
+              item.timestamp || item.created_at || item.activityDate;
+            if (rawTime) {
+              let tsStr = String(rawTime).trim();
+              if (tsStr.includes(' ') && !tsStr.includes('T')) {
+                tsStr = tsStr.replace(' ', 'T');
+              }
+              if (
+                tsStr.includes('T') &&
+                !tsStr.endsWith('Z') &&
+                !tsStr.includes('+') &&
+                !tsStr.includes('-')
+              ) {
+                tsStr = tsStr + 'Z';
+              }
+              const dateObj = new Date(tsStr);
+              if (!isNaN(dateObj.getTime())) {
+                parsedTimestamp = dateObj.toISOString();
+              }
+            }
           }
 
+          const duration = Number(
+            item.durationMinutes !== undefined && item.durationMinutes !== null
+              ? item.durationMinutes
+              : item.activityValue || item.value || 30,
+          );
+          const value = Number(
+            item.activityValue !== undefined && item.activityValue !== null
+              ? item.activityValue
+              : item.value || duration || 30,
+          );
+          const metric = item.metricType || item.metric || 'mins';
+          const type = item.activityType || item.type || 'Workout';
+          const met = Number(item.met) || 4.0;
+
+          const caloriesBurned =
+            item.caloriesBurned !== undefined && item.caloriesBurned !== null
+              ? Number(item.caloriesBurned)
+              : Math.round(met * userWeight * duration * 0.0175);
+
+          const gainPoints =
+            item.gainPoints !== undefined && item.gainPoints !== null
+              ? Number(item.gainPoints)
+              : Math.round(caloriesBurned / (userWeight * 0.0175));
+
+          const cardioPoints =
+            item.cardioPoints !== undefined && item.cardioPoints !== null
+              ? Number(item.cardioPoints)
+              : Math.round(gainPoints * 0.5);
+
+          const musculoPoints =
+            item.musculoPoints !== undefined && item.musculoPoints !== null
+              ? Number(item.musculoPoints)
+              : Math.round(gainPoints * 0.3);
+
+          const notes =
+            item.notes ||
+            (item.userRpe ? `RPE Scale: ${item.userRpe}` : undefined);
+
           return {
-            id: item.id || `hc-${index}-${Date.now()}`,
-            type: item.type,
-            value: item.value,
-            metric: item.metric,
-            durationMinutes: item.durationMinutes,
-            caloriesBurned: item.caloriesBurned,
+            id: String(item.rawId || item.transactionId || item.id || `hc-${index}-${Date.now()}`),
+            type,
+            value,
+            metric,
+            durationMinutes: duration,
+            caloriesBurned,
             timestamp: parsedTimestamp,
-            notes: item.notes,
-            gainPoints: item.gainPoints,
-            cardioPoints: item.cardioPoints,
-            musculoPoints: item.musculoPoints,
+            notes,
+            gainPoints,
+            cardioPoints,
+            musculoPoints,
           };
         });
-        // Reverse the array to ensure the latest added exercises are always at the top of the list
-        return mapped.reverse();
+
+        // Sort descending by timestamp so latest logged activities appear first
+        return mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       }
       return [];
     } catch (error: any) {
@@ -407,44 +459,56 @@ export const apiService = {
   },
 
   // --- Health Connect Integration ---
-  async getHealthConnectActivities(uhid: string = 'SAUSHA9775'): Promise<any> {
-    const url = `${BACKEND_8081_URL}/backend/health-connect/getActivitiesForCurrentDate?uhid=${uhid}`;
-    console.log(`[API Request] GET getHealthConnectActivities: ${url}`);
+  async getHealthConnectActivities(uhid?: string): Promise<any> {
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(`[API Request] GET getHealthConnectActivities (kafka_raw_workout_activity): ${url}`);
       const response = await axios.get(url);
-      console.log(`[API Response] GET getHealthConnectActivities SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
+      console.log(`[API Response] GET getHealthConnectActivities SUCCESS for UHID: ${targetUhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error(`[API Error] GET getHealthConnectActivities FAILED: ${url}`, error);
+      console.error(`[API Error] GET getHealthConnectActivities FAILED:`, error);
       throw error;
     }
   },
 
-  async getWorkoutLog(uhid: string): Promise<any> {
-    const url = `${BACKEND_8081_URL}/backend/health-connect/getWorkoutLog?uhid=${uhid}`;
-    console.log(`[API Request] GET getWorkoutLog: ${url}`);
+  async getWorkoutLog(uhid?: string): Promise<any> {
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(`[API Request] GET getWorkoutLog (kafka_raw_workout_activity): ${url}`);
       const response = await axios.get(url);
-      console.log(`[API Response] GET getWorkoutLog SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
+      console.log(`[API Response] GET getWorkoutLog SUCCESS for UHID: ${targetUhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error(`[API Error] GET getWorkoutLog FAILED: ${url}`, error);
+      console.error(`[API Error] GET getWorkoutLog FAILED:`, error);
       throw error;
     }
   },
 
-  async getLatestWorkoutLog(uhid: string): Promise<any> {
-    const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(uhid)}`;
-    console.log(`[API Request] GET getLatestWorkoutLog: ${url}`);
+  async getLatestWorkoutLog(uhid?: string): Promise<any> {
     try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(`[API Request] GET getLatestWorkoutLog: ${url}`);
       const response = await axios.get(url);
       console.log(
-        `[API Response] GET getLatestWorkoutLog SUCCESS for UHID: ${uhid}`,
+        `[API Response] GET getLatestWorkoutLog SUCCESS for UHID: ${targetUhid}`,
         JSON.stringify(response.data, null, 2),
       );
       return response.data;
     } catch (error) {
-      console.error(`[API Error] GET getLatestWorkoutLog FAILED: ${url}`, error);
+      console.error(`[API Error] GET getLatestWorkoutLog FAILED:`, error);
       throw error;
     }
   },
@@ -1033,6 +1097,74 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       console.error('Error in verifyForgotPasswordOtp:', error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  async getLatestLifestyleQuestionnaire(uhid?: string): Promise<any> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/latest?uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(`[apiService] GET getLatestLifestyleQuestionnaire: ${url}`);
+      const response = await axios.get(url, {
+        headers: { Accept: 'application/json' },
+      });
+      console.log(
+        `[apiService] GET getLatestLifestyleQuestionnaire SUCCESS for UHID: ${targetUhid}`,
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[apiService] Error in getLatestLifestyleQuestionnaire:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
+  async saveLifestyleQuestionnaire(payload: {
+    uhid: string;
+    userId?: string;
+    q1CardiovascularConditions: boolean;
+    q2MetabolicDisorders: boolean;
+    q3RespiratoryHealth: boolean;
+    q4OrthopedicConditions: boolean;
+    q5EarlyOnsetCardiovascularDisease: boolean;
+    q6FamilialDiabetes: boolean;
+    q7NeurologicalDecline: boolean;
+    q8BoneDensityDeficits: boolean;
+    q9TobaccoNicotineExposure: boolean;
+    q10AlcoholConsumption: boolean;
+    q11SedentaryHabits: boolean;
+    q12ChronicSleepDuration: boolean;
+    q13UltraProcessedFood: boolean;
+    q14ProteinAllocation: boolean;
+    q15HydrationBaseline: boolean;
+    q16CaloricMismatch: boolean;
+    notes?: string;
+  }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/save`;
+      console.log(`[apiService] POST saveLifestyleQuestionnaire URL: ${url}`, JSON.stringify(payload, null, 2));
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        `[apiService] POST saveLifestyleQuestionnaire SUCCESS:`,
+        JSON.stringify(response.data, null, 2),
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[apiService] Error in saveLifestyleQuestionnaire:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
