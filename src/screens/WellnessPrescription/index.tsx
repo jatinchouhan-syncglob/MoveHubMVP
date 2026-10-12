@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../theme';
+import { theme, METRIC_COLORS } from '../../theme';
 import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomButton } from '../../components/common/CustomButton';
@@ -1112,7 +1112,7 @@ export const WellnessPrescriptionScreen: React.FC<
                         styles.progressBarFill,
                         {
                           width: `${Math.min(100, ((payload.biometricTargets?.hppsTargetValue || 0) / 0.02) * 100)}%`,
-                          backgroundColor: theme.colors.primary,
+                          backgroundColor: METRIC_COLORS.heartPoints.main,
                         },
                       ]}
                     />
@@ -1133,7 +1133,7 @@ export const WellnessPrescriptionScreen: React.FC<
                         styles.progressBarFill,
                         {
                           width: `${Math.min(100, ((payload.dailyActiveBurnKcal || 0) / 500) * 100)}%`,
-                          backgroundColor: '#ef4444',
+                          backgroundColor: METRIC_COLORS.calories.main,
                         },
                       ]}
                     />
@@ -1175,7 +1175,7 @@ export const WellnessPrescriptionScreen: React.FC<
                         styles.progressBarFill,
                         {
                           width: `${Math.min(100, ((payload.biometricTargets?.eePerKmTarget || 0) / 100) * 100)}%`,
-                          backgroundColor: '#10b981',
+                          backgroundColor: METRIC_COLORS.distance.main,
                         },
                       ]}
                     />
@@ -1240,7 +1240,7 @@ export const WellnessPrescriptionScreen: React.FC<
                         styles.progressBarFill,
                         {
                           width: `${Math.min(100, ((payload.biometricTargets?.hppsTargetValue || 0) / 0.02) * 100)}%`,
-                          backgroundColor: theme.colors.primary,
+                          backgroundColor: METRIC_COLORS.heartPoints.main,
                         },
                       ]}
                     />
@@ -1282,7 +1282,7 @@ export const WellnessPrescriptionScreen: React.FC<
                         styles.progressBarFill,
                         {
                           width: `${Math.min(100, ((payload.biometricTargets?.eePerKmTarget || 0) / 100) * 100)}%`,
-                          backgroundColor: '#10b981',
+                          backgroundColor: METRIC_COLORS.distance.main,
                         },
                       ]}
                     />

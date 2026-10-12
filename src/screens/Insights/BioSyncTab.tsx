@@ -160,13 +160,18 @@ const getStatusDetails = (
   }
 };
 
-const renderTrendIndicator = (trend?: string, value?: number | string) => {
+const renderTrendIndicator = (
+  trend?: string,
+  value?: number | string,
+  isStamina?: boolean,
+) => {
   const trendLower = trend ? trend.toLowerCase() : '';
   if (trendLower === 'increase') {
+    const arrowColor = isStamina ? '#ef4444' : '#22c55e';
     return (
       <View style={styles.metricTrendBox}>
-        <Text style={[styles.metricArrow, { color: '#22c55e', fontSize: 12 }]}>▲</Text>
-        <Text style={{ color: '#22c55e', fontSize: 9.5, fontWeight: '700', marginLeft: 2 }}>Increase</Text>
+        <Text style={[styles.metricArrow, { color: arrowColor, fontSize: 12 }]}>▲</Text>
+        <Text style={{ color: arrowColor, fontSize: 9.5, fontWeight: '700', marginLeft: 2 }}>Increase</Text>
       </View>
     );
   }
@@ -606,7 +611,7 @@ const BioSyncTab = ({
             <Text style={styles.metricValue}>
               {weeklyPerformanceSummary.isAvg}
             </Text>
-            {renderTrendIndicator(weeklyPerformanceSummary.isTrend, weeklyPerformanceSummary.isAvg)}
+            {renderTrendIndicator(weeklyPerformanceSummary.isTrend, weeklyPerformanceSummary.isAvg, true)}
             <Text style={styles.metricLabel}>IS (Stamina) Avg</Text>
           </View>
           <View style={[styles.metricItem, styles.metricItemLast]}>

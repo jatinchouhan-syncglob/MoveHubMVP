@@ -17,6 +17,7 @@ import { apiService } from '../../../services/api';
 import { storageHelper } from '../../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../../storage/storageKeys';
 import { UserProfile } from '../../../types';
+import { METRIC_COLORS } from '../../../theme';
 
 
 
@@ -794,22 +795,22 @@ const FitnessActivityCard: React.FC<{
 
       <View style={detailStyles.statsCol}>
         <View style={detailStyles.statRow}>
-          <View style={[detailStyles.statPill, { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#10B981' }]}>{Math.round(totalHp)} HP</Text>
+          <View style={[detailStyles.statPill, { backgroundColor: METRIC_COLORS.heartPoints.bg, borderColor: METRIC_COLORS.heartPoints.border }]}>
+            <Text style={[detailStyles.statVal, { color: METRIC_COLORS.heartPoints.main }]}>{Math.round(totalHp)} HP</Text>
           </View>
-          <View style={[detailStyles.statPill, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#F59E0B' }]}>{Math.round(totalDuration)} Min</Text>
+          <View style={[detailStyles.statPill, { backgroundColor: METRIC_COLORS.minutes.bg, borderColor: METRIC_COLORS.minutes.border }]}>
+            <Text style={[detailStyles.statVal, { color: METRIC_COLORS.minutes.main }]}>{Math.round(totalDuration)} Min</Text>
           </View>
-          <View style={[detailStyles.statPill, { backgroundColor: 'rgba(20, 184, 166, 0.1)', borderColor: 'rgba(20, 184, 166, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#14B8A6' }]}>{Math.round(totalSteps).toLocaleString()} Steps</Text>
+          <View style={[detailStyles.statPill, { backgroundColor: METRIC_COLORS.steps.bg, borderColor: METRIC_COLORS.steps.border }]}>
+            <Text style={[detailStyles.statVal, { color: METRIC_COLORS.steps.main }]}>{Math.round(totalSteps).toLocaleString()} Steps</Text>
           </View>
         </View>
         <View style={[detailStyles.statRow, { marginTop: 8 }]}>
-          <View style={[detailStyles.statPill, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#3B82F6' }]}>{totalDistance.toFixed(1)} Km</Text>
+          <View style={[detailStyles.statPill, { backgroundColor: METRIC_COLORS.distance.bg, borderColor: METRIC_COLORS.distance.border }]}>
+            <Text style={[detailStyles.statVal, { color: METRIC_COLORS.distance.main }]}>{totalDistance.toFixed(1)} Km</Text>
           </View>
-          <View style={[detailStyles.statPill, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }]}>
-            <Text style={[detailStyles.statVal, { color: '#EF4444' }]}>{Math.round(totalEnergy)} Kcal</Text>
+          <View style={[detailStyles.statPill, { backgroundColor: METRIC_COLORS.calories.bg, borderColor: METRIC_COLORS.calories.border }]}>
+            <Text style={[detailStyles.statVal, { color: METRIC_COLORS.calories.main }]}>{Math.round(totalEnergy)} Kcal</Text>
           </View>
         </View>
       </View>

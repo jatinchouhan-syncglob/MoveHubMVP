@@ -67,6 +67,7 @@ export interface BarChartProps {
   yTicks?: number[];
   tierLines?: { value: number; color: string }[];
   peakIndex?: number;
+  color?: string;
 }
 
 export interface LineChartProps {
@@ -99,6 +100,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   yTicks = [0, 75, 150, 300],
   tierLines = [],
   peakIndex,
+  color,
 }) => {
   const pL = scale(28);
   const pR = scale(8);
@@ -113,13 +115,15 @@ export const BarChart: React.FC<BarChartProps> = ({
   const toY = (v: number) => pT + cH - lerp(v, 0, maxY, 0, cH);
 
   const barColor = (v: number, i: number) =>
-    i === peakIndex
-      ? C.blue
-      : v >= 150
-        ? C.teal
-        : v >= 75
-          ? C.graphBlue
-          : C.green;
+    color
+      ? color
+      : i === peakIndex
+        ? C.blue
+        : v >= 150
+          ? C.teal
+          : v >= 75
+            ? C.graphBlue
+            : C.green;
 
   return (
     <Svg width={width} height={height}>

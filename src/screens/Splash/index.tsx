@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Animated } from 'react-native';
+import { StyleSheet, Text, View, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
@@ -94,7 +94,11 @@ export const SplashScreen: React.FC = () => {
           ]}
         >
           <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>🏃‍♂️</Text>
+            <Image
+              source={require('../../assets/images/app_logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </Animated.View>
 
@@ -107,10 +111,7 @@ export const SplashScreen: React.FC = () => {
           }}
         >
           <View style={styles.titleRow}>
-            <Text style={styles.title}>MoveHub</Text>
-            <View style={styles.mvpBadge}>
-              <Text style={styles.mvpText}>MVP</Text>
-            </View>
+            <Text style={styles.title}>Uncurl<Text style={{ color: theme.colors.primary }}>: health</Text></Text>
           </View>
           <Text style={styles.tagline}>{STRINGS.SPLASH.TAGLINE}</Text>
         </Animated.View>
@@ -183,6 +184,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 15,
     elevation: 8,
+  },
+  logoImage: {
+    width: 88,
+    height: 88,
   },
   logoEmoji: {
     fontSize: 60,

@@ -19,6 +19,7 @@ import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { EmptyState } from '../../components/common/EmptyState';
 import { STRINGS } from '../../constants/strings';
+import { METRIC_COLORS } from '../../theme';
 import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
@@ -720,8 +721,8 @@ const StepsTrackingTab = () => {
                   unit="steps"
                   icon="👟"
                   progress={summary.steps / 10000}
-                  color="#D97706"
-                  bgColor="#FEF3C7"
+                  color={METRIC_COLORS.steps.main}
+                  bgColor={METRIC_COLORS.steps.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -730,8 +731,8 @@ const StepsTrackingTab = () => {
                   value={summary.activeCaloriesInKcal}
                   unit="kcal"
                   icon="🔥"
-                  color="#EF4444"
-                  bgColor="#FEE2E2"
+                  color={METRIC_COLORS.calories.main}
+                  bgColor={METRIC_COLORS.calories.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -740,8 +741,8 @@ const StepsTrackingTab = () => {
                   value={summary.distanceInKm}
                   unit="km"
                   icon="📍"
-                  color="#3B82F6"
-                  bgColor="#E0F2FE"
+                  color={METRIC_COLORS.distance.main}
+                  bgColor={METRIC_COLORS.distance.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -761,8 +762,8 @@ const StepsTrackingTab = () => {
                   value={summary.averageHeartRate ?? '--'}
                   unit="bpm"
                   icon="❤️"
-                  color="#F43F5E"
-                  bgColor="#FFE4E6"
+                  color={METRIC_COLORS.heartPoints.main}
+                  bgColor={METRIC_COLORS.heartPoints.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -771,8 +772,8 @@ const StepsTrackingTab = () => {
                   value={summary.totalCaloriesInKcal}
                   unit="kcal"
                   icon="⚡"
-                  color="#10B981"
-                  bgColor="#ECFDF5"
+                  color={METRIC_COLORS.calories.main}
+                  bgColor={METRIC_COLORS.calories.light}
                 />
               </View>
             </View>

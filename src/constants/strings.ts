@@ -1,7 +1,7 @@
 export const STRINGS = {
-  APP_NAME: 'MoveHub MVP',
+  APP_NAME: 'Uncurl: health',
   SPLASH: {
-    WELCOME: 'Welcome to MoveHub',
+    WELCOME: 'Welcome to Uncurl: health',
     TAGLINE: 'Track your movement, power your life.',
   },
   DISCLAIMER: {

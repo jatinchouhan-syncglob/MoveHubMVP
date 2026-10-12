@@ -44,9 +44,26 @@ import DailyQuestScreen from '../screens/HomeHub/DailyQuest';
 import OngoingQuestScreen from '../screens/HomeHub/OngoingQuest';
 import CommunityFeedScreen from '../screens/HomeHub/CommunityFeed';
 import TrainingScreen from '../screens/HomeHub/Training';
-import { UploadReportsScreen, DigitalWalletScreen, CaseHistoryScreen, HealthPassportScreen } from '../screens/VaultHub';
-import { DailyLogScreen, WellnessScreen, HealthReportCardScreen, MindsetHubScreen } from '../screens/VitalityHub';
-import { RiskAssessmentScreen, PreventiveCareScreen, RiskTrackerScreen, RiskToolsScreen, MyConsultationsScreen, OccupationalSafetyScreen } from '../screens/ShieldHub';
+import {
+  UploadReportsScreen,
+  DigitalWalletScreen,
+  CaseHistoryScreen,
+  HealthPassportScreen,
+} from '../screens/VaultHub';
+import {
+  DailyLogScreen,
+  WellnessScreen,
+  HealthReportCardScreen,
+  MindsetHubScreen,
+} from '../screens/VitalityHub';
+import {
+  RiskAssessmentScreen,
+  PreventiveCareScreen,
+  RiskTrackerScreen,
+  RiskToolsScreen,
+  MyConsultationsScreen,
+  OccupationalSafetyScreen,
+} from '../screens/ShieldHub';
 
 const DRAWER_WIDTH = 290;
 
@@ -70,14 +87,26 @@ const DrawerNavigatorContent: React.FC = () => {
   const [isMoveHubExpanded, setIsMoveHubExpanded] = React.useState(false);
   const [isHomeHubExpanded, setIsHomeHubExpanded] = React.useState(false);
   const [isVaultHubExpanded, setIsVaultHubExpanded] = React.useState(false);
-  const [isVitalityHubExpanded, setIsVitalityHubExpanded] = React.useState(false);
+  const [isVitalityHubExpanded, setIsVitalityHubExpanded] =
+    React.useState(false);
   const [isShieldHubExpanded, setIsShieldHubExpanded] = React.useState(false);
   const [wellnessModalVisible, setWellnessModalVisible] = React.useState(false);
   const [pendingScreen, setPendingScreen] =
     React.useState<DrawerScreenType | null>(null);
-  const navTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  const collapseAllHubsExcept = (activeHub: 'nutrition' | 'move' | 'home' | 'vault' | 'vitality' | 'shield' | 'none') => {
+  const collapseAllHubsExcept = (
+    activeHub:
+      | 'nutrition'
+      | 'move'
+      | 'home'
+      | 'vault'
+      | 'vitality'
+      | 'shield'
+      | 'none',
+  ) => {
     setIsNutritionExpanded(activeHub === 'nutrition');
     setIsMoveHubExpanded(activeHub === 'move');
     setIsHomeHubExpanded(activeHub === 'home');
@@ -163,7 +192,7 @@ const DrawerNavigatorContent: React.FC = () => {
 
   useEffect(() => {
     const currentScreen = pendingScreen || activeScreen;
-    
+
     const nutritionScreens = [
       'MealLog',
       'MealAnalysis',
@@ -412,8 +441,16 @@ const DrawerNavigatorContent: React.FC = () => {
         icon: '📑',
       },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
-      { screen: 'NutritionalProfiler', label: 'Nutritional Profiler', icon: '🥗' },
-      { screen: 'LifestyleProfiler', label: 'Lifestyle Questionnaire', icon: '🧬' },
+      {
+        screen: 'NutritionalProfiler',
+        label: 'Nutritional Profiler',
+        icon: '🥗',
+      },
+      {
+        screen: 'LifestyleProfiler',
+        label: 'Lifestyle Questionnaire',
+        icon: '🧬',
+      },
       { screen: 'FitnessChallenges', label: 'Fitness Challenges', icon: '🎯' },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
@@ -481,29 +518,48 @@ const DrawerNavigatorContent: React.FC = () => {
             <View style={styles.menuContainer}>
               {/* Home Hub Accordion Trigger */}
               {(() => {
-                const isHomeHubActive = pendingScreen !== null
-                  ? ['DailyQuest', 'OngoingQuest', 'CommunityFeed', 'Training'].includes(pendingScreen)
-                  : ['DailyQuest', 'OngoingQuest', 'CommunityFeed', 'Training'].includes(activeScreen);
+                const isHomeHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'DailyQuest',
+                        'OngoingQuest',
+                        'CommunityFeed',
+                        'Training',
+                      ].includes(pendingScreen)
+                    : [
+                        'DailyQuest',
+                        'OngoingQuest',
+                        'CommunityFeed',
+                        'Training',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isHomeHubActive && styles.activeMenuItem
+                      isHomeHubActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isHomeHubExpanded ? 'none' : 'home')}
+                    onPress={() =>
+                      collapseAllHubsExcept(isHomeHubExpanded ? 'none' : 'home')
+                    }
                   >
                     <Text style={styles.menuIcon}>🏠</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isHomeHubActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Home Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isHomeHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
@@ -569,29 +625,50 @@ const DrawerNavigatorContent: React.FC = () => {
 
               {/* Vault Hub Accordion Trigger */}
               {(() => {
-                const isVaultHubActive = pendingScreen !== null
-                  ? ['UploadReports', 'DigitalWallet', 'CaseHistory', 'HealthPassport'].includes(pendingScreen)
-                  : ['UploadReports', 'DigitalWallet', 'CaseHistory', 'HealthPassport'].includes(activeScreen);
+                const isVaultHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'UploadReports',
+                        'DigitalWallet',
+                        'CaseHistory',
+                        'HealthPassport',
+                      ].includes(pendingScreen)
+                    : [
+                        'UploadReports',
+                        'DigitalWallet',
+                        'CaseHistory',
+                        'HealthPassport',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isVaultHubActive && styles.activeMenuItem
+                      isVaultHubActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isVaultHubExpanded ? 'none' : 'vault')}
+                    onPress={() =>
+                      collapseAllHubsExcept(
+                        isVaultHubExpanded ? 'none' : 'vault',
+                      )
+                    }
                   >
                     <Text style={styles.menuIcon}>📁</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isVaultHubActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Vault Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isVaultHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
@@ -657,51 +734,60 @@ const DrawerNavigatorContent: React.FC = () => {
 
               {/* Move Hub Accordion Trigger */}
               {(() => {
-                const isMoveHubActive = pendingScreen !== null
-                  ? [
-                      'FitnessPrescription',
-                      'ActivityTracking',
-                      'NutritionalProfiler',
-                      'LifestyleProfiler',
-                      'FitnessChallenges',
-                      'Leaderboard',
-                      'Dashboard',
-                      'Insights',
-                      'Awards',
-                      'FitnessTraining',
-                    ].includes(pendingScreen)
-                  : [
-                      'FitnessPrescription',
-                      'ActivityTracking',
-                      'NutritionalProfiler',
-                      'LifestyleProfiler',
-                      'FitnessChallenges',
-                      'Leaderboard',
-                      'Dashboard',
-                      'Insights',
-                      'Awards',
-                      'FitnessTraining',
-                    ].includes(activeScreen);
+                const isMoveHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'FitnessPrescription',
+                        'ActivityTracking',
+                        'NutritionalProfiler',
+                        'LifestyleProfiler',
+                        'FitnessChallenges',
+                        'Leaderboard',
+                        'Dashboard',
+                        'Insights',
+                        'Awards',
+                        'FitnessTraining',
+                      ].includes(pendingScreen)
+                    : [
+                        'FitnessPrescription',
+                        'ActivityTracking',
+                        'NutritionalProfiler',
+                        'LifestyleProfiler',
+                        'FitnessChallenges',
+                        'Leaderboard',
+                        'Dashboard',
+                        'Insights',
+                        'Awards',
+                        'FitnessTraining',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isMoveHubActive && styles.activeMenuItem
+                      isMoveHubActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isMoveHubExpanded ? 'none' : 'move')}
+                    onPress={() =>
+                      collapseAllHubsExcept(isMoveHubExpanded ? 'none' : 'move')
+                    }
                   >
                     <Text style={styles.menuIcon}>🏃‍♂️</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isMoveHubActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Move Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isMoveHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
@@ -745,35 +831,58 @@ const DrawerNavigatorContent: React.FC = () => {
               )}
 
               {/* Nourish Hub Accordion Trigger */}
-               {(() => {
-                const isNutritionActive = pendingScreen !== null
-                  ? ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(pendingScreen)
-                  : ['MealLog', 'MealAnalysis', 'MealPlanner', 'DailyCompliance', 'WeeklyCompliance'].includes(activeScreen);
+              {(() => {
+                const isNutritionActive =
+                  pendingScreen !== null
+                    ? [
+                        'MealLog',
+                        'MealAnalysis',
+                        'MealPlanner',
+                        'DailyCompliance',
+                        'WeeklyCompliance',
+                      ].includes(pendingScreen)
+                    : [
+                        'MealLog',
+                        'MealAnalysis',
+                        'MealPlanner',
+                        'DailyCompliance',
+                        'WeeklyCompliance',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isNutritionActive && styles.activeMenuItem
+                      isNutritionActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isNutritionExpanded ? 'none' : 'nutrition')}
+                    onPress={() =>
+                      collapseAllHubsExcept(
+                        isNutritionExpanded ? 'none' : 'nutrition',
+                      )
+                    }
                   >
                     <Text style={styles.menuIcon}>🥑</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isNutritionActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Nourish Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isNutritionExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
                 );
-              })()} 
+              })()}
 
               {/* Expanded Nutrition Sub-Menus */}
               {isNutritionExpanded && (
@@ -839,29 +948,50 @@ const DrawerNavigatorContent: React.FC = () => {
 
               {/* Vitality Hub Accordion Trigger */}
               {(() => {
-                const isVitalityHubActive = pendingScreen !== null
-                  ? ['DailyLog', 'Wellness', 'HealthReportCard', 'MindsetHub'].includes(pendingScreen)
-                  : ['DailyLog', 'Wellness', 'HealthReportCard', 'MindsetHub'].includes(activeScreen);
+                const isVitalityHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'DailyLog',
+                        'Wellness',
+                        'HealthReportCard',
+                        'MindsetHub',
+                      ].includes(pendingScreen)
+                    : [
+                        'DailyLog',
+                        'Wellness',
+                        'HealthReportCard',
+                        'MindsetHub',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isVitalityHubActive && styles.activeMenuItem
+                      isVitalityHubActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isVitalityHubExpanded ? 'none' : 'vitality')}
+                    onPress={() =>
+                      collapseAllHubsExcept(
+                        isVitalityHubExpanded ? 'none' : 'vitality',
+                      )
+                    }
                   >
                     <Text style={styles.menuIcon}>⚡</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isVitalityHubActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Vitality Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isVitalityHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
@@ -927,29 +1057,54 @@ const DrawerNavigatorContent: React.FC = () => {
 
               {/* Shield Hub Accordion Trigger */}
               {(() => {
-                const isShieldHubActive = pendingScreen !== null
-                  ? ['OccupationalSafety', 'RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(pendingScreen)
-                  : ['OccupationalSafety', 'RiskAssessment', 'PreventiveCare', 'RiskTracker', 'RiskTools', 'MyConsultations'].includes(activeScreen);
+                const isShieldHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'OccupationalSafety',
+                        'RiskAssessment',
+                        'PreventiveCare',
+                        'RiskTracker',
+                        'RiskTools',
+                        'MyConsultations',
+                      ].includes(pendingScreen)
+                    : [
+                        'OccupationalSafety',
+                        'RiskAssessment',
+                        'PreventiveCare',
+                        'RiskTracker',
+                        'RiskTools',
+                        'MyConsultations',
+                      ].includes(activeScreen);
                 return (
                   <TouchableOpacity
                     style={[
                       styles.menuItem,
-                      isShieldHubActive && styles.activeMenuItem
+                      isShieldHubActive && styles.activeMenuItem,
                     ]}
                     activeOpacity={0.7}
-                    onPress={() => collapseAllHubsExcept(isShieldHubExpanded ? 'none' : 'shield')}
+                    onPress={() =>
+                      collapseAllHubsExcept(
+                        isShieldHubExpanded ? 'none' : 'shield',
+                      )
+                    }
                   >
                     <Text style={styles.menuIcon}>🛡️</Text>
                     <Text
                       style={[
                         styles.menuLabel,
                         isShieldHubActive && styles.activeMenuLabel,
-                        { flex: 1 }
+                        { flex: 1 },
                       ]}
                     >
                       Shield Hub
                     </Text>
-                    <Text style={{ color: theme.colors.textSecondary, fontSize: 10, marginRight: 4 }}>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
                       {isShieldHubExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
@@ -1038,7 +1193,7 @@ const DrawerNavigatorContent: React.FC = () => {
             </TouchableOpacity>
 
             <View style={styles.versionBadge}>
-              <Text style={styles.versionText}>🛡️ MoveHub Premium v1.0.0</Text>
+              <Text style={styles.versionText}>🛡️ Uncurl: health v1.0.0</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -1058,7 +1213,7 @@ const DrawerNavigatorContent: React.FC = () => {
             </View>
             <Text style={styles.modalTitleText}>Confirm Logout</Text>
             <Text style={styles.modalMessageText}>
-              Are you sure you want to log out of MoveHub? Your local metrics
+              Are you sure you want to log out of Uncurl: health? Your local metrics
               will remain saved.
             </Text>
 
@@ -1379,7 +1534,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmBtn: {
-    backgroundColor: '#e11d48', // rose-600
+    backgroundColor: '#e11d48',
   },
   confirmBtnText: {
     color: '#ffffff',
@@ -1387,17 +1542,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subMenuContainer: {
-    marginLeft: 16,
-    borderLeftWidth: 1.5,
-    borderLeftColor: theme.colors.border,
-    paddingLeft: 8,
+    marginLeft: 55,
+    marginRight: theme.spacing.sm,
+    borderLeftWidth: 2,
+    borderLeftColor: 'rgba(99, 102, 241, 0.22)',
+    paddingLeft: 10,
     marginVertical: 4,
   },
   subMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     marginVertical: 2,
     borderRadius: theme.spacing.borderRadiusMd,
     position: 'relative',
@@ -1407,11 +1563,11 @@ const styles = StyleSheet.create({
   },
   subActiveIndicator: {
     position: 'absolute',
-    left: -10,
-    top: '30%',
-    bottom: '30%',
-    width: 3,
-    borderRadius: 1.5,
+    left: -12,
+    top: '25%',
+    bottom: '25%',
+    width: 3.5,
+    borderRadius: 2,
     backgroundColor: theme.colors.primary,
   },
   subMenuIcon: {
@@ -1421,7 +1577,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subMenuLabel: {
-    fontSize: 13.5,
+    fontSize: 13,
     color: theme.colors.textSecondary,
     fontWeight: theme.fonts.weights.medium as any,
   },

@@ -13,6 +13,7 @@ import {
   dashboardColors as DC,
   speedometerColor,
 } from '../../theme/dashboardColors';
+import { METRIC_COLORS } from '../../theme';
 import { styles } from './styles';
 import { IFitnessTabProps } from '../../types';
 
@@ -283,7 +284,7 @@ const FitnessTab = ({
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: DC.blueLight },
+              { backgroundColor: METRIC_COLORS.steps.light },
             ]}
           >
             <Text style={styles.emptyChartIcon}>👣</Text>
@@ -306,6 +307,7 @@ const FitnessTab = ({
                   height={180}
                   maxY={stepsMax}
                   yTicks={getDynamicTicks(stepsMax)}
+                  color={METRIC_COLORS.steps.main}
                 />
               )}
             </ScrollableChart>
@@ -348,7 +350,7 @@ const FitnessTab = ({
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: DC.roseLight },
+              { backgroundColor: METRIC_COLORS.heartPoints.light },
             ]}
           >
             <Text style={styles.emptyChartIcon}>❤️</Text>
@@ -370,6 +372,7 @@ const FitnessTab = ({
                   height={180}
                   maxY={heartPointsMax}
                   yTicks={getDynamicTicks(heartPointsMax)}
+                  color={METRIC_COLORS.heartPoints.main}
                 />
               )}
             </ScrollableChart>
@@ -413,7 +416,7 @@ const FitnessTab = ({
               <View
                 style={[
                   styles.cardIconContainer,
-                  { backgroundColor: DC.amberLight },
+                  { backgroundColor: METRIC_COLORS.calories.light },
                 ]}
               >
                 <Text style={styles.emptyChartIcon}>🔥</Text>
@@ -442,7 +445,7 @@ const FitnessTab = ({
                         }
                         width={computedWidth}
                         height={180}
-                        color={C.primary}
+                        color={METRIC_COLORS.calories.main}
                         filled={
                           energyExpended.values?.length > 1 &&
                           energyExpended.values?.some(v => v > 0)
@@ -464,6 +467,7 @@ const FitnessTab = ({
                         height={180}
                         maxY={energyExpendedMax}
                         yTicks={getDynamicTicks(energyExpendedMax)}
+                        color={METRIC_COLORS.calories.main}
                       />
                     )
                   }
@@ -570,12 +574,12 @@ const FitnessTab = ({
                 </View>
               )}
           </View>
-          <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: DC.purpleLight }]}>
+          <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: METRIC_COLORS.minutes.main }]}>
             <View style={styles.cardTitleRow}>
               <View
                 style={[
                   styles.cardIconContainer,
-                  { backgroundColor: DC.purpleLight },
+                  { backgroundColor: METRIC_COLORS.minutes.light },
                 ]}
               >
                 <Text style={styles.emptyChartIcon}>⏱️</Text>
@@ -601,6 +605,7 @@ const FitnessTab = ({
                       height={180}
                       maxY={activeMinutesMax}
                       yTicks={getDynamicTicks(activeMinutesMax)}
+                      color={METRIC_COLORS.minutes.main}
                     />
                   )}
                 </ScrollableChart>

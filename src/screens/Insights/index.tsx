@@ -25,7 +25,7 @@ import Svg, {
   Rect,
 } from 'react-native-svg';
 
-import { theme } from '../../theme';
+import { theme, METRIC_COLORS } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
 import { Activity, UserProfile } from '../../types';
@@ -43,15 +43,16 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CHART_WIDTH = screenWidth - scale(32); // margin horizontal (16 * 2)
 const CHART_HEIGHT = verticalScale(185);
 
-// Colors map matching the screenshots
+// Standardized Metric Colors mapping
 const C = {
-  blue: '#06b6d4',      // Cyan
-  purple: '#ec4899',    // Pink / Purple
-  orange: '#f97316',    // Orange
-  neonGreen: '#10b981', // Emerald
-  textGray: '#64748b',  // Slate-500
-  gridLine: '#e2e8f0',  // Slate-200
-  darkBg: '#0f172a',    // Slate-900
+  steps: METRIC_COLORS.steps.main,             // #3B82F6 (Azure Blue)
+  calories: METRIC_COLORS.calories.main,       // #F97316 (Flame Orange - never red)
+  heartPoints: METRIC_COLORS.heartPoints.main, // #EF4444 (Crimson Red)
+  minutes: METRIC_COLORS.minutes.main,         // #8B5CF6 (Royal Purple)
+  distance: METRIC_COLORS.distance.main,       // #10B981 (Emerald Green)
+  textGray: '#64748b',                         // Slate-500
+  gridLine: '#e2e8f0',                         // Slate-200
+  darkBg: '#0f172a',                           // Slate-900
 };
 
 // 7 Days Base Mock Data (pre-populated so screen always looks beautiful, adding active user logs)
@@ -786,15 +787,15 @@ export const InsightsScreen: React.FC = () => {
         {/* Legends Row */}
         <View style={styles.legendsRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: C.blue }]} />
+            <View style={[styles.legendDot, { backgroundColor: C.steps }]} />
             <Text style={styles.legendText}>Steps</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: C.purple }]} />
+            <View style={[styles.legendDot, { backgroundColor: C.calories }]} />
             <Text style={styles.legendText}>Calories</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: C.orange }]} />
+            <View style={[styles.legendDot, { backgroundColor: C.heartPoints }]} />
             <Text style={styles.legendText}>Heart Points (avg)</Text>
           </View>
         </View>
@@ -802,12 +803,12 @@ export const InsightsScreen: React.FC = () => {
         <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
           <Defs>
             <SvgLinearGradient id="stepsFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={C.blue} stopOpacity="0.4" />
-              <Stop offset="100%" stopColor={C.blue} stopOpacity="0.01" />
+              <Stop offset="0%" stopColor={C.steps} stopOpacity="0.4" />
+              <Stop offset="100%" stopColor={C.steps} stopOpacity="0.01" />
             </SvgLinearGradient>
             <SvgLinearGradient id="calFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={C.purple} stopOpacity="0.3" />
-              <Stop offset="100%" stopColor={C.purple} stopOpacity="0.01" />
+              <Stop offset="0%" stopColor={C.calories} stopOpacity="0.3" />
+              <Stop offset="100%" stopColor={C.calories} stopOpacity="0.01" />
             </SvgLinearGradient>
           </Defs>
 
@@ -868,14 +869,14 @@ export const InsightsScreen: React.FC = () => {
 
           {/* 1. Steps Area Gradient & Line */}
           <Path d={areaPath(stepPts, baseY)} fill="url(#stepsFill)" />
-          <Path d={stepPath} stroke={C.blue} strokeWidth={2.5} fill="none" />
+          <Path d={stepPath} stroke={C.steps} strokeWidth={2.5} fill="none" />
 
           {/* 2. Calories Area Gradient & Line */}
           <Path d={areaPath(calPts, baseY)} fill="url(#calFill)" />
-          <Path d={calPath} stroke={C.purple} strokeWidth={2.5} fill="none" />
+          <Path d={calPath} stroke={C.calories} strokeWidth={2.5} fill="none" />
 
           {/* 3. Heart Rate Line (No Fill) */}
-          <Path d={hrPath} stroke={C.orange} strokeWidth={2} fill="none" />
+          <Path d={hrPath} stroke={C.heartPoints} strokeWidth={2} fill="none" />
 
           {/* Highlight circles on selected points */}
           <Circle
@@ -883,7 +884,7 @@ export const InsightsScreen: React.FC = () => {
             cy={toYSteps(currActivePoint.steps)}
             r={5.5}
             fill="#ffffff"
-            stroke={C.blue}
+            stroke={C.steps}
             strokeWidth={2.5}
           />
           <Circle
@@ -891,7 +892,7 @@ export const InsightsScreen: React.FC = () => {
             cy={toYCal(currActivePoint.calories)}
             r={5.5}
             fill="#ffffff"
-            stroke={C.purple}
+            stroke={C.calories}
             strokeWidth={2.5}
           />
           <Circle
@@ -899,7 +900,7 @@ export const InsightsScreen: React.FC = () => {
             cy={toYHR(currActivePoint.hr)}
             r={5.5}
             fill="#ffffff"
-            stroke={C.orange}
+            stroke={C.heartPoints}
             strokeWidth={2.5}
           />
 
@@ -915,7 +916,7 @@ export const InsightsScreen: React.FC = () => {
                 y={CHART_HEIGHT - 4}
                 textAnchor="middle"
                 fontSize={trendPoints.length > 6 ? 7.5 : 8.5}
-                fill={i === safeIdx ? C.blue : C.textGray}
+                fill={i === safeIdx ? C.steps : C.textGray}
                 fontWeight={i === safeIdx ? '800' : '500'}
               >
                 {p.label}
