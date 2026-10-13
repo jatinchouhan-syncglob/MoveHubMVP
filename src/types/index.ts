@@ -36,6 +36,68 @@ export interface LeaderboardEntry {
   isCurrentUser?: boolean;
 }
 
+export interface Phase1LeaderboardItem {
+  RANK: string;
+  USER_ID: string;
+  CUMULATIVE_CMAS_100: string;
+  STATUS: string;
+  BEHAVIORAL_TRACK_CUM_CMAS: string;
+  STEP_VOLUME_COMPLIANCE: string;
+  CARDIO_INTENSITY_COMPLIANCE: string;
+  SEDENTARY_SDEX_SEVERITY: string;
+  THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE: string;
+  MIDDAY_QUEST_ALERT: string;
+  '6AM_CALCULATION_TIMESTAMP': string;
+}
+
+export interface Phase1LeaderboardResponse {
+  status: string;
+  challenge_id: string;
+  active_challenge_day: number;
+  cutoff_at: string;
+  participants: number;
+  rank_scope: string;
+  persistence?: {
+    database: string;
+    redis: string;
+  };
+  leaderboard: Phase1LeaderboardItem[];
+  verified_rows?: any;
+  step_target_sources?: Record<string, string>;
+  profile_sources?: Record<string, string>;
+  source_table?: string;
+  metric_source_table?: string;
+  source_dates?: string[];
+  calculation_mode?: string;
+  implementation_version?: string;
+  uhid: string;
+}
+
+export interface IChallengeLiveFeedItem {
+  score: number;
+  trend: 'UP' | 'DOWN' | 'STABLE' | string;
+  name: string;
+  delta: string;
+  rank: number;
+  isUser?: boolean;
+}
+
+export interface IChallengeMyRankSummary {
+  score: number;
+  athleteId: string;
+  rankDisplay: string;
+  rank: number;
+  cutoffStatus: string;
+}
+
+export interface IChallengeLeaderboardResponse {
+  liveFeed: IChallengeLiveFeedItem[];
+  stage: number;
+  myRankSummary: IChallengeMyRankSummary;
+  category: string;
+  status: string;
+}
+
 export interface TrendPoint {
   label: string;
   value: number;

@@ -342,6 +342,26 @@ export const LeaderboardDetailsScreen: React.FC = () => {
                 "{currentTrack.clinicalInference.text}"
               </Text>
             </View>
+
+            {/* Midday Quest Alert from API */}
+            {player.middayQuestAlert ? (
+              <View style={styles.questAlertCard}>
+                <View style={styles.questHeaderRow}>
+                  <Text style={styles.questIcon}>⚡</Text>
+                  <Text style={styles.questTitle}>Active Midday Quest Alert</Text>
+                </View>
+                <Text style={styles.questText}>"{player.middayQuestAlert}"</Text>
+              </View>
+            ) : null}
+
+            {/* Calculation Timestamp from API */}
+            {player.calculationTimestamp ? (
+              <View style={styles.timestampRow}>
+                <Text style={styles.timestampText}>
+                  🕒 Calculated at: {player.calculationTimestamp}
+                </Text>
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -718,6 +738,43 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     lineHeight: 16,
     fontStyle: 'italic',
+  },
+  questAlertCard: {
+    backgroundColor: 'rgba(234, 179, 8, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.35)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+  },
+  questHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  questIcon: {
+    fontSize: 14,
+  },
+  questTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#FACC15',
+    flex: 1,
+  },
+  questText: {
+    fontSize: 11.5,
+    color: '#FEF08A',
+    lineHeight: 16,
+  },
+  timestampRow: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  timestampText: {
+    fontSize: 10.5,
+    color: '#64748B',
+    fontWeight: '600',
   },
   doneButton: {
     backgroundColor: '#1E293B',

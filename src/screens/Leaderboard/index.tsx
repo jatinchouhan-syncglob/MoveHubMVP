@@ -9,11 +9,11 @@ import {
   Dimensions,
   Image,
   Animated,
-  Modal,
   TextInput,
   Platform,
   UIManager,
   LayoutAnimation,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DrawerContext from '../../navigation/DrawerContext';
@@ -21,7 +21,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
-import { UserProfile, Activity } from '../../types';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile, Phase1LeaderboardResponse, Phase1LeaderboardItem } from '../../types';
 import Svg, { Path } from 'react-native-svg';
 import { IMAGES } from '../../assets/images';
 
@@ -99,6 +101,8 @@ export interface PhasePlayer {
   };
   matrixTitle: string;
   tracks: PhaseTrack[];
+  middayQuestAlert?: string;
+  calculationTimestamp?: string;
 }
 
 // 21 Days Metadata
@@ -173,559 +177,92 @@ export const PHASE_CONFIGS: Record<
 };
 
 // ==========================================
-// REUSABLE TRACK TEMPLATES FOR PHASES
+// DYNAMIC API DATA MAPPER
 // ==========================================
 
-// Phase 1 Mock Data (Days 1–7): 1 Track (Behavioral)
-const PHASE_1_PLAYERS: PhasePlayer[] = [
-  {
-    id: 'p1-aligned',
-    userId: 'ALIGNED_B65F',
-    name: 'ALIGNED_B65F',
-    department: 'DevOps & Infra',
-    masterScore: 75.4,
-    status: 'ACTIVE',
-    matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
-    tracks: [
-      {
-        id: 't-beh-1',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Behavioral Foundation)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '100% Phase 1 Master Key',
-        overallStatus: 'OPTIMAL PACE',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Step Volume Allocation', weight: '40% Weight', value: '92.5% (Avg: 9,250 / 10,000 steps)', statusTag: 'OPTIMAL' },
-          { title: 'Heart Points Allocation', weight: '40% Weight', value: '85.0% (Avg: 18.2 / 21.4 HP)', statusTag: 'AEROBIC PEAK' },
-          { title: 'Sedentary S-DEX Score', weight: '20% Weight', value: '18.0 / 100 [LOW HAZARD]', statusTag: 'ACTIVE BREAKS' },
-        ],
-        clinicalInference: {
-          title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-          text: 'User demonstrates high adherence to baseline volume metrics. Micro-breaks taken during sustained work hours effectively mitigated vascular pooling risks.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p1-techpro',
-    userId: 'TECH_PRO_M',
-    name: 'TECH_PRO_M',
-    department: 'Engineering',
-    masterScore: 71.0,
-    status: 'ACTIVE',
-    matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
-    tracks: [
-      {
-        id: 't-beh-2',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Behavioral Foundation)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '100% Phase 1 Master Key',
-        overallStatus: 'STEADY PACE',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Step Volume Allocation', weight: '40% Weight', value: '88.0% (Avg: 8,800 / 10,000 steps)', statusTag: 'STEADY' },
-          { title: 'Heart Points Allocation', weight: '40% Weight', value: '78.5% (Avg: 16.8 / 21.4 HP)', statusTag: 'CONSISTENT' },
-          { title: 'Sedentary S-DEX Score', weight: '20% Weight', value: '24.5 / 100 [LOW HAZARD]', statusTag: 'LOW RISK' },
-        ],
-        clinicalInference: {
-          title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-          text: 'Consistent circadian exertion profile with optimal cardiovascular stimulation and adequate muscular micro-recovery.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p1-runner',
-    userId: 'RUNNER_A_25M',
-    name: 'RUNNER_A_25M',
-    department: 'Product Design',
-    masterScore: 44.0,
-    scoreDisplay: '[ 44.0 ]',
-    status: 'IN DANGER',
-    isDanger: true,
-    matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
-    tracks: [
-      {
-        id: 't-beh-3',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Behavioral Foundation)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '100% Phase 1 Master Key',
-        overallStatus: 'CRITICAL DEFICIT',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: 'Step Volume Allocation', weight: '40% Weight', value: '41.0% (Avg: 4,100 / 10,000 steps)', statusTag: 'DEFICIT', isDanger: true },
-          { title: 'Heart Points Allocation', weight: '40% Weight', value: '0.0% (Avg: 0.0 / 21.4 HP)', statusTag: '🚨 ZERO CARDIO', isDanger: true },
-          { title: 'Sedentary S-DEX Score', weight: '20% Weight', value: '100.0 / 100 [MAX HAZARD]', statusTag: '🚨 >6H SITTING', isDanger: true },
-        ],
-        clinicalInference: {
-          title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-          text: 'Participant exhibits extreme sedentary stagnation during work hours with zero moderate-to-vigorous physical activity (MVPA). Immediate 5.4 HP micro-dosing protocol recommended to escape elimination zone.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p1-stagn',
-    userId: 'STAGN_42M',
-    name: 'STAGN_42M',
-    department: 'Operations',
-    masterScore: 10.8,
-    scoreDisplay: '[ 10.8 ]',
-    status: 'IN DANGER',
-    isDanger: true,
-    matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
-    tracks: [
-      {
-        id: 't-beh-4',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Behavioral Foundation)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '100% Phase 1 Master Key',
-        overallStatus: 'CRITICAL ATROPHY',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: 'Step Volume Allocation', weight: '40% Weight', value: '15.0% (Avg: 1,500 / 10,000 steps)', statusTag: 'CRITICAL', isDanger: true },
-          { title: 'Heart Points Allocation', weight: '40% Weight', value: '0.0% (Avg: 0.0 / 21.4 HP)', statusTag: 'ZERO CARDIO', isDanger: true },
-          { title: 'Sedentary S-DEX Score', weight: '20% Weight', value: '98.0 / 100 [MAX HAZARD]', statusTag: 'MAX RISK', isDanger: true },
-        ],
-        clinicalInference: {
-          title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-          text: 'Severe risk of vascular compression; zero exertion logged over 72 hours. Urgent postural realignment necessary.',
-        },
-      },
-    ],
-  },
-];
+export const mapApiLeaderboardToPlayers = (
+  apiItems: Phase1LeaderboardItem[] = [],
+  currentUhid?: string,
+  currentUserName?: string,
+): PhasePlayer[] => {
+  return apiItems.map((item, idx) => {
+    const isCurrentUser =
+      (currentUhid && item.USER_ID.toUpperCase() === currentUhid.toUpperCase()) ||
+      item.USER_ID === 'ANJROY3773' ||
+      apiItems.length === 1;
 
-// Phase 2 Mock Data (Days 8–14): 2 Tracks (Behavioral + Physiological)
-const PHASE_2_PLAYERS: PhasePlayer[] = [
-  {
-    id: 'p2-aligned',
-    userId: 'ALIGNED_B65F',
-    name: 'ALIGNED_B65F',
-    department: 'DevOps & Infra',
-    masterScore: 84.1,
-    status: 'ACTIVE',
-    breakdown: { cmas: 82.5, bse: 85.7 },
-    matrixTitle: 'BIOMETRIC NEXUS MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p2-1',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'OPTIMAL COMPLIANCE',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Cumulative Step Volume', weight: '40% Sub-Weight', value: '94.0% (Avg: 9,400 / 10,000 steps)', statusTag: 'OPTIMAL' },
-          { title: 'Cumulative Heart Points', weight: '40% Sub-Weight', value: '88.5% (Avg: 19.0 / 21.4 HP)', statusTag: 'AEROBIC PEAK' },
-          { title: 'Sedentary S-DEX Score', weight: '20% Sub-Weight', value: '15.0 / 100 [LOW HAZARD]', statusTag: 'LOW HAZARD' },
-        ],
-        clinicalInference: {
-          title: 'Cumulative Behavioral Foundation Synthesis [AHA]',
-          text: 'Superb volume stability maintained throughout sprint intervals with prompt circadian resets.',
-        },
-      },
-      {
-        id: 't-phy-p2-1',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (Elite Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'PEAK BUFFERING',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Peak Power Index (PPI)', weight: '35% Weight', value: '88.0% [⚡ OPTIMAL]', statusTag: 'OPTIMAL' },
-          { title: 'Exertion Efficiency Ratio (E3)', weight: '35% Weight', value: '86.5% [⚡ PRIME]', statusTag: 'PRIME' },
-          { title: 'Intra-Day Stability (IS)', weight: '30% Weight', value: '82.0% [⚡ STABLE]', statusTag: 'HOMEOSTATIC' },
-        ],
-        clinicalInference: {
-          title: 'Multi-Week Physiological Recovery Inference [AHA]',
-          text: 'Superior metabolic flexibility observed. Post-exertion recovery latency under 18 minutes indicates elite cardiovascular buffering.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p2-techpro',
-    userId: 'TECH_PRO_M',
-    name: 'TECH_PRO_M',
-    department: 'Engineering',
-    masterScore: 79.5,
-    status: 'ACTIVE',
-    breakdown: { cmas: 78.0, bse: 81.0 },
-    matrixTitle: 'BIOMETRIC NEXUS MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p2-2',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'STEADY COMPLIANCE',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Cumulative Step Volume', weight: '40% Sub-Weight', value: '86.0% (Avg: 8,600 steps)', statusTag: 'STEADY' },
-          { title: 'Cumulative Heart Points', weight: '40% Sub-Weight', value: '80.0% (Avg: 17.1 HP)', statusTag: 'CONSISTENT' },
-          { title: 'Sedentary S-DEX Score', weight: '20% Sub-Weight', value: '22.0 / 100 [LOW HAZARD]', statusTag: 'LOW HAZARD' },
-        ],
-        clinicalInference: {
-          title: 'Cumulative Behavioral Foundation Synthesis [AHA]',
-          text: 'High sustained activity output across working sprint cycles.',
-        },
-      },
-      {
-        id: 't-phy-p2-2',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (Elite Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'STRONG RECOVERY',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: 'Peak Power Index (PPI)', weight: '35% Weight', value: '82.0% [⚡ OPTIMAL]', statusTag: 'STRONG' },
-          { title: 'Exertion Efficiency Ratio (E3)', weight: '35% Weight', value: '80.0% [⚡ PRIME]', statusTag: 'EFFICIENT' },
-          { title: 'Intra-Day Stability (IS)', weight: '30% Weight', value: '81.0% [⚡ STABLE]', statusTag: 'STABLE' },
-        ],
-        clinicalInference: {
-          title: 'Multi-Week Physiological Recovery Inference [AHA]',
-          text: 'Balanced sympathetic/parasympathetic tone during high work stress intervals. Excellent recovery resilience.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p2-runner',
-    userId: 'RUNNER_A_25M',
-    name: 'RUNNER_A_25M',
-    department: 'Product Design',
-    masterScore: 38.2,
-    scoreDisplay: '[ 38.2 ]',
-    status: 'IN DANGER',
-    isDanger: true,
-    breakdown: { cmas: 29.3, bse: 47.0 },
-    matrixTitle: 'BIOMETRIC NEXUS MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p2-3',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'CRITICAL DEFICIT',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: 'Cumulative Step Volume', weight: '40% Sub-Weight', value: '38.0% (Avg: 3,800 steps)', statusTag: 'DEFICIT', isDanger: true },
-          { title: 'Cumulative Heart Points', weight: '40% Sub-Weight', value: '0.0% (Avg: 0.0 HP)', statusTag: 'ZERO CARDIO', isDanger: true },
-          { title: 'Sedentary S-DEX Score', weight: '20% Sub-Weight', value: '98.0 / 100 [MAX HAZARD]', statusTag: 'MAX RISK', isDanger: true },
-        ],
-        clinicalInference: {
-          title: 'Cumulative Behavioral Foundation Synthesis [AHA]',
-          text: 'Persistent behavioral stagnation elevates deep vein thrombosis risk profile.',
-        },
-      },
-      {
-        id: 't-phy-p2-3',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (Elite Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '50% Compound Weight',
-        overallStatus: 'CRITICAL STRAIN',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: 'Peak Power Index (PPI)', weight: '35% Weight', value: '40.0% [🚨 CRITICAL]', statusTag: 'STRAIN', isDanger: true },
-          { title: 'Exertion Efficiency Ratio (E3)', weight: '35% Weight', value: '65.0% [⚠️ SLACKING]', statusTag: 'SUB-OPTIMAL', isDanger: true },
-          { title: 'Intra-Day Stability (IS)', weight: '30% Weight', value: '45.0% [🚨 DRIFTING]', statusTag: 'HIGH DRIFT', isDanger: true },
-        ],
-        clinicalInference: {
-          title: 'Multi-Week Physiological Recovery Inference [AHA]',
-          text: 'Significant autonomic fatigue detected with erratic circadian energy dips. High intra-day volatility elevates neuromuscular burnout risk.',
-        },
-      },
-    ],
-  },
-];
+    const cmasScore = parseFloat(item.CUMULATIVE_CMAS_100) || 0;
+    const rawStatus = (item.STATUS || '').toUpperCase();
+    const isDanger = rawStatus.includes('ELIMINATED') || rawStatus.includes('DANGER');
 
-// Phase 3 Mock Data (Days 15–21): 3 Tracks (Behavioral + Physiological + Structural)
-const PHASE_3_PLAYERS: PhasePlayer[] = [
-  {
-    id: 'p3-aligned',
-    userId: 'ALIGNED_B65F',
-    name: 'ALIGNED_B65F',
-    department: 'DevOps & Infra',
-    masterScore: 87.9,
-    status: 'CHAMPION',
-    statusLabel: '👑 CHAMPION',
-    breakdown: { cmas: 88.0, bse: 89.2, ffs: 86.5 },
-    matrixTitle: 'GRAND OLYMPUS CHAMPIONSHIP MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p3-1',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (21-Day Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '40% Championship Weight',
-        overallStatus: 'ELITE CONSISTENCY',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: '21-Day Step Compliance', weight: '40% Sub-Weight', value: '96.0% (Avg: 9,600 steps/day)', statusTag: 'ELITE' },
-          { title: '21-Day Heart Points Adherence', weight: '40% Sub-Weight', value: '91.0% (Avg: 19.5 HP/day)', statusTag: 'AEROBIC PEAK' },
-          { title: '21-Day S-DEX Sedentary Mitigation', weight: '20% Sub-Weight', value: '12.0 / 100 [OPTIMAL]', statusTag: 'PROTECTED' },
-        ],
-        clinicalInference: {
-          title: '21-Day Behavioral Kinematic Continuity [AHA]',
-          text: 'Continuous behavioral adherence established durable anti-stagnation circadian reflexes.',
-        },
-      },
-      {
-        id: 't-phy-p3-1',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (21-Day Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'ELITE RECOVERY',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: '21-Day Peak Power Index (PPI)', weight: '35% Sub-Weight', value: '92.0% [⚡ OPTIMAL]', statusTag: 'PEAK' },
-          { title: '21-Day Exertion Efficiency (E3)', weight: '35% Sub-Weight', value: '89.5% [⚡ PRIME]', statusTag: 'PRIME' },
-          { title: '21-Day Intra-Day Stability (IS)', weight: '30% Sub-Weight', value: '86.0% [⚡ STABLE]', statusTag: 'HOMEOSTATIC' },
-        ],
-        clinicalInference: {
-          title: '21-Day Autonomic Homeostasis Synthesis [AHA]',
-          text: 'Parasympathetic tone restored within minimal post-exertion windows across all three weeks.',
-        },
-      },
-      {
-        id: 't-str-p3-1',
-        trackNumber: 3,
-        name: 'Track 3: Structural Track (Grand Olympus Kinematics)',
-        shortName: 'Track 3: Structural',
-        icon: '🦴',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'ALL-AXIS PRIME',
-        statusColor: '#FACC15',
-        subMetrics: [
-          { title: '4-Axis Kinematic Distribution', weight: 'Cardio, Muscle, Spine, Neuro', value: 'Cardio: 94% | Muscle: 88.5% | Spine: 91% | Neuro: 85%', statusTag: 'BALANCED' },
-          { title: '21-Day Compliance Rate', weight: 'Gauntlet Threshold', value: '98.4% [🥇 ELITE ASCENSION]', statusTag: 'ELITE' },
-          { title: 'Cumulative FFS Matrix Score', weight: 'Functional Fitness', value: '86.5 / 100 [CHAMPION TIER]', statusTag: 'CHAMPION' },
-        ],
-        clinicalInference: {
-          title: '21-Day Grand Olympus Synthesis [AHA]',
-          text: 'Flawless kinematic and cardiovascular harmony achieved across all 3 functional axes. Peak performance index verified with minimum biological wear.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p3-techpro',
-    userId: 'TECH_PRO_M',
-    name: 'TECH_PRO_M',
-    department: 'Engineering',
-    masterScore: 76.4,
-    status: 'PODIUM',
-    statusLabel: '🥈 PODIUM',
-    breakdown: { cmas: 78.5, bse: 76.0, ffs: 74.5 },
-    matrixTitle: 'GRAND OLYMPUS CHAMPIONSHIP MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p3-2',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (21-Day Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '40% Championship Weight',
-        overallStatus: 'HIGH CONSISTENCY',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: '21-Day Step Compliance', weight: '40% Sub-Weight', value: '88.0% (Avg: 8,800 steps/day)', statusTag: 'HIGH' },
-          { title: '21-Day Heart Points Adherence', weight: '40% Sub-Weight', value: '82.0% (Avg: 17.5 HP/day)', statusTag: 'STEADY' },
-          { title: '21-Day S-DEX Sedentary Mitigation', weight: '20% Sub-Weight', value: '18.0 / 100 [LOW HAZARD]', statusTag: 'LOW RISK' },
-        ],
-        clinicalInference: {
-          title: '21-Day Behavioral Kinematic Continuity [AHA]',
-          text: 'Solid behavioral habits maintained across prolonged development sprints.',
-        },
-      },
-      {
-        id: 't-phy-p3-2',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (21-Day Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'STRONG RECOVERY',
-        statusColor: '#10B981',
-        subMetrics: [
-          { title: '21-Day Peak Power Index (PPI)', weight: '35% Sub-Weight', value: '84.0% [⚡ OPTIMAL]', statusTag: 'STRONG' },
-          { title: '21-Day Exertion Efficiency (E3)', weight: '35% Sub-Weight', value: '82.0% [⚡ PRIME]', statusTag: 'PRIME' },
-          { title: '21-Day Intra-Day Stability (IS)', weight: '30% Sub-Weight', value: '80.0% [⚡ STABLE]', statusTag: 'STABLE' },
-        ],
-        clinicalInference: {
-          title: '21-Day Autonomic Homeostasis Synthesis [AHA]',
-          text: 'High recovery ceiling with minimal metabolic strain.',
-        },
-      },
-      {
-        id: 't-str-p3-2',
-        trackNumber: 3,
-        name: 'Track 3: Structural Track (Grand Olympus Kinematics)',
-        shortName: 'Track 3: Structural',
-        icon: '🦴',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'PODIUM TIER',
-        statusColor: '#94A3B8',
-        subMetrics: [
-          { title: '4-Axis Kinematic Distribution', weight: 'Cardio, Muscle, Spine, Neuro', value: 'Cardio: 80% | Muscle: 75% | Spine: 78% | Neuro: 72%', statusTag: 'BALANCED' },
-          { title: '21-Day Compliance Rate', weight: 'Gauntlet Threshold', value: '86.5% [🥈 PODIUM TIER]', statusTag: 'PODIUM' },
-          { title: 'Cumulative FFS Matrix Score', weight: 'Functional Fitness', value: '74.5 / 100 [HIGH RESILIENCE]', statusTag: 'RESILIENT' },
-        ],
-        clinicalInference: {
-          title: '21-Day Grand Olympus Synthesis [AHA]',
-          text: 'High postural resilience and sustained endurance throughout the 21-day gauntlet.',
-        },
-      },
-    ],
-  },
-  {
-    id: 'p3-runner',
-    userId: 'RUNNER_A_25M',
-    name: 'RUNNER_A_25M',
-    department: 'Product Design',
-    masterScore: 30.0,
-    scoreDisplay: '[ 30.0 ]',
-    status: 'IN DANGER',
-    isDanger: true,
-    breakdown: { cmas: 29.3, bse: 43.5, ffs: 4.2 },
-    matrixTitle: 'GRAND OLYMPUS CHAMPIONSHIP MATRIX',
-    tracks: [
-      {
-        id: 't-beh-p3-3',
-        trackNumber: 1,
-        name: 'Track 1: Behavioral Track (21-Day Cumulative CMAS)',
-        shortName: 'Track 1: Behavioral',
-        icon: '🧬',
-        weightLabel: '40% Championship Weight',
-        overallStatus: 'CRITICAL DEFICIT',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: '21-Day Step Compliance', weight: '40% Sub-Weight', value: '32.0% (Avg: 3,200 steps/day)', statusTag: 'DEFICIT', isDanger: true },
-          { title: '21-Day Heart Points Adherence', weight: '40% Sub-Weight', value: '0.0% (Avg: 0.0 HP/day)', statusTag: 'ZERO CARDIO', isDanger: true },
-          { title: '21-Day S-DEX Sedentary Mitigation', weight: '20% Sub-Weight', value: '100.0 / 100 [MAX HAZARD]', statusTag: 'MAX HAZARD', isDanger: true },
-        ],
-        clinicalInference: {
-          title: '21-Day Behavioral Kinematic Continuity [AHA]',
-          text: 'Prolonged sitting without cardiovascular reset elevates musculoskeletal degradation.',
-        },
-      },
-      {
-        id: 't-phy-p3-3',
-        trackNumber: 2,
-        name: 'Track 2: Physiological Track (21-Day Biometric Nexus)',
-        shortName: 'Track 2: Physiological',
-        icon: '💓',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'AUTONOMIC BURNOUT',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: '21-Day Peak Power Index (PPI)', weight: '35% Sub-Weight', value: '38.0% [🚨 CRITICAL]', statusTag: 'CRITICAL', isDanger: true },
-          { title: '21-Day Exertion Efficiency (E3)', weight: '35% Sub-Weight', value: '60.0% [⚠️ SLACKING]', statusTag: 'LOW', isDanger: true },
-          { title: '21-Day Intra-Day Stability (IS)', weight: '30% Sub-Weight', value: '40.0% [🚨 DRIFTING]', statusTag: 'DRIFTING', isDanger: true },
-        ],
-        clinicalInference: {
-          title: '21-Day Autonomic Homeostasis Synthesis [AHA]',
-          text: 'Severe autonomic exhaustion with frequent sympathetic overloads.',
-        },
-      },
-      {
-        id: 't-str-p3-3',
-        trackNumber: 3,
-        name: 'Track 3: Structural Track (Grand Olympus Kinematics)',
-        shortName: 'Track 3: Structural',
-        icon: '🦴',
-        weightLabel: '30% Championship Weight',
-        overallStatus: 'CRITICAL ATROPHY',
-        statusColor: '#EF4444',
-        subMetrics: [
-          { title: '4-Axis Kinematic Distribution', weight: 'Cardio, Muscle, Spine, Neuro', value: 'Cardio: 0% | Muscle: 22.2% | Spine: 0% | Neuro: 0%', statusTag: 'ATROPHY RISK', isDanger: true },
-          { title: '21-Day Compliance Rate', weight: 'Gauntlet Threshold', value: '46.8% [🚨 CRITICAL DEFICIT]', statusTag: 'DEFICIT', isDanger: true },
-          { title: 'Cumulative FFS Matrix Score', weight: 'Functional Fitness', value: '4.2 / 100 [🚨 CRITICAL DEFICIT]', statusTag: 'FAIL THRESHOLD', isDanger: true },
-        ],
-        clinicalInference: {
-          title: 'Anthropometric Structural Integrity Inference [AHA]',
-          text: 'Extreme structural deconditioning with prolonged postural collapse observed. Failed 21-day kinematic adaptation threshold. Ergonomic rehabilitation mandated.',
-        },
-      },
-    ],
-  },
-];
+    let status: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER' = 'ACTIVE';
+    if (isDanger) {
+      status = 'IN DANGER';
+    } else if (rawStatus.includes('CHAMPION')) {
+      status = 'CHAMPION';
+    } else if (rawStatus.includes('PODIUM')) {
+      status = 'PODIUM';
+    }
 
-// Gold Particle Animation for Rank Up Modal
-const GoldParticle: React.FC<{ delay: number }> = ({ delay }) => {
-  const scale = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+    const stepVolume = item.STEP_VOLUME_COMPLIANCE || 'N/A';
+    const cardioIntensity = item.CARDIO_INTENSITY_COMPLIANCE || 'N/A';
+    const sDexSeverity = item.SEDENTARY_SDEX_SEVERITY || 'N/A';
 
-  useEffect(() => {
-    const angle = Math.random() * 2 * Math.PI;
-    const distance = 30 + Math.random() * 90;
-    const destX = Math.cos(angle) * distance;
-    const destY = Math.sin(angle) * distance;
-
-    Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(scale, {
-          toValue: 0.4 + Math.random() * 0.8,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateX, {
-          toValue: destX,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: destY,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [delay, scale, translateX, translateY, opacity]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.goldParticle,
+    const behavioralTrack: PhaseTrack = {
+      id: `t-beh-${item.USER_ID}-${idx}`,
+      trackNumber: 1,
+      name: 'Track 1: Behavioral Track (Behavioral Foundation)',
+      shortName: 'Track 1: Behavioral',
+      icon: '🧬',
+      weightLabel: '100% Phase 1 Master Key',
+      overallStatus: isDanger ? 'CRITICAL DEFICIT' : 'OPTIMAL PACE',
+      statusColor: isDanger ? '#EF4444' : '#10B981',
+      subMetrics: [
         {
-          transform: [{ translateX }, { translateY }, { scale }],
-          opacity,
+          title: 'Step Volume Compliance',
+          weight: '40% Weight',
+          value: stepVolume,
+          statusTag: stepVolume.includes('0.0%') || stepVolume.includes('1.') ? 'DEFICIT' : 'OPTIMAL',
+          isDanger: stepVolume.includes('0.0%') || stepVolume.includes('1.'),
         },
-      ]}
-    />
-  );
+        {
+          title: 'Cardio Intensity Compliance',
+          weight: '40% Weight',
+          value: cardioIntensity,
+          statusTag: cardioIntensity.includes('0.0%') ? '🚨 ZERO CARDIO' : 'AEROBIC PEAK',
+          isDanger: cardioIntensity.includes('0.0%'),
+        },
+        {
+          title: 'Sedentary S-DEX Severity',
+          weight: '20% Weight',
+          value: sDexSeverity !== 'N/A' ? `${sDexSeverity} [MAX HAZARD]` : 'N/A',
+          statusTag: sDexSeverity !== 'N/A' ? '🚨 >6H SITTING' : 'N/A',
+          isDanger: true,
+        },
+      ],
+      clinicalInference: {
+        title: '3-Day Cumulative Behavioral Health Inference [AHA]',
+        text: item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE || 'N/A',
+      },
+    };
+
+    return {
+      id: `p-${item.USER_ID}-${idx}`,
+      name: isCurrentUser && currentUserName ? `${currentUserName} (You)` : item.USER_ID,
+      userId: item.USER_ID,
+      department: 'N/A',
+      isCurrentUser,
+      masterScore: cmasScore,
+      scoreDisplay: `[ ${item.CUMULATIVE_CMAS_100 || 'N/A'} ]`,
+      status,
+      statusLabel: item.STATUS || 'N/A',
+      isDanger,
+      matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
+      tracks: [behavioralTrack],
+      middayQuestAlert: item.MIDDAY_QUEST_ALERT || 'N/A',
+      calculationTimestamp: item['6AM_CALCULATION_TIMESTAMP'] || 'N/A',
+    };
+  });
 };
 
 const parseSubMetric = (sm: TrackSubMetric) => {
@@ -784,7 +321,7 @@ export const LeaderboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Active Day & Phase Selection State
-  const [selectedDay, setSelectedDay] = useState<number>(3); // Default Day 3 (Phase 1)
+  const [selectedDay, setSelectedDay] = useState<number>(7); // Default to Day 7 as returned by API
   const activePhase: TournamentPhase = selectedDay <= 7 ? 1 : selectedDay <= 14 ? 2 : 3;
   const activePhaseConfig = PHASE_CONFIGS[activePhase];
 
@@ -794,18 +331,10 @@ export const LeaderboardScreen: React.FC = () => {
   // Search Filter State
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Rank-up and celebration states
-  const [rankUpVisible, setRankUpVisible] = useState(false);
-  const [rankUpData, setRankUpData] = useState({
-    oldRank: 4,
-    newRank: 2,
-    aheadOfName: 'RUNNER_A_25M',
-    nextRankTargetText: '🔥 Keep pushing to beat ALIGNED_B65F (Rank #1)!',
-  });
-  const [celebrationVisible, setCelebrationVisible] = useState(false);
-
-  // User Profile & Activity Data
+  // User Profile & Leaderboard API Data
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [leaderboardData, setLeaderboardData] = useState<Phase1LeaderboardResponse | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Close dropdown when drawer opens to prevent overlapping
   useEffect(() => {
@@ -814,13 +343,33 @@ export const LeaderboardScreen: React.FC = () => {
     }
   }, [isDrawerOpen]);
 
-  // Load user data
+  // Load user data & Phase 1 API leaderboard
   const loadData = async () => {
     try {
-      const profileData = await apiService.getProfile();
-      setUserProfile(profileData);
-    } catch (error) {
-      console.error('Failed to load user profile in leaderboard:', error);
+      setLoading(true);
+      setApiError(null);
+
+      let profileData: UserProfile | null = null;
+      try {
+        profileData = await apiService.getProfile();
+        setUserProfile(profileData);
+      } catch (err) {
+        console.warn('Failed to load user profile in leaderboard:', err);
+      }
+
+      const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = profileData?.uhid || cachedProfile?.uhid || 'ANJROY3773';
+
+      console.log(`[Leaderboard] Fetching Phase 1 Leaderboard for UHID: ${targetUhid}`);
+      const data = await apiService.getPhase1Leaderboard(targetUhid);
+      setLeaderboardData(data);
+
+      if (data?.active_challenge_day) {
+        setSelectedDay(data.active_challenge_day);
+      }
+    } catch (error: any) {
+      console.error('Failed to load phase 1 leaderboard:', error);
+      setApiError(error?.message || 'Failed to fetch leaderboard data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -838,136 +387,22 @@ export const LeaderboardScreen: React.FC = () => {
     await loadData();
   };
 
-  // Generate Current User's dynamic tracks based on active phase
-  const getUserTracksForPhase = (phase: TournamentPhase): PhaseTrack[] => {
-    // Track 1: Behavioral Track (Present in Phase 1, Phase 2, Phase 3)
-    const behavioralTrack: PhaseTrack = {
-      id: `u-beh-p${phase}`,
-      trackNumber: 1,
-      name: phase === 1 ? 'Track 1: Behavioral Track (Foundation)' : 'Track 1: Behavioral Track (Cumulative CMAS)',
-      shortName: 'Track 1: Behavioral',
-      icon: '🧬',
-      weightLabel: phase === 1 ? '100% Phase 1 Master Key' : phase === 2 ? '50% Compound Weight' : '40% Championship Weight',
-      overallStatus: 'OPTIMAL PACE',
-      statusColor: '#10B981',
-      subMetrics: [
-        { title: 'Step Volume Allocation', weight: '40% Weight', value: '89.0% (Avg: 8,900 / 10,000 steps)', statusTag: 'OPTIMAL' },
-        { title: 'Heart Points Allocation', weight: '40% Weight', value: '82.0% (Avg: 17.5 / 21.4 HP)', statusTag: 'AEROBIC PEAK' },
-        { title: 'Sedentary S-DEX Score', weight: '20% Weight', value: '21.0 / 100 [LOW HAZARD]', statusTag: 'LOW RISK' },
-      ],
-      clinicalInference: {
-        title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-        text: 'User demonstrates high adherence to baseline volume metrics. Micro-breaks taken during sustained work hours effectively mitigated vascular pooling risks.',
-      },
-    };
-
-    // Track 2: Physiological Track (Present in Phase 2 & Phase 3)
-    const physiologicalTrack: PhaseTrack = {
-      id: `u-phy-p${phase}`,
-      trackNumber: 2,
-      name: 'Track 2: Physiological Track (Elite Biometric Nexus)',
-      shortName: 'Track 2: Physiological',
-      icon: '💓',
-      weightLabel: phase === 2 ? '50% Compound Weight' : '30% Championship Weight',
-      overallStatus: 'PRIME RECOVERY',
-      statusColor: '#10B981',
-      subMetrics: [
-        { title: 'Peak Power Index (PPI)', weight: '35% Weight', value: '81.5% [⚡ PRIME]', statusTag: 'OPTIMAL' },
-        { title: 'Exertion Efficiency Ratio (E3)', weight: '35% Weight', value: '79.0% [⚡ PRIME]', statusTag: 'PRIME' },
-        { title: 'Intra-Day Stability (IS)', weight: '30% Weight', value: '78.5% [⚡ STABLE]', statusTag: 'HOMEOSTATIC' },
-      ],
-      clinicalInference: {
-        title: 'Multi-Week Physiological Recovery Inference [AHA]',
-        text: 'Superior metabolic flexibility observed. Post-exertion recovery latency under 18 minutes indicates elite cardiovascular buffering.',
-      },
-    };
-
-    // Track 3: Structural Track (Present in Phase 3 only)
-    const structuralTrack: PhaseTrack = {
-      id: `u-str-p${phase}`,
-      trackNumber: 3,
-      name: 'Track 3: Structural Track (Grand Olympus Kinematics)',
-      shortName: 'Track 3: Structural',
-      icon: '🦴',
-      weightLabel: '30% Championship Weight',
-      overallStatus: 'HIGH RESILIENCE',
-      statusColor: '#38BDF8',
-      subMetrics: [
-        { title: '4-Axis Kinematic Distribution', weight: 'Cardio, Muscle, Spine, Neuro', value: 'Cardio: 78% | Muscle: 74% | Spine: 76% | Neuro: 70%', statusTag: 'BALANCED' },
-        { title: '21-Day Compliance Rate', weight: 'Gauntlet Threshold', value: '84.0% [🥈 PODIUM TIER]', statusTag: 'PODIUM' },
-        { title: 'Cumulative FFS Matrix Score', weight: 'Functional Fitness', value: '74.0 / 100 [HIGH RESILIENCE]', statusTag: 'RESILIENT' },
-      ],
-      clinicalInference: {
-        title: '21-Day Grand Olympus Synthesis [AHA]',
-        text: 'Balanced neuromuscular integration across core stabilizing chains with high kinematic resilience.',
-      },
-    };
-
-    if (phase === 1) {
-      return [behavioralTrack]; // 1 Track in Phase 1
-    } else if (phase === 2) {
-      return [behavioralTrack, physiologicalTrack]; // 2 Tracks in Phase 2
-    } else {
-      return [behavioralTrack, physiologicalTrack, structuralTrack]; // 3 Tracks in Phase 3
-    }
-  };
-
   // Get players list for current active phase
   const getPhasePlayers = (): PhasePlayer[] => {
-    let baseList: PhasePlayer[] = [];
+    // Phase 1: Dynamic Data mapped from Backend POST API
     if (activePhase === 1) {
-      baseList = [...PHASE_1_PLAYERS];
-    } else if (activePhase === 2) {
-      baseList = [...PHASE_2_PLAYERS];
-    } else {
-      baseList = [...PHASE_3_PLAYERS];
-    }
-
-    const userName = userProfile?.name || 'You';
-    const isUserAlreadyInList = baseList.some(p => p.isCurrentUser || p.userId === 'current-user');
-
-    if (!isUserAlreadyInList) {
-      let userScore = 73.2;
-      let userStatus: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER' = 'ACTIVE';
-      if (activePhase === 1) {
-        userScore = 73.2;
-      } else if (activePhase === 2) {
-        userScore = 77.8;
-      } else {
-        userScore = 74.0;
-        userStatus = 'PODIUM';
+      if (!leaderboardData || !Array.isArray(leaderboardData.leaderboard)) {
+        return [];
       }
-
-      const currentUserPlayer: PhasePlayer = {
-        id: 'current-user-player',
-        userId: `${userName.replace(/\s+/g, '_').toUpperCase()}`,
-        name: `${userName} (You)`,
-        department: 'Engineering',
-        isCurrentUser: true,
-        masterScore: userScore,
-        status: userStatus,
-        breakdown:
-          activePhase === 2
-            ? { cmas: 76.5, bse: 79.1 }
-            : activePhase === 3
-            ? { cmas: 76.0, bse: 75.0, ffs: 71.0 }
-            : undefined,
-        matrixTitle:
-          activePhase === 1
-            ? 'BEHAVIORAL FOUNDATION MATRIX'
-            : activePhase === 2
-            ? 'BIOMETRIC NEXUS MATRIX'
-            : 'GRAND OLYMPUS CHAMPIONSHIP MATRIX',
-        tracks: getUserTracksForPhase(activePhase),
-      };
-
-      baseList.push(currentUserPlayer);
+      return mapApiLeaderboardToPlayers(
+        leaderboardData.leaderboard,
+        userProfile?.uhid,
+        userProfile?.name,
+      );
     }
 
-    // Sort descending by master score
-    baseList.sort((a, b) => b.masterScore - a.masterScore);
-
-    return baseList;
+    // Phase 2 & 3: Not provided by backend yet -> Zero mock data
+    return [];
   };
 
   const playersList = getPhasePlayers();
@@ -983,28 +418,13 @@ export const LeaderboardScreen: React.FC = () => {
     );
   });
 
-  // Open Dedicated Details Screen for Current User
+  // Open Dedicated Details Screen
   const handleOpenPlayerDetails = (player: PhasePlayer) => {
-    if (!player.isCurrentUser) return;
     navigation.navigate(ROUTES.LEADERBOARD_DETAILS, {
       player,
       phase: activePhase,
       day: selectedDay,
     });
-  };
-
-  const handleSimulateRankUp = () => {
-    if (activePhase === 3) {
-      setCelebrationVisible(true);
-    } else {
-      setRankUpData({
-        oldRank: 3,
-        newRank: 2,
-        aheadOfName: 'RUNNER_A_25M',
-        nextRankTargetText: '🔥 You need only +3.2 points to beat ALIGNED_B65F (Rank #1)!',
-      });
-      setRankUpVisible(true);
-    }
   };
 
   const themeColors = {
@@ -1265,7 +685,9 @@ export const LeaderboardScreen: React.FC = () => {
                 Participants
               </Text>
               <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                {activePhaseConfig.participantsCount}
+                {activePhase === 1 && leaderboardData?.participants !== undefined
+                  ? String(leaderboardData.participants)
+                  : 'N/A'}
               </Text>
             </View>
 
@@ -1303,13 +725,13 @@ export const LeaderboardScreen: React.FC = () => {
                 />
               </View>
               <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                {activePhaseConfig.benchmarkUnit.split(' ')[0]}
+                Benchmark
               </Text>
               <Text style={[styles.statLabelSub, { color: themeColors.textSecondary }]}>
-                {activePhaseConfig.benchmarkUnit.split(' ').slice(1).join(' ') || 'Score'}
+                Avg Score
               </Text>
               <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                {activePhaseConfig.avgBenchmarkScore}
+                N/A
               </Text>
             </View>
           </View>
@@ -1322,7 +744,7 @@ export const LeaderboardScreen: React.FC = () => {
               <Text style={styles.phasePillText}>PHASE {activePhaseConfig.phaseNumber}</Text>
             </View>
             <Text style={styles.phaseActiveDayText}>
-              Active Day: {selectedDay}/{activePhase === 1 ? 7 : 21}
+              Active Day: {activePhase === 1 && leaderboardData?.active_challenge_day !== undefined ? `${leaderboardData.active_challenge_day}/7` : `${selectedDay}/21`}
             </Text>
           </View>
           <Text style={styles.phaseFocusTitle}>{activePhaseConfig.title}</Text>
@@ -1365,276 +787,175 @@ export const LeaderboardScreen: React.FC = () => {
           <Text style={[styles.tableColHeader, { width: 80, textAlign: 'right' }]}>STATUS</Text>
         </View>
 
-        {/* Leaderboard Rows with Progressive Disclosure */}
-        {filteredPlayers.map((player, index) => {
-          const rankNumber = index + 1;
-          const isUser = !!player.isCurrentUser;
-          const isDanger = !!player.isDanger || player.status === 'IN DANGER';
+        {/* Leaderboard Rows with Dynamic Data & Progressive Disclosure */}
+        {activePhase !== 1 ? (
+          <View style={styles.unavailableCard}>
+            <Text style={styles.unavailableIcon}>🔒</Text>
+            <Text style={styles.unavailableTitle}>
+              Phase {activePhase} API Not Available (N/A)
+            </Text>
+            <Text style={styles.unavailableSub}>
+              Currently only Phase 1 (Days 1–7) is supported by the leaderboard backend. Phase {activePhase} will unlock once backend data is available.
+            </Text>
+          </View>
+        ) : loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Fetching live Phase 1 Leaderboard...</Text>
+          </View>
+        ) : filteredPlayers.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📋</Text>
+            <Text style={styles.emptyTitle}>No Participants Found</Text>
+            <Text style={styles.emptySub}>
+              {apiError ? `Error: ${apiError}` : 'No participants available for this search criteria.'}
+            </Text>
+            {apiError && (
+              <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+                <Text style={styles.retryButtonText}>Retry ⟳</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          filteredPlayers.map((player, index) => {
+            const rankNumber = index + 1;
+            const isUser = !!player.isCurrentUser;
+            const isDanger = !!player.isDanger || player.status === 'IN DANGER';
 
-          // Check if we need to render the Axe Line after this row
-          const isAxeLineAfterThisRow = rankNumber === activePhaseConfig.axeLineCutRank;
+            // Check if we need to render the Axe Line after this row
+            const isAxeLineAfterThisRow = rankNumber === activePhaseConfig.axeLineCutRank;
 
-          return (
-            <React.Fragment key={player.id}>
-              {/* Layer 1: Viewport Grid Row */}
-              <TouchableOpacity
-                style={[
-                  styles.playerRowCard,
-                  isUser && styles.userRowHighlight,
-                  isDanger && styles.dangerRowHighlight,
-                ]}
-                onPress={() => handleOpenPlayerDetails(player)}
-                activeOpacity={isUser ? 0.75 : 1}
-                disabled={!isUser}
-              >
-                <View style={styles.rowMain}>
-                  {/* Rank Badge */}
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      rankNumber === 1 && styles.rankBadgeFirst,
-                      rankNumber === 2 && styles.rankBadgeSecond,
-                      rankNumber === 3 && styles.rankBadgeThird,
-                      isDanger && styles.rankBadgeDanger,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.rankBadgeText,
-                        rankNumber === 1 && styles.rankTextFirst,
-                        isDanger && styles.rankTextDanger,
-                      ]}
-                    >
-                      {rankNumber === 1 ? '🥇' : rankNumber === 2 ? '🥈' : rankNumber === 3 ? '🥉' : `#${rankNumber}`}
-                    </Text>
-                  </View>
-
-                  {/* User ID & Department */}
-                  <View style={styles.userCol}>
-                    <View style={styles.userIdRow}>
-                      <Text
-                        style={[
-                          styles.userIdText,
-                          isUser && styles.userIdUserText,
-                          isDanger && styles.userIdDangerText,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {player.userId}
-                      </Text>
-                      {isUser && (
-                        <View style={styles.youBadge}>
-                          <Text style={styles.youBadgeText}>YOU</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.deptText} numberOfLines={1}>
-                      {player.department}
-                    </Text>
-                  </View>
-
-                  {/* Master Score */}
-                  <View style={styles.scoreCol}>
-                    {isDanger ? (
-                      <View style={styles.dangerScoreBlock}>
-                        <Text style={styles.dangerScoreText}>
-                          {player.scoreDisplay || `[ ${player.masterScore.toFixed(1)} ]`}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.masterScoreText,
-                          rankNumber === 1 && styles.masterScoreFirst,
-                        ]}
-                      >
-                        {player.masterScore.toFixed(1)}
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Status Pill */}
-                  <View style={styles.statusCol}>
+            return (
+              <React.Fragment key={player.id}>
+                {/* Layer 1: Viewport Grid Row */}
+                <TouchableOpacity
+                  style={[
+                    styles.playerRowCard,
+                    isUser && styles.userRowHighlight,
+                    isDanger && styles.dangerRowHighlight,
+                  ]}
+                  onPress={() => handleOpenPlayerDetails(player)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.rowMain}>
+                    {/* Rank Badge */}
                     <View
                       style={[
-                        styles.statusPill,
-                        player.status === 'ACTIVE' && styles.statusPillActive,
-                        player.status === 'CHAMPION' && styles.statusPillChampion,
-                        player.status === 'PODIUM' && styles.statusPillPodium,
-                        isDanger && styles.statusPillDanger,
+                        styles.rankBadge,
+                        rankNumber === 1 && styles.rankBadgeFirst,
+                        rankNumber === 2 && styles.rankBadgeSecond,
+                        rankNumber === 3 && styles.rankBadgeThird,
+                        isDanger && styles.rankBadgeDanger,
                       ]}
                     >
                       <Text
                         style={[
-                          styles.statusPillText,
-                          player.status === 'ACTIVE' && styles.statusTextActive,
-                          player.status === 'CHAMPION' && styles.statusTextChampion,
-                          player.status === 'PODIUM' && styles.statusTextPodium,
-                          isDanger && styles.statusTextDanger,
+                          styles.rankBadgeText,
+                          rankNumber === 1 && styles.rankTextFirst,
+                          isDanger && styles.rankTextDanger,
                         ]}
                       >
-                        {player.statusLabel || (isDanger ? '🚨 IN DANGER' : player.status)}
+                        {rankNumber === 1 ? '🥇' : rankNumber === 2 ? '🥈' : rankNumber === 3 ? '🥉' : `#${rankNumber}`}
                       </Text>
                     </View>
-                  </View>
-                </View>
 
-                {/* Direct Action Indicator */}
-                <View style={styles.expandChevronRow}>
-                  {isUser ? (
+                    {/* User ID & Department */}
+                    <View style={styles.userCol}>
+                      <View style={styles.userIdRow}>
+                        <Text
+                          style={[
+                            styles.userIdText,
+                            isUser && styles.userIdUserText,
+                            isDanger && styles.userIdDangerText,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {player.userId}
+                        </Text>
+                        {isUser && (
+                          <View style={styles.youBadge}>
+                            <Text style={styles.youBadgeText}>YOU</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.deptText} numberOfLines={1}>
+                        Dept: {player.department}
+                      </Text>
+                    </View>
+
+                    {/* Master Score */}
+                    <View style={styles.scoreCol}>
+                      {isDanger ? (
+                        <View style={styles.dangerScoreBlock}>
+                          <Text style={styles.dangerScoreText}>
+                            {player.scoreDisplay || `[ ${player.masterScore.toFixed(1)} ]`}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text
+                          style={[
+                            styles.masterScoreText,
+                            rankNumber === 1 && styles.masterScoreFirst,
+                          ]}
+                        >
+                          {player.masterScore.toFixed(1)}
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Status Pill */}
+                    <View style={styles.statusCol}>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          player.status === 'ACTIVE' && styles.statusPillActive,
+                          player.status === 'CHAMPION' && styles.statusPillChampion,
+                          player.status === 'PODIUM' && styles.statusPillPodium,
+                          isDanger && styles.statusPillDanger,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusPillText,
+                            player.status === 'ACTIVE' && styles.statusTextActive,
+                            player.status === 'CHAMPION' && styles.statusTextChampion,
+                            player.status === 'PODIUM' && styles.statusTextPodium,
+                            isDanger && styles.statusTextDanger,
+                          ]}
+                        >
+                          {player.statusLabel || (isDanger ? '🚨 IN DANGER' : player.status)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Direct Action Indicator */}
+                  <View style={styles.expandChevronRow}>
                     <View style={styles.userExpandPrompt}>
                       <Text style={styles.userExpandChevronText}>
                         📊 Tap to view personalized biometric details ➔
                       </Text>
                     </View>
-                  ) : (
-                    <View style={styles.lockedRowContainer}>
-                      <Text style={styles.lockedRowText}>
-                        🔒 Detailed Biometric Matrix Private to Participant
+                  </View>
+                </TouchableOpacity>
+
+                {/* High-Stakes Neon Axe Line */}
+                {isAxeLineAfterThisRow && (
+                  <View style={styles.axeLineContainer}>
+                    <View style={styles.axeLineBar} />
+                    <View style={styles.axeLineBadge}>
+                      <Text style={styles.axeLineText}>
+                        {activePhaseConfig.axeLineLabel}
                       </Text>
                     </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              {/* High-Stakes Neon Axe Line */}
-              {isAxeLineAfterThisRow && (
-                <View
-                  style={[
-                    styles.axeLineContainer,
-                    activePhase === 3 && styles.axeLineContainerGold,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.axeLineBar,
-                      activePhase === 3 && styles.axeLineBarGold,
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.axeLineBadge,
-                      activePhase === 3 && styles.axeLineBadgeGold,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.axeLineText,
-                        activePhase === 3 && styles.axeLineTextGold,
-                      ]}
-                    >
-                      {activePhaseConfig.axeLineLabel}
-                    </Text>
+                    <View style={styles.axeLineBar} />
                   </View>
-                  <View
-                    style={[
-                      styles.axeLineBar,
-                      activePhase === 3 && styles.axeLineBarGold,
-                    ]}
-                  />
-                </View>
-              )}
-            </React.Fragment>
-          );
-        })}
+                )}
+              </React.Fragment>
+            );
+          })
+        )}
       </ScrollView>
-
-      {/* Floating Simulation Trigger Button */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={handleSimulateRankUp}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.floatingButtonEmoji}>⚡</Text>
-        <Text style={styles.floatingButtonText}>Simulate Rank Up</Text>
-      </TouchableOpacity>
-
-      {/* Standard Rank Up Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={rankUpVisible}
-        onRequestClose={() => setRankUpVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.burstCenter}>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <GoldParticle key={i} delay={i * 40} />
-              ))}
-            </View>
-
-            <Text style={styles.trophyIcon}>⚡</Text>
-            <Text style={styles.rankUpTitle}>RANK UP SUCCESS!</Text>
-            <Text style={styles.rankUpMetric}>Phase {activePhase} Gauntlet</Text>
-
-            <View style={styles.comparisonRow}>
-              <View style={styles.rankPill}>
-                <Text style={styles.rankPillOld}>Rank #{rankUpData.oldRank}</Text>
-              </View>
-              <Text style={styles.comparisonArrow}>➔</Text>
-              <View style={[styles.rankPill, styles.rankPillNew]}>
-                <Text style={styles.rankPillNewText}>Rank #{rankUpData.newRank}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.rankUpMessage}>
-              Awesome effort! You pushed ahead of{' '}
-              <Text style={styles.boldWhiteText}>{rankUpData.aheadOfName}</Text> to claim Rank #
-              {rankUpData.newRank}. Keep your movement momentum!
-            </Text>
-
-            {!!rankUpData.nextRankTargetText && (
-              <View style={styles.modalMotivateContainer}>
-                <Text style={styles.modalMotivateText}>
-                  {rankUpData.nextRankTargetText}
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setRankUpVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>Awesome! ⚡</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Rank #1 / Phase 3 Celebration Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={celebrationVisible}
-        onRequestClose={() => setCelebrationVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, styles.celebrationCard]}>
-            <View style={styles.burstCenter}>
-              {Array.from({ length: 30 }).map((_, i) => (
-                <GoldParticle key={i} delay={i * 20} />
-              ))}
-            </View>
-
-            <Text style={styles.crownIcon}>👑 🏆</Text>
-            <Text style={styles.celebrationTitle}>GRAND OLYMPUS CHAMPION!</Text>
-            <Text style={styles.celebrationSubtitle}>PODIUM ASCENSION ACHIEVED</Text>
-
-            <Text style={styles.celebrationMessage}>
-              Incredible performance across all 21 days! Your balanced adherence to CMAS, BSE, and
-              Functional Fitness Score puts you at the summit of the crew! 🚀
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.celebrationButton]}
-              onPress={() => setCelebrationVisible(false)}
-            >
-              <Text style={styles.celebrationButtonText}>Claim Champion Title! 👑</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -2537,6 +1858,81 @@ const styles = StyleSheet.create({
   boldWhiteText: {
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  unavailableCard: {
+    backgroundColor: '#151E33',
+    borderColor: '#1E293B',
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  unavailableIcon: {
+    fontSize: 36,
+    marginBottom: 12,
+  },
+  unavailableTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#F8FAFC',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  unavailableSub: {
+    fontSize: 13,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    backgroundColor: '#151E33',
+    borderColor: '#1E293B',
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    fontSize: 32,
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#F8FAFC',
+    marginBottom: 6,
+  },
+  emptySub: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  retryButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

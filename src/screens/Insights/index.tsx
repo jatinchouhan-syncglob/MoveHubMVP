@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -345,6 +345,34 @@ export const InsightsScreen: React.FC = () => {
   // Scroll & Ref states for horizontal see-more chart
   const chartScrollViewRef = React.useRef<ScrollView>(null);
   const [chartScrollX, setChartScrollX] = useState(0);
+
+  // Tab horizontal auto-scroll refs & logic
+  const tabScrollRef = useRef<ScrollView>(null);
+  const tabPositions = useRef<{ [key: string]: { x: number; width: number } }>({});
+
+  const scrollToTab = useCallback((tabKey: 'fitness' | 'bio-sync' | 'trends' | 'transformation') => {
+    const layout = tabPositions.current[tabKey];
+    if (tabScrollRef.current && layout) {
+      if (tabKey === 'fitness') {
+        tabScrollRef.current.scrollTo({ x: 0, animated: true });
+      } else {
+        const targetX = Math.max(0, layout.x - 20);
+        tabScrollRef.current.scrollTo({ x: targetX, animated: true });
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToTab(activeScreenTab);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [activeScreenTab, scrollToTab]);
+
+  const handleTabPress = (tabKey: 'fitness' | 'bio-sync' | 'trends' | 'transformation') => {
+    setActiveScreenTab(tabKey);
+    scrollToTab(tabKey);
+  };
 
   const loadWeeklyReportData = async () => {
     setWeeklyReportLoading(true);
@@ -1122,12 +1150,19 @@ export const InsightsScreen: React.FC = () => {
 
       <View style={styles.tabScrollContainer}>
         <ScrollView
+          ref={tabScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >
           <TouchableOpacity
-            onPress={() => setActiveScreenTab('fitness')}
+            onLayout={e => {
+              tabPositions.current['fitness'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('fitness')}
             activeOpacity={0.8}
             style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
           >
@@ -1136,7 +1171,13 @@ export const InsightsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setActiveScreenTab('bio-sync')}
+            onLayout={e => {
+              tabPositions.current['bio-sync'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('bio-sync')}
             activeOpacity={0.8}
             style={[styles.tabBtn, activeScreenTab === 'bio-sync' && styles.tabActiveBtn]}
           >
@@ -1145,7 +1186,13 @@ export const InsightsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setActiveScreenTab('trends')}
+            onLayout={e => {
+              tabPositions.current['trends'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('trends')}
             activeOpacity={0.8}
             style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
           >
@@ -1154,7 +1201,13 @@ export const InsightsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setActiveScreenTab('transformation')}
+            onLayout={e => {
+              tabPositions.current['transformation'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('transformation')}
             activeOpacity={0.8}
             style={[styles.tabBtn, activeScreenTab === 'transformation' && styles.tabActiveBtn]}
           >
@@ -1164,8 +1217,7 @@ export const InsightsScreen: React.FC = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
-
-      {/* Target Date & UHID Info Banner (Rendered below tabs, only for Daily Metrics and Bio-Sync) */}
+      
       {(activeScreenTab === 'fitness' || activeScreenTab === 'bio-sync') && (
         <View style={styles.topInfoBar}>
           <View style={styles.infoBarChip}>
