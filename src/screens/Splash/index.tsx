@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Animated } from 'react-native';
+import { StyleSheet, Text, View, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
@@ -9,6 +9,7 @@ import { CustomButton } from '../../components/common/CustomButton';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
+import { prefetchStepsLogsData } from '../../services/api';
 
 export const SplashScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -42,8 +43,10 @@ export const SplashScreen: React.FC = () => {
     // 2. Perform Session Check after timer
     const checkSetupState = async () => {
       try {
+        const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        if (cachedProfile?.isSetupComplete) {
+        if (token && cachedProfile?.isSetupComplete) {
+          prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
           navigation.replace(ROUTES.DRAWER);
         } else {
           navigation.replace(ROUTES.LOGIN);
@@ -63,8 +66,10 @@ export const SplashScreen: React.FC = () => {
 
   const handleSkip = async () => {
     try {
+      const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      if (cachedProfile?.isSetupComplete) {
+      if (token && cachedProfile?.isSetupComplete) {
+        prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
         navigation.replace(ROUTES.DRAWER);
       } else {
         navigation.replace(ROUTES.LOGIN);
@@ -89,7 +94,11 @@ export const SplashScreen: React.FC = () => {
           ]}
         >
           <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>🏃‍♂️</Text>
+            <Image
+              source={require('../../assets/images/app_logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </Animated.View>
 
@@ -102,10 +111,7 @@ export const SplashScreen: React.FC = () => {
           }}
         >
           <View style={styles.titleRow}>
-            <Text style={styles.title}>MoveHub</Text>
-            <View style={styles.mvpBadge}>
-              <Text style={styles.mvpText}>MVP</Text>
-            </View>
+            <Text style={styles.title}>Uncurl<Text style={{ color: theme.colors.primary }}>: health</Text></Text>
           </View>
           <Text style={styles.tagline}>{STRINGS.SPLASH.TAGLINE}</Text>
         </Animated.View>
@@ -178,6 +184,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 15,
     elevation: 8,
+  },
+  logoImage: {
+    width: 88,
+    height: 88,
   },
   logoEmoji: {
     fontSize: 60,

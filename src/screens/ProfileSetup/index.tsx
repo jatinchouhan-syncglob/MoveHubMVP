@@ -16,8 +16,7 @@ import { ROUTES } from '../../constants/routes';
 import { CustomButton } from '../../components/common/CustomButton';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
-import { storageHelper } from '../../storage/storageHelper';
-import { STORAGE_KEYS } from '../../storage/storageKeys';
+
 
 export const ProfileSetupScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,7 +25,6 @@ export const ProfileSetupScreen: React.FC = () => {
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
-  const [goal, setGoal] = useState('');
 
   // Local active focused state to highlight border
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -45,7 +43,7 @@ export const ProfileSetupScreen: React.FC = () => {
     loadProfileName();
   }, []);
 
-  const isFormValid = name.trim() !== '' && age.trim() !== '' && weight.trim() !== '' && height.trim() !== '' && goal.trim() !== '';
+  const isFormValid = name.trim() !== '' && age.trim() !== '' && weight.trim() !== '' && height.trim() !== '';
 
   const handleCompleteSetup = async () => {
     setLoading(true);
@@ -55,7 +53,7 @@ export const ProfileSetupScreen: React.FC = () => {
         age: parseInt(age, 10) || 28,
         weight: parseFloat(weight) || 74.5,
         height: parseFloat(height) || 178,
-        calorieGoal: parseInt(goal, 10) || 2400,
+        calorieGoal: 2400,
         isSetupComplete: true,
       };
 
@@ -189,26 +187,7 @@ export const ProfileSetupScreen: React.FC = () => {
               />
             </View>
 
-            {/* Calorie Goal Input */}
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelIcon}>🔥</Text>
-                <Text style={styles.label}>{STRINGS.PROFILE_SETUP.LABEL_GOAL}</Text>
-              </View>
-              <TextInput
-                style={[
-                  styles.input,
-                  focusedField === 'goal' && styles.inputFocused
-                ]}
-                placeholder={STRINGS.PROFILE_SETUP.PLACEHOLDER_GOAL}
-                placeholderTextColor={theme.colors.textLight}
-                keyboardType="numeric"
-                value={goal}
-                onChangeText={setGoal}
-                onFocus={() => setFocusedField('goal')}
-                onBlur={() => setFocusedField(null)}
-              />
-            </View>
+
           </View>
         </ScrollView>
 

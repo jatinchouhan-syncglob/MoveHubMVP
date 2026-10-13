@@ -174,7 +174,6 @@ export const ProfileScreen: React.FC = () => {
         {/* Personal Details Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>📐 Personal Dimensions</Text>
-
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Text style={styles.detailIcon}>🎂</Text>
@@ -200,17 +199,7 @@ export const ProfileScreen: React.FC = () => {
             </View>
             <Text style={styles.detailValue}>{profile?.height} cm</Text>
           </View>
-          <View style={styles.divider} />
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Text style={styles.detailIcon}>🎯</Text>
-              <Text style={styles.detailLabel}>Daily Goal</Text>
-            </View>
-            <Text style={styles.detailValue}>
-              {profile?.calorieGoal?.toLocaleString()} kcal
-            </Text>
-          </View>
         </View>
 
         {/* Visual BMI Scale Evaluation Card */}
@@ -288,6 +277,14 @@ export const ProfileScreen: React.FC = () => {
 
         {/* Actions Button */}
         <View style={styles.actionsContainer}>
+          <CustomButton
+            title="Reset Password"
+            onPress={() => navigation.navigate(ROUTES.RESET_PASSWORD as any)}
+            variant="primary"
+            style={styles.resetButton}
+            textStyle={styles.resetButtonText}
+          />
+          <View style={styles.actionSpacer} />
           <CustomButton
             title="Delete Account"
             onPress={showDeleteAlert}
@@ -574,6 +571,17 @@ const styles = StyleSheet.create({
   actionsContainer: {
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xxl,
+  },
+  actionSpacer: {
+    height: 12,
+  },
+  resetButton: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   deleteButton: {
     borderColor: '#ef4444', // rose/red border

@@ -6,12 +6,22 @@ export const ROUTES = {
   PROFILE_SETUP: 'ProfileSetup',
   WELLNESS_PACING_PROFILE: 'WellnessPacingProfile',
   WELLNESS_PRESCRIPTION: 'WellnessPrescription',
+  ARENA: 'Arena',
   DRAWER: 'DrawerNavigator',
   DASHBOARD: 'Dashboard',
   ACTIVITY_TRACKING: 'ActivityTracking',
+  NUTRITIONAL_PROFILER: 'NutritionalProfiler',
+  LIFESTYLE_PROFILER: 'LifestyleProfiler',
   LEADERBOARD: 'Leaderboard',
   INSIGHTS: 'Insights',
   PROFILE: 'Profile',
+  LEADERBOARD_DETAILS: 'LeaderboardDetails',
+  DEMO_WORKOUT_LOG: 'DemoWorkoutLog',
+  DEMO_SEARCH_HUB: 'DemoSearchHub',
+  DEMO_WEARABLE_SYNC: 'DemoWearableSync',
+  DEMO_POST_WORKOUT_SUMMARY: 'DemoPostWorkoutSummary',
+  RESET_PASSWORD: 'ResetPassword',
+  FORGOT_PASSWORD: 'ForgotPassword',
 } as const;
 
 export type RouteType = typeof ROUTES[keyof typeof ROUTES];

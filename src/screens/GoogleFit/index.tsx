@@ -8,6 +8,8 @@ import {
   AppState,
   TouchableOpacity,
   Modal,
+  Platform,
+  Switch,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import dayjs from 'dayjs';
@@ -17,6 +19,7 @@ import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { EmptyState } from '../../components/common/EmptyState';
 import { STRINGS } from '../../constants/strings';
+import { METRIC_COLORS } from '../../theme';
 import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
@@ -32,6 +35,10 @@ import {
   openHealthConnectStorePage,
   checkGoogleFitInstalled,
   openGoogleFitStorePage,
+  syncHealthConnectAnalytics,
+  getHealthConnectWorkManagerStatus,
+  openHealthConnectExactAlarmSettings,
+  openHealthConnectBatteryOptimizationSettings,
 } from '../../services/healthConnect';
 
 import {
@@ -241,7 +248,7 @@ const buildRequiredAppsMessage = (actions: any[]) =>
     .concat(actions.map((a, i) => `${i + 1}. ${a.title}: ${a.description}`))
     .join('\n');
 
-const HealthConnectScreen = () => {
+const StepsTrackingTab = () => {
   const isFocused = useIsFocused();
   const installPromptKeyRef = useRef<string | null>(null);
 
@@ -264,8 +271,14 @@ const HealthConnectScreen = () => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'failure'>(
     'idle',
   );
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
+  const [showSetupUI, setShowSetupUI] = useState<boolean>(true);
 
   const { availability, hasAllPermissions } = accessState;
+
+  useEffect(() => {
+    setShowSetupUI(!hasAllPermissions);
+  }, [hasAllPermissions]);
 
   const summary = healthState?.summary;
   const lastSyncedAt = healthState?.lastSyncedAt || lastSyncedText;
@@ -275,7 +288,7 @@ const HealthConnectScreen = () => {
 
   const statusMeta = getStatusMeta(availability, hasAllPermissions);
   const requiredAppActions = getRequiredAppActions(availability);
-  const showHealthData = availability === 'available' && summary != null;
+  const showHealthData = availability === 'available' && !showSetupUI && summary != null;
 
   const todayExerciseRecords: IHealthConnectExerciseSession[] =
     summary?.todayExerciseRecords ?? [];
@@ -324,8 +337,18 @@ const HealthConnectScreen = () => {
       if (lastSync) {
         setLastSyncedText(lastSync);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to load health connect snapshot:', err);
+      let msg = err?.message || String(err);
+      if (msg.includes('Rate limited') || msg.includes('quota has been exceeded')) {
+        msg = 'Request rejected. Rate limited request quota has been exceeded. Please wait until quota has replenished before making further requests.';
+      }
+      if (!_silent) {
+        throw new Error(msg);
+      } else {
+        setSyncErrorMessage(msg);
+        setSyncStatus('failure');
+      }
     }
   };
 
@@ -337,69 +360,87 @@ const HealthConnectScreen = () => {
         const snapshot = await loadHealthConnectSnapshot(access);
         setHealthState(snapshot);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to grant health connect access:', err);
-      Alert.alert(
-        'Permission Denied',
-        'MoveHub requires these permissions to sync your Google Fit steps.',
-      );
+      const msg = err?.message || String(err);
+      if (msg.includes('Rate limited')) {
+        setSyncErrorMessage(msg);
+        setSyncStatus('failure');
+      } else {
+        Alert.alert(
+          'Permission Denied',
+          'MoveHub requires these permissions to sync your Google Fit steps.',
+        );
+      }
+    }
+  };
+
+  const checkNativePermissions = async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const nativeStatus = await getHealthConnectWorkManagerStatus();
+      if (!nativeStatus) return;
+
+      const { exactAlarmAllowed, batteryOptimizationIgnored } = nativeStatus;
+      
+      if (!batteryOptimizationIgnored || !exactAlarmAllowed) {
+        let message = 'To ensure your health data is synchronized automatically in the background, please:\n\n';
+        if (!batteryOptimizationIgnored) {
+          message += '• Disable battery restrictions (Select "Don\'t Restrict" / "Ignore Battery Optimization")\n';
+        }
+        if (!exactAlarmAllowed) {
+          message += '• Allow scheduling exact alarms\n';
+        }
+        
+        Alert.alert(
+          'Background Sync Settings Required',
+          message,
+          [
+            {
+              text: 'Configure Settings',
+              onPress: async () => {
+                if (!batteryOptimizationIgnored) {
+                  await openHealthConnectBatteryOptimizationSettings();
+                } else if (!exactAlarmAllowed) {
+                  await openHealthConnectExactAlarmSettings();
+                }
+              }
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to check background sync permissions:', err);
     }
   };
 
   const _saveHealthData = async () => {
-    if (!summary) return;
     setSyncing(true);
+    setSyncErrorMessage(null);
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
-      const currentTime = new Date().toISOString();
-      const currentSteps = getCurrentPeriodSteps(
-        summary.stepsRecords ?? [],
-        currentTime,
-      );
-
-      // Save steps as walking activity
-      if (currentSteps > 0) {
-        await apiService.saveHealthConnectActivity({
-          uhid: targetUhid,
-          deviceId: '99kjkhgg',
-          type: 'Walking',
-          value: currentSteps,
-          metric: 'steps',
-          durationMinutes: 30,
-          caloriesBurned: summary.activeCaloriesInKcal || 150,
-          notes: 'Google Fit auto sync steps.',
-        });
+      const success = await syncHealthConnectAnalytics();
+      if (success) {
+        // Fetch dashboard data. Since we pass false (not silent), if this fails with a rate limit error,
+        // it will throw and directly trigger the catch block below instead of showing Success modal first.
+        await checkStatusAndData(false);
+        const syncTime = new Date().toISOString();
+        setLastSyncedText(syncTime);
+        setSyncStatus('success');
+      } else {
+        setSyncErrorMessage('Failed to synchronize health records. Please check permissions or try again later.');
+        setSyncStatus('failure');
       }
-
-      for (const item of todayExerciseRecords) {
-        let typeString = 'Workout';
-        if (item.type === 8) typeString = 'Running';
-        else if (item.type === 1) typeString = 'Walking';
-        else if (item.type === 57) typeString = 'Cycling';
-
-        await apiService.saveHealthConnectActivity({
-          uhid: targetUhid,
-          deviceId: '99kjkhgg',
-          type: typeString,
-          value: Math.round(item.durationHours * 60),
-          metric: 'mins',
-          durationMinutes: Math.round(item.durationHours * 60),
-          caloriesBurned: Math.round(item.durationHours * 300),
-          notes:
-            item.title ||
-            `Google Fit synced ${typeString.toLowerCase()} session.`,
-        });
-      }
-
-      const syncTime = new Date().toISOString();
-      await storageHelper.setItem(STORAGE_KEYS.LAST_GOOGLE_FIT_SYNC, syncTime);
-      setLastSyncedText(syncTime);
-      setSyncStatus('success');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save health data:', err);
+      let msg = err?.message || String(err);
+      if (msg.includes('Rate limited') || msg.includes('quota has been exceeded')) {
+        msg = 'Request rejected. Rate limited request quota has been exceeded. Please wait until quota has replenished before making further requests.';
+      }
+      setSyncErrorMessage(msg);
       setSyncStatus('failure');
     } finally {
       setSyncing(false);
@@ -423,6 +464,18 @@ const HealthConnectScreen = () => {
     }
 
     checkStatusAndData();
+    checkNativePermissions();
+
+    // Auto-sync Health Connect data with backend based on lastSyncTime
+    syncHealthConnectAnalytics()
+      .then(async success => {
+        if (success) {
+          await checkStatusAndData(true);
+        }
+      })
+      .catch(err => {
+        console.warn('[StepsTrackingTab] Auto-sync on focus failed:', err);
+      });
 
     hasMountedRef.current = true;
 
@@ -435,6 +488,8 @@ const HealthConnectScreen = () => {
       if (nextState === 'active') {
         setTimeout(() => {
           checkStatusAndData(true);
+          checkNativePermissions();
+          syncHealthConnectAnalytics().catch(() => {});
         }, 800);
       }
     });
@@ -459,7 +514,10 @@ const HealthConnectScreen = () => {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      await syncHealthConnectAnalytics();
       await checkStatusAndData();
+    } catch (err) {
+      console.warn('[StepsTrackingTab] Refresh sync failed:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -467,7 +525,6 @@ const HealthConnectScreen = () => {
 
   return (
     <View style={s.root}>
-      <CustomHeader title={'Activity Tracker'} showDrawerButton />
 
       <ScrollView
         contentContainerStyle={s.container}
@@ -515,13 +572,22 @@ const HealthConnectScreen = () => {
             </View>
           </View>
 
-          <View style={s.headerMetaRow}>
+          <View style={[s.headerMetaRow, { justifyContent: 'space-between', alignItems: 'center' }]}>
             <View style={s.headerMetaItem}>
               <Icon name="sync" size={12} color={T.textMuted} />
               <Text style={s.headerMetaText}>
                 Last Synced:{' '}
                 {lastSyncedAt ? formatDateTime(lastSyncedAt) : 'Never synced'}
               </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 11, marginRight: 6 }}>Setup Info</Text>
+              <Switch
+                value={showSetupUI}
+                onValueChange={setShowSetupUI}
+                trackColor={{ false: '#334155', true: '#6366f1' }}
+                thumbColor={showSetupUI ? '#ffffff' : '#94a3b8'}
+              />
             </View>
           </View>
         </View>
@@ -655,8 +721,8 @@ const HealthConnectScreen = () => {
                   unit="steps"
                   icon="👟"
                   progress={summary.steps / 10000}
-                  color="#D97706"
-                  bgColor="#FEF3C7"
+                  color={METRIC_COLORS.steps.main}
+                  bgColor={METRIC_COLORS.steps.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -665,8 +731,8 @@ const HealthConnectScreen = () => {
                   value={summary.activeCaloriesInKcal}
                   unit="kcal"
                   icon="🔥"
-                  color="#EF4444"
-                  bgColor="#FEE2E2"
+                  color={METRIC_COLORS.calories.main}
+                  bgColor={METRIC_COLORS.calories.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -675,8 +741,8 @@ const HealthConnectScreen = () => {
                   value={summary.distanceInKm}
                   unit="km"
                   icon="📍"
-                  color="#3B82F6"
-                  bgColor="#E0F2FE"
+                  color={METRIC_COLORS.distance.main}
+                  bgColor={METRIC_COLORS.distance.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -696,8 +762,8 @@ const HealthConnectScreen = () => {
                   value={summary.averageHeartRate ?? '--'}
                   unit="bpm"
                   icon="❤️"
-                  color="#F43F5E"
-                  bgColor="#FFE4E6"
+                  color={METRIC_COLORS.heartPoints.main}
+                  bgColor={METRIC_COLORS.heartPoints.light}
                 />
               </View>
               <View style={s.cardWrapper}>
@@ -706,8 +772,8 @@ const HealthConnectScreen = () => {
                   value={summary.totalCaloriesInKcal}
                   unit="kcal"
                   icon="⚡"
-                  color="#10B981"
-                  bgColor="#ECFDF5"
+                  color={METRIC_COLORS.calories.main}
+                  bgColor={METRIC_COLORS.calories.light}
                 />
               </View>
             </View>
@@ -1007,8 +1073,7 @@ const HealthConnectScreen = () => {
                 </View>
                 <Text style={s.statusTitle}>Sync Failed</Text>
                 <Text style={s.statusSub}>
-                  Failed to synchronize health records. Please check your
-                  network connection and try again.
+                  {syncErrorMessage || 'Failed to synchronize health records. Please check your network connection and try again.'}
                 </Text>
                 <TouchableOpacity
                   style={s.statusButtonFailure}
@@ -1036,4 +1101,4 @@ const HealthConnectScreen = () => {
   );
 };
 
-export default HealthConnectScreen;
+export default StepsTrackingTab;

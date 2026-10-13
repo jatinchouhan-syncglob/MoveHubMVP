@@ -1,7 +1,7 @@
 export const STRINGS = {
-  APP_NAME: 'MoveHub MVP',
+  APP_NAME: 'Uncurl: health',
   SPLASH: {
-    WELCOME: 'Welcome to MoveHub',
+    WELCOME: 'Welcome to Uncurl: health',
     TAGLINE: 'Track your movement, power your life.',
   },
   DISCLAIMER: {
@@ -34,7 +34,7 @@ export const STRINGS = {
     WEEKLY_TRENDS: 'Weekly Trends',
   },
   ACTIVITY_TRACKING: {
-    TITLE: 'Activity Tracking',
+    TITLE: 'Activity Logger',
     LOG_ACTIVITY: 'Log a New Activity',
     NO_ACTIVITIES: 'No activities recorded today.',
   },
