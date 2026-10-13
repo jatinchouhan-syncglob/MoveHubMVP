@@ -6,6 +6,7 @@ export const ROUTES = {
   PROFILE_SETUP: 'ProfileSetup',
   WELLNESS_PACING_PROFILE: 'WellnessPacingProfile',
   WELLNESS_PRESCRIPTION: 'WellnessPrescription',
+  ARENA: 'Arena',
   DRAWER: 'DrawerNavigator',
   DASHBOARD: 'Dashboard',
   ACTIVITY_TRACKING: 'ActivityTracking',

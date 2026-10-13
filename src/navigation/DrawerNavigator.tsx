@@ -31,6 +31,7 @@ import LifestyleProfilerScreen from '../screens/LifestyleProfiler';
 import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
+import ArenaScreen from '../screens/Arena';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import { PrescriptionScreen } from '../screens/Prescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
@@ -354,6 +355,8 @@ const DrawerNavigatorContent: React.FC = () => {
 
   const renderActiveScreen = () => {
     switch (activeScreen) {
+      case 'Arena':
+        return <ArenaScreen />;
       case 'FitnessPrescription':
         return <WellnessPrescriptionScreen showDrawer={true} />;
       case 'Prescription':
@@ -430,6 +433,11 @@ const DrawerNavigatorContent: React.FC = () => {
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
+      {
+        screen: 'Arena',
+        label: 'Arena',
+        icon: '🏟️',
+      },
       {
         screen: 'FitnessPrescription',
         label: 'Fitness Prescription',
@@ -737,6 +745,7 @@ const DrawerNavigatorContent: React.FC = () => {
                 const isMoveHubActive =
                   pendingScreen !== null
                     ? [
+                        'Arena',
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
@@ -749,6 +758,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'FitnessTraining',
                       ].includes(pendingScreen)
                     : [
+                        'Arena',
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',

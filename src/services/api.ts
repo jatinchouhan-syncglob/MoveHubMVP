@@ -1168,6 +1168,22 @@ export const apiService = {
       throw error;
     }
   },
+
+  async getArenas(): Promise<any[]> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/challenge/arenas`;
+      console.log(`[apiService] GET getArenas URL: ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('[apiService] Error in getArenas:', error.response?.data || error.message);
+      throw error;
+    }
+  },
 };
 
 /**
