@@ -22,6 +22,7 @@ export const ROUTES = {
   DEMO_POST_WORKOUT_SUMMARY: 'DemoPostWorkoutSummary',
   RESET_PASSWORD: 'ResetPassword',
   FORGOT_PASSWORD: 'ForgotPassword',
+  PRIVACY_POLICY: 'PrivacyPolicy',
 } as const;
 
 export type RouteType = typeof ROUTES[keyof typeof ROUTES];

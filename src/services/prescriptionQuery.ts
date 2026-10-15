@@ -3,10 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 export const fetchPrescriptionApi = async (uhid: string) => {
   const formData = new FormData();
   formData.append('uhid', uhid);
-
-  console.log(
-    '[prescriptionQuery] Fetching URL: http://13.204.123.149:8000/health/api/prescription-build',
-  );
   const res = await fetch(
     'http://13.204.123.149:8000/health/api/prescription-build',
     {

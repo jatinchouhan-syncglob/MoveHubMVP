@@ -58,6 +58,7 @@ export type RootStackParamList = {
   ForgotPassword?: {
     email?: string;
   };
+  PrivacyPolicy: undefined;
 };
 
 declare global {

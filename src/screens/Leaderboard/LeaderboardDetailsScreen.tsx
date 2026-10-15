@@ -354,6 +354,17 @@ export const LeaderboardDetailsScreen: React.FC = () => {
               </View>
             ) : null}
 
+            {/* Daily EOD Audit from API */}
+            {player.dailyEodAudit ? (
+              <View style={[styles.questAlertCard, { backgroundColor: '#131B2E', borderColor: '#1E293B' }]}>
+                <View style={styles.questHeaderRow}>
+                  <Text style={styles.questIcon}>📑</Text>
+                  <Text style={styles.questTitle}>Daily EOD Audit</Text>
+                </View>
+                <Text style={styles.questText}>"{player.dailyEodAudit}"</Text>
+              </View>
+            ) : null}
+
             {/* Calculation Timestamp from API */}
             {player.calculationTimestamp ? (
               <View style={styles.timestampRow}>

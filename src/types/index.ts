@@ -73,6 +73,35 @@ export interface Phase1LeaderboardResponse {
   uhid: string;
 }
 
+export interface Phase2LeaderboardItem {
+  RANK: string;
+  USER_ID: string;
+  MASTER_COMPOUND_SCORE: string;
+  STATUS: string;
+  BEHAVIORAL_TRACK_CUM_CMAS: string;
+  PHYSIOLOGICAL_TRACK_CUM_BSE: string;
+  PPI_CARDIO_QUALITY: string;
+  E3_METABOLIC_ECONOMY: string;
+  IS_CIRCADIAN_RHYTHM: string;
+  MULTI_WEEK_PHYSIOLOGICAL_RECOVERY_INFERENCE: string;
+  DAILY_EOD_AUDIT: string;
+  MIDDAY_QUEST_ALERT: string;
+}
+
+export interface Phase2LeaderboardResponse {
+  status: string;
+  challenge_id: string;
+  active_challenge_day: number;
+  cutoff_at: string;
+  participants: number;
+  rank_scope: string;
+  persistence?: {
+    database: string;
+    redis: string;
+  };
+  leaderboard: Phase2LeaderboardItem[];
+}
+
 export interface IChallengeLiveFeedItem {
   score: number;
   trend: 'UP' | 'DOWN' | 'STABLE' | string;
@@ -95,6 +124,22 @@ export interface IChallengeLeaderboardResponse {
   stage: number;
   myRankSummary: IChallengeMyRankSummary;
   category: string;
+  status: string;
+}
+
+export interface IPodiumTier {
+  reward: string;
+  tier: number;
+  qualificationDays: string;
+  place: string;
+  title: string;
+  status: string;
+}
+
+export interface IChallengePodiumResponse {
+  podiumTiers: IPodiumTier[];
+  heading: string;
+  tagline: string;
   status: string;
 }
 

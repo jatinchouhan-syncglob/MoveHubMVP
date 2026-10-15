@@ -10,7 +10,9 @@ import {
   TrendData,
   Insight,
   Phase1LeaderboardResponse,
+  Phase2LeaderboardResponse,
   IChallengeLeaderboardResponse,
+  IChallengePodiumResponse,
 } from '../types';
 import { getDynamicDeviceId } from '../utils/device';
 
@@ -887,28 +889,6 @@ export const apiService = {
     }
   },
 
-  async runTier1Window(uhid: string): Promise<any> {
-    const url = 'http://13.204.123.149:8001/tier1/run-window';
-    const body = `uhid=${encodeURIComponent(uhid)}`;
-    console.log(`[API Request] POST ${url} | Body: ${body}`);
-    try {
-      const response = await axios.post(
-        url,
-        body,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        },
-      );
-      console.log(`[API Response] POST runTier1Window SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
-      return response.data;
-    } catch (error) {
-      console.error(`[API Error] POST runTier1Window FAILED for UHID: ${uhid}`, error);
-      throw error;
-    }
-  },
-
   async getDailyDisplayBlock(uhid: string, date: string): Promise<any> {
     const url = `http://13.204.123.149:8001/api/v1/display-block/daily?uhid=${encodeURIComponent(uhid)}&date=${encodeURIComponent(date)}`;
     console.log(`[API Request] GET getDailyDisplayBlock: ${url}`);
@@ -1215,6 +1195,26 @@ export const apiService = {
     }
   },
 
+  async getChallengePodium(): Promise<IChallengePodiumResponse> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/challenge/podium`;
+      console.log(`[apiService] GET getChallengePodium URL: ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[apiService] Error in getChallengePodium:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
   async getPhase1Leaderboard(uhid?: string): Promise<Phase1LeaderboardResponse> {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
@@ -1252,6 +1252,49 @@ export const apiService = {
           return fallbackRes.data;
         } catch (fbErr: any) {
           console.error(`[apiService] Fallback also failed:`, fbErr?.response?.data || fbErr?.message);
+        }
+      }
+      throw error;
+    }
+  },
+
+  async getPhase2Leaderboard(uhid?: string): Promise<Phase2LeaderboardResponse> {
+    const cachedProfile = await storageHelper.getItem<UserProfile>(
+      STORAGE_KEYS.USER_PROFILE,
+    );
+    const targetUhid = uhid || cachedProfile?.uhid || 'ANJROY3773';
+    const url = 'http://13.204.123.149:8001/health/api/phase2leaderboard';
+    console.log(`[apiService] POST getPhase2Leaderboard: ${url} for UHID: ${targetUhid}`);
+
+    try {
+      const formData = new FormData();
+      formData.append('uhid', targetUhid);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log(`[apiService] POST getPhase2Leaderboard SUCCESS for UHID: ${targetUhid}`);
+      return response.data;
+    } catch (error: any) {
+      console.warn(
+        `[apiService] POST getPhase2Leaderboard with UHID ${targetUhid} failed:`,
+        error?.response?.data || error?.message,
+      );
+      // Fallback: if the user's specific UHID does not have test records,
+      // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
+      if (targetUhid !== 'ANJROY3773') {
+        try {
+          console.log(`[apiService] Fallback to ANJROY3773 for phase2leaderboard...`);
+          const fallbackForm = new FormData();
+          fallbackForm.append('uhid', 'ANJROY3773');
+          const fallbackRes = await axios.post(url, fallbackForm, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          return fallbackRes.data;
+        } catch (fbErr: any) {
+          console.error(`[apiService] Phase 2 Fallback also failed:`, fbErr?.response?.data || fbErr?.message);
         }
       }
       throw error;

@@ -1,853 +1,325 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ScrollView,
-  Text,
   View,
+  Text,
+  ScrollView,
   StatusBar,
-  Animated,
+  Dimensions,
+  RefreshControl,
   ActivityIndicator,
-  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, {
+  Text as SvgText,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from 'react-native-svg';
 import LinearGradient from 'react-native-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScaledSheet } from 'react-native-size-matters';
-import Svg, { Path, Circle } from 'react-native-svg';
-
-import { useDrawer } from '../../navigation/DrawerContext';
+import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
+import { IChallengePodiumResponse, IPodiumTier } from '../../types';
+import { styles } from './styles';
 
-// Local Style Tokens
-const Colors = {
-  neutral: {
-    white: '#FFFFFF',
-    black: '#0F172A',
-    s400: '#94A3B8',
-    s500: '#64748B',
-    s700: '#334155',
-  },
-  primary: {
-    brand: '#6366F1', // Primary brand Indigo
-  },
-  dashboardColors: {
-    indigoBrand: '#4F46E5',
-    indigoDeep: '#312E81',
-    indigoCardBg: '#EEF2FF',
-    goldMedium: '#F59E0B',
-    goldLight: '#FEF3C7',
-    goldDark: '#B45309',
-    amberLight: '#FEF3C7',
-    amberNormal: '#D97706',
-    amberDeep: '#B45309',
-    amberOrange: '#F59E0B',
-    slateLight: '#F1F5F9',
-    slateMedium: '#CBD5E1',
-    slateDark: '#475569',
-    slateSilver: '#E2E8F0',
-    overlayWhite: 'rgba(255, 255, 255, 0.15)',
-    overlayWhite85: 'rgba(255, 255, 255, 0.85)',
-    overlayBlack03: 'rgba(0, 0, 0, 0.03)',
-  },
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const Outlines = {
-  shadow: {
-    base: {
-      shadowColor: '#0f172a',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 3,
+const FALLBACK_PODIUM_DATA: IChallengePodiumResponse = {
+  podiumTiers: [
+    {
+      reward: 'National Championship Belt + Health Grant',
+      tier: 1,
+      qualificationDays: 'Days 15–21',
+      place: '01',
+      title: 'NATIONAL CHAMPION',
+      status: 'STAGE 3 PODIUM FINALE',
     },
-  },
-};
-
-const Typography = {
-  textStyle: {
-    bold: {
-      fontWeight: 'bold' as const,
+    {
+      reward: 'Silver Laurels + Longevity Grant',
+      tier: 2,
+      qualificationDays: 'Days 15–21',
+      place: '02',
+      title: 'NATIONAL RUNNER-UP',
+      status: 'STAGE 3 PODIUM FINALE',
     },
-    medium: {
-      fontWeight: '500' as const,
+    {
+      reward: 'Bronze Medal + Fitness Technology Kit',
+      tier: 3,
+      qualificationDays: 'Days 15–21',
+      place: '03',
+      title: 'NATIONAL PODIUM',
+      status: 'STAGE 3 PODIUM FINALE',
     },
-    semiBold: {
-      fontWeight: '600' as const,
-    },
-  },
+  ],
+  heading: 'THE NATIONAL PODIUM.',
+  tagline: '21 days. Thousands of contenders. One national podium.',
+  status: 'SUCCESS',
 };
 
-// Custom SVG Icons to avoid native font Glyphs issues
-const Icon = ({
-  name,
-  size = 24,
-  color = '#000',
-  style,
-}: {
-  name: string;
-  size?: number;
-  color?: string;
-  style?: any;
-}) => {
-  if (name === 'crown') {
-    return (
-      <View style={style}>
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M2 4l4 5 6-6 6 6 4-5-2 15H4L2 4z"
-            fill={color}
-          />
-        </Svg>
-      </View>
-    );
-  }
+export const AwardsScreen: React.FC = () => {
+  const footerWidth = SCREEN_WIDTH - 24;
 
-  if (name === 'medal-outline') {
-    return (
-      <View style={style}>
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M8.24 2h7.52L12 11 8.24 2z"
-            fill={color}
-            opacity={0.8}
-          />
-          <Path
-            d="M9.5 2L12 8l2.5-6h-5z"
-            fill="#FFF"
-            opacity={0.3}
-          />
-          <Circle cx="12" cy="14" r="5" fill={color} stroke={color} strokeWidth={1} />
-          <Path
-            d="M12 11.5l.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.9-1.6.9.3-1.7-1.2-1.2 1.7-.2.8-1.6z"
-            fill="#FFF"
-          />
-        </Svg>
-      </View>
-    );
-  }
+  const [podiumData, setPodiumData] =
+    useState<IChallengePodiumResponse>(FALLBACK_PODIUM_DATA);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  if (name === 'star-face') {
-    return (
-      <View style={style}>
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-            fill={color}
-            stroke={color}
-            strokeWidth={1}
-            strokeLinejoin="round"
-          />
-          <Circle cx="9.5" cy="11.5" r="1.2" fill="#FFFFFF" />
-          <Circle cx="14.5" cy="11.5" r="1.2" fill="#FFFFFF" />
-          <Path
-            d="M9.5 14C10.2 15.2 13.8 15.2 14.5 14"
-            stroke="#FFFFFF"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            fill="none"
-          />
-          <Circle cx="12" cy="17.2" r="2.2" fill="#FFFFFF" />
-          <Circle cx="12" cy="17.2" r="1" fill={color} />
-        </Svg>
-      </View>
-    );
-  }
-
-  if (name === 'trophy-outline') {
-    return (
-      <View style={style}>
-        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M6 9H4.5a2.5 2.5 0 010-5H6v5zm12 0h1.5a2.5 2.5 0 000-5H18v5z"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M6 4h12v7a6 6 0 01-12 0V4z"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-          <Path
-            d="M12 15v5M9 20h6"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-        </Svg>
-      </View>
-    );
-  }
-
-  return null;
-};
-
-const getInitials = (name: string) => {
-  if (!name) return '';
-  const parts = name.trim().split(' ');
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
-};
-
-const UserAvatar = ({
-  name,
-  style,
-  textStyle,
-}: {
-  name: string;
-  style?: any;
-  textStyle?: any;
-}) => {
-  return (
-    <View style={[style, styles.avatarContainer]}>
-      <Text style={[styles.avatarText, textStyle]}>{getInitials(name)}</Text>
-    </View>
-  );
-};
-
-const AwardsScreen = () => {
-  const drawer = useDrawer();
-  const insets = useSafeAreaInsets();
-  const [awardData, setAwardData] = useState<any>({
-    company: 'INOX INDIA Fitness Award',
-    challengeDetail: 'Excellence in Health & Wellness',
-    challengeName: '7 day steps challenge Top-3 winners',
-    overallChampionName: 'Nirali Barot',
-    bioSyncScore: '71.87%',
-    rankings: [
-      { userName: 'ANSHUL BAFNA', totalSteps: 154830 },
-      { userName: 'PRATIK SONI', totalSteps: 152805 },
-      { userName: 'Nirali Barot', totalSteps: 123634 },
-    ],
-  });
-  const [isLoading, setIsLoading] = useState(false);
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  // Fetch live podium data from API
+  const fetchPodium = useCallback(async () => {
+    try {
+      const res = await apiService.getChallengePodium();
+      if (res && Array.isArray(res.podiumTiers) && res.podiumTiers.length > 0) {
+        setPodiumData(res);
+      }
+    } catch (err) {
+      console.warn('[AwardsScreen] Failed to fetch challenge podium:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 20,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    fetchPodium();
+  }, [fetchPodium]);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [fadeAnim, slideAnim, pulseAnim]);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPodium();
+  }, [fetchPodium]);
 
-  const rankings = awardData?.rankings ?? [];
-  const sortedRankings = [...rankings].sort(
-    (a, b) => (b.totalSteps || 0) - (a.totalSteps || 0),
-  );
+  // Extract tiers by priority
+  const tiers: IPodiumTier[] =
+    podiumData.podiumTiers && podiumData.podiumTiers.length > 0
+      ? podiumData.podiumTiers
+      : FALLBACK_PODIUM_DATA.podiumTiers;
 
-  const displayRankings = sortedRankings;
-  const topThree = displayRankings.slice(0, 3);
-  const overallChampion = {
-    name: awardData?.overallChampionName || 'Winner',
-    efficiency: awardData?.bioSyncScore || 0,
-  };
+  const tier1 =
+    tiers.find(t => t.tier === 1 || t.place === '01') ||
+    FALLBACK_PODIUM_DATA.podiumTiers[0];
+  const tier2 =
+    tiers.find(t => t.tier === 2 || t.place === '02') ||
+    FALLBACK_PODIUM_DATA.podiumTiers[1];
+  const tier3 =
+    tiers.find(t => t.tier === 3 || t.place === '03') ||
+    FALLBACK_PODIUM_DATA.podiumTiers[2];
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={Colors.primary.brand} />
-        <Text style={[styles.headerSubtitle, { color: '#666', marginTop: 10 }]}>
-          Fetching latest awards...
-        </Text>
-      </View>
-    );
-  }
-
-  const isEmpty = rankings.length === 0 && !awardData?.overallChampionName;
+  // Split Champion title for two-tone color ("NATIONAL" white, "CHAMPION" gold)
+  const [t1First, ...t1Rest] = (tier1.title || 'NATIONAL CHAMPION').split(' ');
+  const t1Second = t1Rest.join(' ') || 'CHAMPION';
 
   return (
-    <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={Colors.primary.brand}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070B14" />
+
+      {/* Screen Header */}
+      <CustomHeader
+        title="REWARDS"
+        showDrawerButton={true}
+        containerStyle={styles.headerContainer}
+        titleStyle={styles.headerTitle}
+        buttonStyle={styles.headerButton}
+        iconStyle={styles.headerIcon}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <LinearGradient
-          colors={[
-            Colors.primary.brand,
-            Colors.dashboardColors.indigoBrand,
-            Colors.dashboardColors.indigoDeep,
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.headerGradient, { paddingTop: insets.top + 10, paddingBottom: 25 }]}>
-          
-          {/* Header Action Bar */}
-          <View style={styles.headerBar}>
-            <TouchableOpacity onPress={() => drawer?.openDrawer()} style={styles.headerButton} activeOpacity={0.7}>
-              <Text style={styles.headerButtonText}>☰</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => drawer?.setActiveScreen('Profile')} style={styles.headerProfileButton} activeOpacity={0.7}>
-              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
-                  stroke="#6366F1"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <Circle
-                  cx="12"
-                  cy="7"
-                  r="4"
-                  stroke="#6366F1"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-            </TouchableOpacity>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#F59E0B"
+            colors={['#F59E0B', '#EC4899', '#3B82F6']}
+          />
+        }
+      >
+        {/* ================= TOP HEADER SECTION ================= */}
+        <View style={styles.headerSection}>
+          {/* Eyebrow */}
+          <Text style={styles.eyebrowText}>THE DESTINATION</Text>
+
+          {/* Main Title Line 1 */}
+          <Text style={styles.mainTitleWhite}>THE NATIONAL</Text>
+
+          {/* Main Title Line 2 (Gradient Text: PODIUM.) */}
+          <View style={styles.gradientTitleContainer}>
+            <Svg height="44" width="220" viewBox="0 0 220 44">
+              <Defs>
+                <SvgGradient id="podiumGrad" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0%" stopColor="#F59E0B" />
+                  <Stop offset="55%" stopColor="#EC4899" />
+                  <Stop offset="100%" stopColor="#E11D48" />
+                </SvgGradient>
+              </Defs>
+              <SvgText
+                fill="url(#podiumGrad)"
+                fontSize="36"
+                fontWeight="900"
+                x="110"
+                y="34"
+                textAnchor="middle"
+                letterSpacing="-0.5"
+              >
+                PODIUM.
+              </SvgText>
+            </Svg>
           </View>
 
-          <Text style={styles.headerTitle}>
-            {awardData?.company}
+          {/* Subtitle / Tagline from API */}
+          <Text style={styles.subtitleText}>
+            {podiumData.tagline || FALLBACK_PODIUM_DATA.tagline}
           </Text>
-          <Text style={styles.headerSubtitle}>
-            {awardData?.challengeDetail}
-          </Text>
-        </LinearGradient>
+        </View>
 
-        <Animated.View
-          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {isEmpty ? (
-            <View style={styles.emptyStateContainer}>
-              <Icon name="trophy-outline" size={80} color="#CBD5E1" />
-              <Text style={styles.emptyStateTitle}>No Results Yet</Text>
-            </View>
-          ) : (
-            <>
-              {/* Overall Winner Card */}
-              <View style={styles.overallWinnerCard}>
-                <LinearGradient
-                  colors={[
-                    Colors.dashboardColors.goldMedium,
-                    Colors.dashboardColors.goldLight,
-                    Colors.dashboardColors.goldMedium,
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.goldWinnerGradient}
-                />
-                <View style={styles.overallWinnerContent}>
-                  <View style={styles.sparkle} />
-                  <View style={styles.winnerIconContainer}>
-                    <Icon name="star-face" size={40} color="#D97706" />
-                  </View>
-                  <View style={styles.winnerInfo}>
-                    <Text style={styles.winnerLabel}>🏆 OVERALL WINNER</Text>
-                    <Text style={styles.winnerName}>
-                      {overallChampion.name}
-                    </Text>
-                    <Text style={styles.winnerValue}>
-                      Bio-Sync Efficiency: {overallChampion.efficiency}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+        {/* ================= 3-TIER PODIUM SECTION ================= */}
+        <View style={styles.podiumWrapper}>
+          <View style={styles.podiumColumnsRow}>
+            {/* ---------- LEFT COLUMN: 02 (NATIONAL RUNNER-UP) ---------- */}
+            <View style={[styles.pillarColumn, styles.columnSide]}>
+              <Text style={styles.numberSideText}>{tier2.place || '02'}</Text>
 
-              {/* Title Section */}
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>
-                  7 day steps challenge Top-3 winners
+              <Text style={styles.titleSideText}>
+                {tier2.title || 'NATIONAL RUNNER-UP'}
+              </Text>
+
+              <View style={[styles.dashedBadge, styles.dashedBadgeSide]}>
+                <Text style={styles.badgeRewardsText}>REWARDS</Text>
+                <Text
+                  style={styles.badgeAnnouncedText}
+                  numberOfLines={3}
+                  ellipsizeMode="tail"
+                >
+                  {tier2.reward || 'TO BE ANNOUNCED'}
                 </Text>
               </View>
 
-              {/* Podium Leaderboard */}
-              <View style={styles.leaderboardContainer}>
-                {/* 2nd Place */}
-                {topThree[1] && (
-                  <View style={[styles.rankCard, styles.secondRankCard]}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        { backgroundColor: '#94A3B8' },
-                      ]}>
-                      <Text style={styles.rankText}>2</Text>
-                    </View>
-                    <Icon
-                      name="medal-outline"
-                      size={20}
-                      color="#64748B"
-                      style={styles.podiumIcon}
-                    />
-                    <UserAvatar
-                      name={topThree[1].userName}
-                      style={styles.rankUserImage}
-                    />
-                    <View style={nameContainerStyles()}>
-                      <Text
-                        style={styles.rankUserName}
-                        numberOfLines={2}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.8}>
-                        {topThree[1].userName}
-                      </Text>
-                    </View>
-                    <Text
-                      style={styles.rankValue}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}>
-                      {topThree[1].totalSteps.toLocaleString('en-IN')} Steps
-                    </Text>
-                  </View>
-                )}
+              <View style={[styles.podiumBlockSide, styles.podiumBlockLeft]} />
+            </View>
 
-                {/* 1st Place */}
-                {topThree[0] && (
-                  <Animated.View
-                    style={[
-                      styles.rankCard,
-                      styles.firstRankCard,
-                      { transform: [{ scale: pulseAnim }] },
-                    ]}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        { backgroundColor: '#F59E0B' },
-                      ]}>
-                      <Text style={styles.rankText}>1</Text>
-                    </View>
-                    <Icon
-                      name="crown"
-                      size={26}
-                      color="#F59E0B"
-                      style={styles.podiumIcon}
-                    />
-                    <UserAvatar
-                      name={topThree[0].userName}
-                      style={styles.rankUserImage}
-                    />
-                    <View style={nameContainerStyles()}>
-                      <Text
-                        style={styles.rankUserName}
-                        numberOfLines={2}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.8}>
-                        {topThree[0].userName}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[styles.rankValue, styles.firstRankValue]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}>
-                      {topThree[0].totalSteps.toLocaleString('en-IN')} Steps
-                    </Text>
-                  </Animated.View>
-                )}
-
-                {/* 3rd Place */}
-                {topThree[2] && (
-                  <View style={[styles.rankCard, styles.thirdRankCard]}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        { backgroundColor: '#D97706' },
-                      ]}>
-                      <Text style={styles.rankText}>3</Text>
-                    </View>
-                    <Icon
-                      name="medal-outline"
-                      size={20}
-                      color="#B45309"
-                      style={styles.podiumIcon}
-                    />
-                    <UserAvatar
-                      name={topThree[2].userName}
-                      style={styles.rankUserImage}
-                    />
-                    <View style={nameContainerStyles()}>
-                      <Text
-                        style={styles.rankUserName}
-                        numberOfLines={2}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.8}>
-                        {topThree[2].userName}
-                      </Text>
-                    </View>
-                    <Text
-                      style={styles.rankValue}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}>
-                      {topThree[2].totalSteps.toLocaleString('en-IN')} Steps
-                    </Text>
-                  </View>
-                )}
+            {/* ---------- CENTER COLUMN: 01 (NATIONAL CHAMPION) ---------- */}
+            <View style={[styles.pillarColumn, styles.columnCenter]}>
+              <View style={styles.numberContainerCenter}>
+                <Svg height="60" width="80" viewBox="0 0 80 60">
+                  <Defs>
+                    <SvgGradient id="championNumGrad" x1="0" y1="0" x2="1" y2="1">
+                      <Stop offset="0%" stopColor="#EC4899" />
+                      <Stop offset="100%" stopColor="#F59E0B" />
+                    </SvgGradient>
+                  </Defs>
+                  <SvgText
+                    fill="url(#championNumGrad)"
+                    fontSize="50"
+                    fontWeight="900"
+                    x="40"
+                    y="48"
+                    textAnchor="middle"
+                    letterSpacing="-1"
+                  >
+                    {tier1.place || '01'}
+                  </SvgText>
+                </Svg>
               </View>
 
+              <View style={styles.titleCenterRow}>
+                <Text style={styles.titleCenterWhite}>{t1First}</Text>
+                <Text style={styles.titleCenterGold}>{t1Second}</Text>
+              </View>
 
-            </>
-          )}
-        </Animated.View>
+              <View style={[styles.dashedBadge, styles.dashedBadgeCenter]}>
+                <Text
+                  style={[
+                    styles.badgeRewardsText,
+                    styles.badgeRewardsTextCenter,
+                  ]}
+                >
+                  REWARDS
+                </Text>
+                <Text
+                  style={[
+                    styles.badgeAnnouncedText,
+                    styles.badgeAnnouncedTextCenter,
+                  ]}
+                  numberOfLines={3}
+                  ellipsizeMode="tail"
+                >
+                  {tier1.reward || 'TO BE ANNOUNCED'}
+                </Text>
+              </View>
+
+              <View style={styles.podiumBlockCenter}>
+                <LinearGradient
+                  colors={['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.01)']}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={styles.podiumCenterGlowOverlay}
+                />
+              </View>
+            </View>
+
+            {/* ---------- RIGHT COLUMN: 03 (NATIONAL PODIUM) ---------- */}
+            <View style={[styles.pillarColumn, styles.columnSide]}>
+              <Text style={styles.numberSideText}>{tier3.place || '03'}</Text>
+
+              <Text style={styles.titleSideText}>
+                {tier3.title || 'NATIONAL PODIUM'}
+              </Text>
+
+              <View style={[styles.dashedBadge, styles.dashedBadgeSide]}>
+                <Text style={styles.badgeRewardsText}>REWARDS</Text>
+                <Text
+                  style={styles.badgeAnnouncedText}
+                  numberOfLines={3}
+                  ellipsizeMode="tail"
+                >
+                  {tier3.reward || 'TO BE ANNOUNCED'}
+                </Text>
+              </View>
+
+              <View style={[styles.podiumBlockSide, styles.podiumBlockRight]} />
+            </View>
+          </View>
+
+          {/* Floor / Ground Line */}
+          <View style={styles.podiumBaseLine} />
+        </View>
+
+        {/* ================= BOTTOM HERO CALLOUT / QUOTE ================= */}
+        <View style={styles.footerHeroContainer}>
+          <Text style={styles.footerWhiteQuote}>
+            YOUR ARENA GETS YOU INTO THE GAME.
+          </Text>
+
+          <View style={styles.footerGradientSvgContainer}>
+            <Svg
+              height="28"
+              width={footerWidth}
+              viewBox={`0 0 ${footerWidth} 28`}
+            >
+              <Defs>
+                <SvgGradient id="footerQuoteGrad" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0%" stopColor="#3B82F6" />
+                  <Stop offset="30%" stopColor="#8B5CF6" />
+                  <Stop offset="62%" stopColor="#EC4899" />
+                  <Stop offset="100%" stopColor="#F59E0B" />
+                </SvgGradient>
+              </Defs>
+              <SvgText
+                fill="url(#footerQuoteGrad)"
+                fontSize="12"
+                fontWeight="900"
+                x={footerWidth / 2}
+                y="19"
+                textAnchor="middle"
+                letterSpacing="0.2"
+              >
+                YOUR PERFORMANCE TAKES YOU TO THE PODIUM.
+              </SvgText>
+            </Svg>
+          </View>
+        </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
-
-// Workaround function for styling nameContainer type cast
-const nameContainerStyles = () => {
-  return styles.nameContainer as any;
-};
-
-export const awardStyles = ScaledSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.neutral.white,
-  },
-  headerGradient: {
-    paddingHorizontal: '24@ms',
-    borderBottomLeftRadius: '45@ms',
-    borderBottomRightRadius: '45@ms',
-    alignItems: 'center',
-    marginBottom: '20@ms',
-    ...Outlines.shadow.base,
-    borderWidth: 1,
-    borderColor: Colors.dashboardColors.overlayWhite,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: '20@ms',
-  },
-  headerButton: {
-    width: '38@ms',
-    height: '38@ms',
-    borderRadius: '10@ms',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  headerButtonText: {
-    fontSize: '20@ms',
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  headerProfileButton: {
-    width: '38@ms',
-    height: '38@ms',
-    borderRadius: '19@ms',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerProfileText: {
-    color: '#6366F1',
-    fontSize: '13@ms',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: '22@ms',
-    color: Colors.neutral.white,
-    ...Typography.textStyle.bold,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-    marginBottom: '4@ms',
-  },
-  headerSubtitle: {
-    fontSize: '13@ms',
-    color: Colors.dashboardColors.overlayWhite85,
-    ...Typography.textStyle.medium,
-    textAlign: 'center',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: '16@ms',
-    marginBottom: '15@ms',
-  },
-  sectionTitle: {
-    fontSize: '16@ms',
-    color: Colors.neutral.black,
-    ...Typography.textStyle.bold,
-  },
-  seeAll: {
-    fontSize: '13@ms',
-    color: Colors.primary.brand,
-    ...Typography.textStyle.bold,
-  },
-  overallWinnerCard: {
-    marginHorizontal: '16@ms',
-    padding: '1.5@ms',
-    borderRadius: '24@ms',
-    marginBottom: '25@ms',
-    ...Outlines.shadow.base,
-    position: 'relative',
-  },
-  overallWinnerContent: {
-    backgroundColor: Colors.neutral.white,
-    borderRadius: '23@ms',
-    padding: '18@ms',
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  goldWinnerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: '24@ms',
-  },
-  sparkle: {
-    position: 'absolute',
-    width: '100@ms',
-    height: '100@ms',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: '50@ms',
-    top: '-30@ms',
-    right: '-30@ms',
-    opacity: 0.2,
-  },
-  winnerIconContainer: {
-    width: '64@ms',
-    height: '64@ms',
-    borderRadius: '32@ms',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: '16@ms',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  winnerInfo: {
-    flex: 1,
-    zIndex: 2,
-  },
-  winnerLabel: {
-    fontSize: '11@ms',
-    color: Colors.dashboardColors.goldDark,
-    ...Typography.textStyle.bold,
-    textTransform: 'uppercase',
-  },
-  winnerName: {
-    fontSize: '18@ms',
-    color: '#5C2D06',
-    ...Typography.textStyle.bold,
-  },
-  winnerValue: {
-    fontSize: '13@ms',
-    color: Colors.dashboardColors.goldDark,
-    ...Typography.textStyle.bold,
-  },
-  leaderboardContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingHorizontal: '4@ms',
-    marginBottom: '20@ms',
-    height: '240@ms',
-  },
-  rankCard: {
-    flex: 1,
-    backgroundColor: Colors.neutral.white,
-    borderRadius: '20@ms',
-    alignItems: 'center',
-    paddingVertical: '14@ms',
-    paddingHorizontal: '6@ms',
-    marginHorizontal: '5@ms',
-    position: 'relative',
-    ...Outlines.shadow.base,
-  },
-  firstRankCard: {
-    height: '215@ms',
-    backgroundColor: '#FFFDF0',
-    borderColor: '#FCD34D',
-    borderWidth: 1.5,
-    zIndex: 2,
-    shadowColor: Colors.dashboardColors.goldMedium,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-  secondRankCard: {
-    height: '190@ms',
-    backgroundColor: '#F0F4F8',
-    borderColor: '#CBD5E1',
-    borderWidth: 1.5,
-  },
-  thirdRankCard: {
-    height: '190@ms',
-    backgroundColor: '#FFFDF0',
-    borderColor: '#FCD34D',
-    borderWidth: 1.5,
-  },
-  runnerUpText: {
-    fontSize: '9@ms',
-    color: Colors.neutral.s500,
-    ...Typography.textStyle.bold,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: '2@ms',
-    letterSpacing: 0.3,
-  },
-  rankBadge: {
-    position: 'absolute',
-    top: '-14@ms',
-    width: '28@ms',
-    height: '28@ms',
-    borderRadius: '14@ms',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.neutral.white,
-    ...Outlines.shadow.base,
-    alignSelf: 'center',
-  },
-  rankText: {
-    fontSize: '13@ms',
-    color: Colors.neutral.white,
-    ...Typography.textStyle.bold,
-  },
-  rankUserImage: {
-    width: '50@ms',
-    height: '50@ms',
-    borderRadius: '25@ms',
-    marginBottom: '8@ms',
-  },
-  rankUserName: {
-    fontSize: '12@ms',
-    color: Colors.neutral.black,
-    ...Typography.textStyle.bold,
-    textAlign: 'center',
-    paddingHorizontal: '2@ms',
-  },
-  nameContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    marginTop: '4@ms',
-    width: '100%',
-  },
-  rankValue: {
-    fontSize: '12@ms',
-    color: '#1E40AF',
-    ...Typography.textStyle.bold,
-    marginTop: 'auto',
-    textAlign: 'center',
-  },
-  firstRankValue: {
-    color: '#B45309',
-    ...Typography.textStyle.bold,
-    fontSize: '13@ms',
-  },
-  listContainer: {
-    paddingHorizontal: '20@ms',
-    paddingBottom: '40@ms',
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.neutral.white,
-    padding: '16@ms',
-    borderRadius: '16@ms',
-    marginBottom: '12@ms',
-    ...Outlines.shadow.base,
-    borderWidth: 1,
-    borderColor: Colors.dashboardColors.overlayBlack03,
-  },
-  listRank: {
-    width: '35@ms',
-    fontSize: '16@ms',
-    color: Colors.neutral.s400,
-    ...Typography.textStyle.bold,
-  },
-  listImage: {
-    width: '44@ms',
-    height: '44@ms',
-    borderRadius: '22@ms',
-    marginRight: '15@ms',
-  },
-  listName: {
-    flex: 1,
-    fontSize: '16@ms',
-    color: Colors.neutral.black,
-    ...Typography.textStyle.semiBold,
-  },
-  listValue: {
-    fontSize: '15@ms',
-    color: Colors.neutral.s700,
-    ...Typography.textStyle.bold,
-  },
-  avatarContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.dashboardColors.indigoCardBg,
-  },
-  avatarText: {
-    fontSize: '18@ms',
-    color: Colors.dashboardColors.indigoBrand,
-    ...Typography.textStyle.bold,
-    textTransform: 'uppercase',
-  },
-  listAvatarText: {
-    fontSize: '14@ms',
-  },
-  podiumIcon: {
-    marginBottom: '8@ms',
-  },
-  emptyStateContainer: {
-    padding: '40@ms',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '40@ms',
-  },
-  emptyStateTitle: {
-    fontSize: '18@ms',
-    color: Colors.neutral.black,
-    ...Typography.textStyle.bold,
-    marginTop: '16@ms',
-    textAlign: 'center',
-  },
-});
-
-const styles = awardStyles;
 
 export default AwardsScreen;

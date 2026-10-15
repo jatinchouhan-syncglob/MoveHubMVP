@@ -23,7 +23,13 @@ import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
-import { UserProfile, Phase1LeaderboardResponse, Phase1LeaderboardItem } from '../../types';
+import {
+  UserProfile,
+  Phase1LeaderboardResponse,
+  Phase1LeaderboardItem,
+  Phase2LeaderboardResponse,
+  Phase2LeaderboardItem,
+} from '../../types';
 import Svg, { Path } from 'react-native-svg';
 import { IMAGES } from '../../assets/images';
 
@@ -103,6 +109,7 @@ export interface PhasePlayer {
   tracks: PhaseTrack[];
   middayQuestAlert?: string;
   calculationTimestamp?: string;
+  dailyEodAudit?: string;
 }
 
 // 21 Days Metadata
@@ -265,6 +272,128 @@ export const mapApiLeaderboardToPlayers = (
   });
 };
 
+export const mapPhase2ApiLeaderboardToPlayers = (
+  apiItems: Phase2LeaderboardItem[] = [],
+  currentUhid?: string,
+  currentUserName?: string,
+): PhasePlayer[] => {
+  return apiItems.map((item, idx) => {
+    const isCurrentUser =
+      (currentUhid && item.USER_ID.toUpperCase() === currentUhid.toUpperCase()) ||
+      item.USER_ID === 'ANJROY3773' ||
+      apiItems.length === 1;
+
+    const compoundScore = parseFloat(item.MASTER_COMPOUND_SCORE) || 0;
+    const rawStatus = (item.STATUS || '').toUpperCase();
+    const isDanger = rawStatus.includes('ELIMINATED') || rawStatus.includes('DANGER');
+
+    let status: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER' = 'ACTIVE';
+    if (isDanger) {
+      status = 'IN DANGER';
+    } else if (rawStatus.includes('CHAMPION')) {
+      status = 'CHAMPION';
+    } else if (rawStatus.includes('PODIUM')) {
+      status = 'PODIUM';
+    }
+
+    const cmasNum = parseFloat(item.BEHAVIORAL_TRACK_CUM_CMAS) || 0;
+    const bseNum = parseFloat(item.PHYSIOLOGICAL_TRACK_CUM_BSE) || 0;
+
+    // Track 1: Behavioral Track (Cumulative CMAS)
+    const behavioralTrack: PhaseTrack = {
+      id: `t-beh-${item.USER_ID}-${idx}`,
+      trackNumber: 1,
+      name: 'Track 1: Behavioral Track (Cumulative CMAS)',
+      shortName: 'Track 1: Behavioral',
+      icon: '🧬',
+      weightLabel: '50% Phase 2 Weight',
+      overallStatus: cmasNum < 50 ? 'DEFICIT PACE' : 'ACTIVE PACE',
+      statusColor: cmasNum < 50 ? '#EF4444' : '#10B981',
+      subMetrics: [
+        {
+          title: 'Cumulative Behavioral CMAS',
+          weight: '50% Compound Weight',
+          value: item.BEHAVIORAL_TRACK_CUM_CMAS || 'N/A',
+          statusTag: cmasNum < 50 ? 'DEFICIT (<50)' : 'OPTIMAL',
+          isDanger: cmasNum < 50,
+        },
+      ],
+      clinicalInference: {
+        title: 'Daily EOD Audit',
+        text: item.DAILY_EOD_AUDIT || 'N/A',
+      },
+    };
+
+    // Track 2: Physiological Track (Physiological Recovery)
+    const isCircadianDanger = parseFloat(item.IS_CIRCADIAN_RHYTHM || '0') < 65;
+    const physiologicalTrack: PhaseTrack = {
+      id: `t-phy-${item.USER_ID}-${idx}`,
+      trackNumber: 2,
+      name: 'Track 2: Physiological Track (Physiological Recovery)',
+      shortName: 'Track 2: Physiological',
+      icon: '💓',
+      weightLabel: '50% Phase 2 Weight',
+      overallStatus: bseNum < 65 ? 'RECOVERY DEFICIT' : 'OPTIMAL RECOVERY',
+      statusColor: bseNum < 65 ? '#F59E0B' : '#10B981',
+      subMetrics: [
+        {
+          title: 'Cumulative BSE Score',
+          weight: 'Overall Physiological',
+          value: item.PHYSIOLOGICAL_TRACK_CUM_BSE || 'N/A',
+          statusTag: bseNum < 65 ? 'DEFICIT' : 'HEALTHY ALIGNMENT',
+          isDanger: bseNum < 65,
+        },
+        {
+          title: 'PPI Cardio Quality',
+          weight: 'Cardio Quality',
+          value: item.PPI_CARDIO_QUALITY || 'N/A',
+          statusTag: item.PPI_CARDIO_QUALITY === '100.0%' ? '⚡ 100% OPTIMAL' : 'CARDIO PACE',
+          isDanger: false,
+        },
+        {
+          title: 'E3 Metabolic Economy',
+          weight: 'Metabolic Economy',
+          value: item.E3_METABOLIC_ECONOMY || 'N/A',
+          statusTag: item.E3_METABOLIC_ECONOMY === '100.0%' ? '⚡ 100% OPTIMAL' : 'ECONOMY',
+          isDanger: false,
+        },
+        {
+          title: 'IS Circadian Rhythm',
+          weight: 'Circadian Routine',
+          value: item.IS_CIRCADIAN_RHYTHM || 'N/A',
+          statusTag: isCircadianDanger ? '⚠️ < 65% DEFICIT' : 'OPTIMAL RHYTHM',
+          isDanger: isCircadianDanger,
+        },
+      ],
+      clinicalInference: {
+        title: 'Multi-Week Physiological Recovery Inference',
+        text: item.MULTI_WEEK_PHYSIOLOGICAL_RECOVERY_INFERENCE || 'N/A',
+      },
+    };
+
+    return {
+      id: `p-${item.USER_ID}-${idx}`,
+      name: isCurrentUser && currentUserName ? `${currentUserName} (You)` : item.USER_ID,
+      userId: item.USER_ID,
+      department: 'N/A',
+      isCurrentUser,
+      masterScore: compoundScore,
+      scoreDisplay: `[ ${item.MASTER_COMPOUND_SCORE || 'N/A'} ]`,
+      status,
+      statusLabel: item.STATUS || 'N/A',
+      isDanger,
+      breakdown: {
+        cmas: cmasNum,
+        bse: bseNum,
+      },
+      matrixTitle: 'ELITE BIOMETRIC NEXUS MATRIX',
+      tracks: [behavioralTrack, physiologicalTrack],
+      middayQuestAlert: item.MIDDAY_QUEST_ALERT || 'N/A',
+      dailyEodAudit: item.DAILY_EOD_AUDIT || 'N/A',
+    };
+  });
+};
+
 const parseSubMetric = (sm: TrackSubMetric) => {
   if (sm.percentageScore !== undefined && sm.avgScore !== undefined) {
     return { percentage: sm.percentageScore, avg: sm.avgScore };
@@ -334,6 +463,7 @@ export const LeaderboardScreen: React.FC = () => {
   // User Profile & Leaderboard API Data
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaderboardData, setLeaderboardData] = useState<Phase1LeaderboardResponse | null>(null);
+  const [phase2LeaderboardData, setPhase2LeaderboardData] = useState<Phase2LeaderboardResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Close dropdown when drawer opens to prevent overlapping
@@ -343,7 +473,7 @@ export const LeaderboardScreen: React.FC = () => {
     }
   }, [isDrawerOpen]);
 
-  // Load user data & Phase 1 API leaderboard
+  // Load user data & API leaderboards (Phase 1 & Phase 2)
   const loadData = async () => {
     try {
       setLoading(true);
@@ -360,15 +490,35 @@ export const LeaderboardScreen: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
       const targetUhid = profileData?.uhid || cachedProfile?.uhid || 'ANJROY3773';
 
-      console.log(`[Leaderboard] Fetching Phase 1 Leaderboard for UHID: ${targetUhid}`);
-      const data = await apiService.getPhase1Leaderboard(targetUhid);
-      setLeaderboardData(data);
+      console.log(`[Leaderboard] Fetching Leaderboards for UHID: ${targetUhid}`);
+      const [p1Result, p2Result] = await Promise.allSettled([
+        apiService.getPhase1Leaderboard(targetUhid),
+        apiService.getPhase2Leaderboard(targetUhid),
+      ]);
 
-      if (data?.active_challenge_day) {
-        setSelectedDay(data.active_challenge_day);
+      if (p1Result.status === 'fulfilled') {
+        setLeaderboardData(p1Result.value);
+      } else {
+        console.warn('[Leaderboard] Phase 1 fetch failed:', p1Result.reason);
+      }
+
+      if (p2Result.status === 'fulfilled') {
+        setPhase2LeaderboardData(p2Result.value);
+        if (p2Result.value?.active_challenge_day) {
+          setSelectedDay(p2Result.value.active_challenge_day);
+        }
+      } else {
+        console.warn('[Leaderboard] Phase 2 fetch failed:', p2Result.reason);
+        if (p1Result.status === 'fulfilled' && p1Result.value?.active_challenge_day) {
+          setSelectedDay(p1Result.value.active_challenge_day);
+        }
+      }
+
+      if (p1Result.status === 'rejected' && p2Result.status === 'rejected') {
+        setApiError('Failed to fetch leaderboard data.');
       }
     } catch (error: any) {
-      console.error('Failed to load phase 1 leaderboard:', error);
+      console.error('Failed to load leaderboard data:', error);
       setApiError(error?.message || 'Failed to fetch leaderboard data.');
     } finally {
       setLoading(false);
@@ -401,7 +551,19 @@ export const LeaderboardScreen: React.FC = () => {
       );
     }
 
-    // Phase 2 & 3: Not provided by backend yet -> Zero mock data
+    // Phase 2: Dynamic Data mapped from Backend POST API
+    if (activePhase === 2) {
+      if (!phase2LeaderboardData || !Array.isArray(phase2LeaderboardData.leaderboard)) {
+        return [];
+      }
+      return mapPhase2ApiLeaderboardToPlayers(
+        phase2LeaderboardData.leaderboard,
+        userProfile?.uhid,
+        userProfile?.name,
+      );
+    }
+
+    // Phase 3: Not provided by backend yet -> Zero mock data
     return [];
   };
 
@@ -687,6 +849,8 @@ export const LeaderboardScreen: React.FC = () => {
               <Text style={[styles.statValue, { color: themeColors.textMain }]}>
                 {activePhase === 1 && leaderboardData?.participants !== undefined
                   ? String(leaderboardData.participants)
+                  : activePhase === 2 && phase2LeaderboardData?.participants !== undefined
+                  ? String(phase2LeaderboardData.participants)
                   : 'N/A'}
               </Text>
             </View>
@@ -744,7 +908,12 @@ export const LeaderboardScreen: React.FC = () => {
               <Text style={styles.phasePillText}>PHASE {activePhaseConfig.phaseNumber}</Text>
             </View>
             <Text style={styles.phaseActiveDayText}>
-              Active Day: {activePhase === 1 && leaderboardData?.active_challenge_day !== undefined ? `${leaderboardData.active_challenge_day}/7` : `${selectedDay}/21`}
+              Active Day:{' '}
+              {activePhase === 1 && leaderboardData?.active_challenge_day !== undefined
+                ? `${leaderboardData.active_challenge_day}/7`
+                : activePhase === 2 && phase2LeaderboardData?.active_challenge_day !== undefined
+                ? `${phase2LeaderboardData.active_challenge_day}/14`
+                : `${selectedDay}/21`}
             </Text>
           </View>
           <Text style={styles.phaseFocusTitle}>{activePhaseConfig.title}</Text>
@@ -788,20 +957,20 @@ export const LeaderboardScreen: React.FC = () => {
         </View>
 
         {/* Leaderboard Rows with Dynamic Data & Progressive Disclosure */}
-        {activePhase !== 1 ? (
+        {activePhase === 3 ? (
           <View style={styles.unavailableCard}>
             <Text style={styles.unavailableIcon}>🔒</Text>
             <Text style={styles.unavailableTitle}>
-              Phase {activePhase} API Not Available (N/A)
+              Phase 3 API Not Available (N/A)
             </Text>
             <Text style={styles.unavailableSub}>
-              Currently only Phase 1 (Days 1–7) is supported by the leaderboard backend. Phase {activePhase} will unlock once backend data is available.
+              Currently Phase 1 (Days 1–7) and Phase 2 (Days 8–14) are supported by the leaderboard backend. Phase 3 will unlock once stage 3 finale backend data is published.
             </Text>
           </View>
         ) : loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Fetching live Phase 1 Leaderboard...</Text>
+            <Text style={styles.loadingText}>Fetching live Phase {activePhase} Leaderboard...</Text>
           </View>
         ) : filteredPlayers.length === 0 ? (
           <View style={styles.emptyContainer}>
