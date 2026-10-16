@@ -59,6 +59,11 @@ export type RootStackParamList = {
     email?: string;
   };
   PrivacyPolicy: undefined;
+  JoinChallenge?: {
+    arena?: any;
+    arenaId?: string;
+    arenaName?: string;
+  };
 };
 
 declare global {

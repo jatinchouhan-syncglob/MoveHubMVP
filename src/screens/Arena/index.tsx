@@ -9,9 +9,13 @@ import {
   ActivityIndicator,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Share,
+  Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { ROUTES } from '../../constants/routes';
 import { apiService } from '../../services/api';
 import { styles, SECTION_WIDTH } from './styles';
 import { FALLBACK_ARENAS, ARENA_THEMES } from './constants';
@@ -30,6 +34,7 @@ import { RankingsTab } from './components/RankingsTab';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ArenaScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [activeNavTab, setActiveNavTab] = useState<ArenaNavTab>('arenas');
   const [arenas, setArenas] = useState<IArena[]>(FALLBACK_ARENAS);
   const [activeIndex, setActiveIndex] = useState<number>(0);
@@ -121,6 +126,52 @@ export const ArenaScreen: React.FC = () => {
     setTimeout(() => {
       isUserInteractingRef.current = false;
     }, 3000);
+  };
+
+  // Social Share Handler for Arena Data
+  const handleShareArena = async (arena: IArena) => {
+    try {
+      const factsText =
+        arena.facts && arena.facts.length > 0
+          ? arena.facts.map(f => `⚡ ${f}`).join('\n')
+          : '';
+
+      const shareMessage =
+        `🏆 ${arena.name.toUpperCase()} - MoveHub Arena Challenge\n\n` +
+        `🔥 Category: ${arena.category}\n` +
+        `📍 Status: ${arena.status}\n\n` +
+        `"${arena.tagline || arena.summary}"\n\n` +
+        (factsText ? `Key Highlights:\n${factsText}\n\n` : '') +
+        `Join me on Uncurl: health, compete in the 21-Day Gauntlet, track your biometric pacing, and conquer the National Podium!\n\n` +
+        `👉 Compete now on Uncurl: https://uncurl.app/arena/${arena.slug || arena.id}`;
+
+      await Share.share(
+        Platform.OS === 'ios'
+          ? {
+              title: `${arena.name} | MoveHub Arena`,
+              message: shareMessage,
+              url: `https://movehub.app/arena/${arena.slug || arena.id}`,
+            }
+          : {
+              title: `${arena.name} | MoveHub Arena`,
+              message: shareMessage,
+            },
+        {
+          dialogTitle: `Share ${arena.name} Challenge`,
+        },
+      );
+    } catch (err) {
+      console.warn('[ArenaScreen] Share error:', err);
+    }
+  };
+
+  // Join Challenge Handler
+  const handleJoinChallenge = (arenaToJoin: IArena) => {
+    navigation.navigate(ROUTES.JOIN_CHALLENGE as any, {
+      arena: arenaToJoin,
+      arenaId: arenaToJoin.id,
+      arenaName: arenaToJoin.name,
+    });
   };
 
   const currentArena = arenas[activeIndex] || arenas[0] || FALLBACK_ARENAS[0];
@@ -237,12 +288,14 @@ export const ArenaScreen: React.FC = () => {
             </View>
 
             {/* Arena Details Block */}
-            <ArenaDetails arena={currentArena} />
+            <ArenaDetails arena={currentArena} onShare={handleShareArena} />
 
             {/* CTA Actions */}
             <ArenaActions
               arena={currentArena}
               onExplore={() => setExplorerModalVisible(true)}
+              onShare={handleShareArena}
+              onJoinChallenge={handleJoinChallenge}
             />
           </View>
         )}
@@ -264,6 +317,8 @@ export const ArenaScreen: React.FC = () => {
         visible={explorerModalVisible}
         arena={currentArena}
         onClose={() => setExplorerModalVisible(false)}
+        onShare={handleShareArena}
+        onJoinChallenge={handleJoinChallenge}
       />
     </SafeAreaView>
   );

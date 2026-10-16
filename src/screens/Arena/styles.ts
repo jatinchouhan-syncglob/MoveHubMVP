@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const SECTION_MARGIN = 8;
@@ -328,6 +328,25 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
+  quickShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    gap: 5,
+    marginLeft: 'auto',
+  },
+  quickShareText: {
+    color: '#38BDF8',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   arenaTaglineText: {
     fontSize: 12,
     fontWeight: '800',
@@ -383,6 +402,38 @@ export const styles = StyleSheet.create({
     marginTop: 20,
     gap: 12,
   },
+  joinChallengeButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 7,
+  },
+  joinChallengeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  joinChallengeBolt: {
+    fontSize: 16,
+  },
+  joinChallengeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  joinChallengeArrow: {
+    color: '#93C5FD',
+    fontSize: 16,
+    fontWeight: '900',
+  },
   ctaButton: {
     borderRadius: 14,
     overflow: 'hidden',
@@ -411,6 +462,32 @@ export const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '900',
+  },
+  shareButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  shareGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  shareButtonText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -451,7 +528,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1E293B',
     maxHeight: '90%',
-    paddingBottom: 24,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -485,6 +562,9 @@ export const styles = StyleSheet.create({
   modalScroll: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  modalScrollContent: {
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
   },
   modalImageWrapper: {
     height: 180,
@@ -571,12 +651,55 @@ export const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
   },
+  modalJoinButton: {
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalJoinGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  modalJoinButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  modalShareButton: {
+    marginTop: 10,
+    marginBottom: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalShareGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  modalShareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   modalCloseAction: {
     backgroundColor: '#1E293B',
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    marginBottom: 20,
   },
   modalCloseActionText: {
     color: '#FFFFFF',

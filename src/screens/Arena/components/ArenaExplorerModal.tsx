@@ -11,17 +11,22 @@ import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
 import { ARENA_THEMES } from '../constants';
 import { IArena } from '../types';
+import { ShareNodesIcon } from './ShareNodesIcon';
 
 interface ArenaExplorerModalProps {
   visible: boolean;
   arena: IArena | null;
   onClose: () => void;
+  onShare?: (arena: IArena) => void;
+  onJoinChallenge?: (arena: IArena) => void;
 }
 
 export const ArenaExplorerModal: React.FC<ArenaExplorerModalProps> = ({
   visible,
   arena,
   onClose,
+  onShare,
+  onJoinChallenge,
 }) => {
   if (!arena) return null;
 
@@ -51,6 +56,7 @@ export const ArenaExplorerModal: React.FC<ArenaExplorerModalProps> = ({
 
           <ScrollView
             style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* Explorer Image */}
@@ -114,6 +120,46 @@ export const ArenaExplorerModal: React.FC<ArenaExplorerModalProps> = ({
                 </View>
               ))}
             </View>
+
+            {/* Join Challenge Button */}
+            {onJoinChallenge && (
+              <TouchableOpacity
+                style={styles.modalJoinButton}
+                onPress={() => {
+                  onClose();
+                  onJoinChallenge(arena);
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#2563EB', '#1D4ED8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalJoinGradient}
+                >
+                  <Text style={styles.modalJoinButtonText}>⚡ JOIN THIS ARENA CHALLENGE</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Social Share Button */}
+            {onShare && (
+              <TouchableOpacity
+                style={styles.modalShareButton}
+                onPress={() => onShare(arena)}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#0284C7', '#0369A1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalShareGradient}
+                >
+                  <ShareNodesIcon color="#FFFFFF" size={16} />
+                  <Text style={styles.modalShareButtonText}>SHARE ARENA WITH FRIENDS</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
 
             {/* Close Button */}
             <TouchableOpacity

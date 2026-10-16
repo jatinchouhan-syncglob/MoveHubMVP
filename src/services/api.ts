@@ -14,6 +14,11 @@ import {
   IChallengeLeaderboardResponse,
   IChallengePodiumResponse,
 } from '../types';
+import {
+  IReferralEntity,
+  INominateEntityPayload,
+  IAssociateEntityPayload,
+} from '../screens/Arena/types';
 import { getDynamicDeviceId } from '../utils/device';
 
 // Future API Base URL (change in environment variables later)
@@ -1297,6 +1302,89 @@ export const apiService = {
           console.error(`[apiService] Phase 2 Fallback also failed:`, fbErr?.response?.data || fbErr?.message);
         }
       }
+      throw error;
+    }
+  },
+
+  /**
+   * Search / retrieve referral entities (Gyms, Tower Societies, etc.)
+   */
+  async searchReferralEntities(query?: string): Promise<{
+    status: string;
+    message: string;
+    data: IReferralEntity[];
+  }> {
+    try {
+      const url =
+        query && query.trim()
+          ? `${BACKEND_8081_URL}/backend/health-connect/referral/entities/search?query=${encodeURIComponent(query.trim())}`
+          : `${BACKEND_8081_URL}/backend/health-connect/referral/entities/search`;
+      console.log(`[apiService] GET searchReferralEntities: ${url}`);
+      const response = await axios.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] GET searchReferralEntities FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Associate user with selected referral entity to join challenge
+   */
+  async associateReferralEntity(payload: IAssociateEntityPayload): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/referral/entities/associate`;
+      console.log(
+        `[apiService] POST associateReferralEntity: ${url}`,
+        JSON.stringify(payload),
+      );
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST associateReferralEntity FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Nominate a new entity manually when not found in search list
+   */
+  async nominateReferralEntity(payload: INominateEntityPayload): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/referral/entities/nominate`;
+      console.log(
+        `[apiService] POST nominateReferralEntity: ${url}`,
+        JSON.stringify(payload),
+      );
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST nominateReferralEntity FAILED:`,
+        error?.response?.data || error?.message,
+      );
       throw error;
     }
   },

@@ -18,6 +18,7 @@ import { LeaderboardDetailsScreen } from '../screens/Leaderboard/LeaderboardDeta
 import { ResetPasswordScreen } from '../screens/ResetPassword';
 import { ForgotPasswordScreen } from '../screens/ForgotPassword';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicy';
+import { JoinChallengeScreen } from '../screens/Arena/JoinChallengeScreen';
 import DrawerNavigator from './DrawerNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -94,6 +95,10 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen 
         name={ROUTES.PRIVACY_POLICY as 'PrivacyPolicy'} 
         component={PrivacyPolicyScreen} 
+      />
+      <Stack.Screen 
+        name={ROUTES.JOIN_CHALLENGE as 'JoinChallenge'} 
+        component={JoinChallengeScreen} 
       />
     </Stack.Navigator>
   );
