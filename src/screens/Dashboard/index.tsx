@@ -23,6 +23,10 @@ import {
   sumCaloriesBurned,
   sumActiveMinutes,
 } from '../../utils/calculations';
+import {
+  subscribeDashboardTab,
+  setGlobalDashboardTab,
+} from '../../navigation/navigationRef';
 
 export const DashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
@@ -31,6 +35,18 @@ export const DashboardScreen: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'activities' | 'steps'>('activities');
+
+  useEffect(() => {
+    const unsubscribe = subscribeDashboardTab(tab => {
+      setActiveTab(tab);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleSelectTab = (tab: 'activities' | 'steps') => {
+    setActiveTab(tab);
+    setGlobalDashboardTab(tab);
+  };
 
   const getActivityCategory = (type: string): 'distance' | 'strength' | 'duration' => {
     const distanceTypes = ['Walking', 'Running', 'Cycling', 'Hiking', 'Jogging', 'Swimming'];
@@ -364,7 +380,7 @@ export const DashboardScreen: React.FC = () => {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'activities' && styles.tabButtonActive]}
           activeOpacity={0.8}
-          onPress={() => setActiveTab('activities')}
+          onPress={() => handleSelectTab('activities')}
         >
           <Text style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}>
             All Activities
@@ -373,7 +389,7 @@ export const DashboardScreen: React.FC = () => {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'steps' && styles.tabButtonActive]}
           activeOpacity={0.8}
-          onPress={() => setActiveTab('steps')}
+          onPress={() => handleSelectTab('steps')}
         >
           <Text style={[styles.tabText, activeTab === 'steps' && styles.tabTextActive]}>
             Steps Tracking

@@ -11,11 +11,19 @@ import {
   getHealthConnectWorkManagerStatus,
   openHealthConnectBatteryOptimizationSettings,
   openHealthConnectExactAlarmSettings,
+  getHealthConnectAccessState,
 } from './src/services/healthConnect';
 import ReactNativeBiometrics from 'react-native-biometrics';
 import { storageHelper } from './src/storage/storageHelper';
 import { STORAGE_KEYS } from './src/storage/storageKeys';
 import { AppLockOverlay } from './src/components/common/AppLockOverlay';
+import {
+  navigationRef,
+  navigateToDashboardSteps,
+  getCurrentRouteName,
+  getGlobalDashboardTab,
+} from './src/navigation/navigationRef';
+import { HealthConnectPermissionModal } from './src/components/common/HealthConnectPermissionModal';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -26,12 +34,60 @@ function App(): React.JSX.Element {
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [biometricsTypeLabel, setBiometricsTypeLabel] = useState('Biometrics');
   const [lockKey, setLockKey] = useState(0);
+  const [isHealthConnectModalVisible, setIsHealthConnectModalVisible] = useState(false);
+
+  const checkHealthConnectPermissionsStatus = async () => {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      // 1. User MUST be logged in
+      const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
+      if (!token) {
+        setIsHealthConnectModalVisible(false);
+        return;
+      }
+
+      // 2. Do not show modal on pre-login or onboarding auth screens
+      const currentRoute = getCurrentRouteName();
+      const unauthenticatedRoutes = [
+        'Splash',
+        'Login',
+        'Signup',
+        'ForgotPassword',
+        'ResetPassword',
+        'Disclaimer',
+      ];
+      if (currentRoute && unauthenticatedRoutes.includes(currentRoute)) {
+        setIsHealthConnectModalVisible(false);
+        return;
+      }
+
+      // 3. If user is already looking at Dashboard Steps Tracking tab, do not show blocking modal
+      if (getGlobalDashboardTab() === 'steps' && (!currentRoute || currentRoute === 'DrawerNavigator' || currentRoute === 'Dashboard')) {
+        return;
+      }
+
+      const access = await getHealthConnectAccessState();
+      const isConnected = access.availability === 'available' && access.hasAllPermissions;
+
+      if (isConnected) {
+        setIsHealthConnectModalVisible(false);
+        return;
+      }
+
+      setIsHealthConnectModalVisible(true);
+    } catch (err) {
+      console.warn('[Health Connect Global Check] Failed to check access state:', err);
+    }
+  };
 
   const checkNativeBackgroundPermissions = async () => {
     if (Platform.OS !== 'android') return;
     if (isAlertShowingRef.current) return;
 
     try {
+      const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
+      if (!token) return;
       const nativeStatus = await getHealthConnectWorkManagerStatus();
       if (!nativeStatus) return;
 
@@ -120,11 +176,13 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const initialTimer = setTimeout(() => {
       checkNativeBackgroundPermissions();
-    }, 1500);
+      checkHealthConnectPermissionsStatus();
+    }, 2000);
 
     const permissionInterval = setInterval(() => {
       checkNativeBackgroundPermissions();
-    }, 60 * 1000);
+      checkHealthConnectPermissionsStatus();
+    }, 60 * 1000); // Trigger every 1 minute
 
     return () => {
       clearTimeout(initialTimer);
@@ -135,9 +193,10 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        // Immediate check when returning from Settings or background
+        // Immediate check when returning from Settings, Health Connect, or background
         setTimeout(() => {
           checkNativeBackgroundPermissions();
+          checkHealthConnectPermissionsStatus();
         }, 500);
       }
       appState.current = nextAppState;
@@ -169,7 +228,7 @@ function App(): React.JSX.Element {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
             <RootNavigator />
             {isAppLocked && (
@@ -179,6 +238,16 @@ function App(): React.JSX.Element {
                 biometricsTypeLabel={biometricsTypeLabel}
               />
             )}
+            <HealthConnectPermissionModal
+              visible={isHealthConnectModalVisible}
+              onNavigateToHealthConnect={() => {
+                setIsHealthConnectModalVisible(false);
+                navigateToDashboardSteps();
+              }}
+              onDismiss={() => {
+                setIsHealthConnectModalVisible(false);
+              }}
+            />
           </NavigationContainer>
         </SafeAreaProvider>
       </GestureHandlerRootView>

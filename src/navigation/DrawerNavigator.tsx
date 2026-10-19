@@ -32,6 +32,7 @@ import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
 import ArenaScreen from '../screens/Arena';
+import ArenasScreen from '../screens/Arenas';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import { PrescriptionScreen } from '../screens/Prescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
@@ -202,6 +203,8 @@ const DrawerNavigatorContent: React.FC = () => {
       'WeeklyCompliance',
     ];
     const moveHubScreens = [
+      'Arena',
+      'Arenas',
       'FitnessPrescription',
       'ActivityTracking',
       'NutritionalProfiler',
@@ -357,6 +360,8 @@ const DrawerNavigatorContent: React.FC = () => {
     switch (activeScreen) {
       case 'Arena':
         return <ArenaScreen />;
+      case 'Arenas':
+        return <ArenasScreen />;
       case 'FitnessPrescription':
         return <WellnessPrescriptionScreen showDrawer={true} />;
       case 'Prescription':
@@ -437,6 +442,11 @@ const DrawerNavigatorContent: React.FC = () => {
         screen: 'Arena',
         label: 'Arena',
         icon: '🏟️',
+      },
+      {
+        screen: 'Arenas',
+        label: 'Arenas',
+        icon: '⚡',
       },
       {
         screen: 'FitnessPrescription',
@@ -746,6 +756,7 @@ const DrawerNavigatorContent: React.FC = () => {
                   pendingScreen !== null
                     ? [
                         'Arena',
+                        'Arenas',
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
@@ -759,6 +770,7 @@ const DrawerNavigatorContent: React.FC = () => {
                       ].includes(pendingScreen)
                     : [
                         'Arena',
+                        'Arenas',
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
