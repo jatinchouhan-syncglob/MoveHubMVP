@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
 import { MANDATORY_MEDICAL_DISCLAIMER } from '../constants';
 
@@ -70,21 +69,6 @@ export const MedicalDisclaimerModal: React.FC<MedicalDisclaimerModalProps> = ({
               <Text style={styles.disclaimerBullet}>
                 • On-Device Sensor Safety: Calibrations are passive calculations and should never override clinical symptom awareness.
               </Text>
-
-              <TouchableOpacity
-                style={styles.disclaimerActionBtn}
-                activeOpacity={0.85}
-                onPress={onClose}
-              >
-                <LinearGradient
-                  colors={['#DC2626', '#991B1B']}
-                  style={styles.disclaimerActionBtnGradient}
-                >
-                  <Text style={styles.disclaimerActionBtnText}>
-                    I UNDERSTAND & ACKNOWLEDGE
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>

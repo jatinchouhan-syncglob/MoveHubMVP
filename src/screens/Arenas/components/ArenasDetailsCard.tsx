@@ -63,7 +63,7 @@ export const ArenasDetailsCard: React.FC<ArenasDetailsCardProps> = ({ config }) 
               { color: themeConfig.coreAccent },
             ]}
           >
-            {config.category || 'CARDIOMETABOLIC ARENA'}
+            CORE FOCUS
           </Text>
         </View>
 
@@ -77,9 +77,6 @@ export const ArenasDetailsCard: React.FC<ArenasDetailsCardProps> = ({ config }) 
           <Text style={styles.quickShareText}>Share</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Main Segment Title */}
-      <Text style={styles.arenaTitle}>{config.name}</Text>
 
       {/* Facts Pills */}
       {config.facts && config.facts.length > 0 && (

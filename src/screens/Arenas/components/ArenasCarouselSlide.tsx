@@ -78,20 +78,6 @@ export const ArenasCarouselSlide: React.FC<ArenasCarouselSlideProps> = ({ config
           </View>
         </View>
 
-        {/* Bottom Vignette Gradient with Typography */}
-        <LinearGradient
-          colors={['transparent', 'rgba(8, 10, 15, 0.85)', '#080A0F']}
-          style={styles.slideGradientBottom}
-        >
-          <View style={styles.slideOverlayContent}>
-            <Text style={styles.slideCategoryText}>
-              {config.category || 'CARDIOMETABOLIC ARENA'}
-            </Text>
-            <Text style={styles.slideTitleText} numberOfLines={1}>
-              {config.title}
-            </Text>
-          </View>
-        </LinearGradient>
       </View>
     </View>
   );

@@ -90,25 +90,46 @@ export const styles = StyleSheet.create({
 
   // Global Live Ticker Bar
   tickerCard: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    borderLeftWidth: 3.5,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
     marginBottom: 14,
+  },
+  tickerHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  tickerBadgeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   tickerLiveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  tickerTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  tickerTimeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.4,
   },
   tickerText: {
-    flex: 1,
     fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    lineHeight: 18,
+    letterSpacing: 0.2,
   },
 
   // Main Segment Header Card
@@ -385,6 +406,27 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
     fontStyle: 'italic',
+  },
+  standingsActiveActionBtn: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 8,
+  },
+  standingsActiveActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  standingsActiveActionIcon: {
+    fontSize: 16,
+  },
+  standingsActiveActionText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    flex: 1,
+    letterSpacing: 0.3,
   },
 
   // Primary Segment Action Buttons
@@ -1500,6 +1542,124 @@ export const styles = StyleSheet.create({
     color: '#94A3B8',
     lineHeight: 18,
   },
+  bracketsStageTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  bracketsStageTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bracketsStageTabTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  bracketsStageTabSub: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 2,
+  },
+
+  // Comparison Section (Top Leader vs Your Standing)
+  bracketsComparisonSection: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 14,
+    backgroundColor: '#0F172A',
+  },
+  bracketsComparisonHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bracketsComparisonTitle: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  bracketsComparisonTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  bracketsComparisonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  bracketsComparisonCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    backgroundColor: '#0B0F17',
+  },
+  bracketsComparisonCardBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  bracketsComparisonCardBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  bracketsComparisonCardName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  bracketsComparisonCardScore: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  bracketsComparisonCardMetric: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  bracketsComparisonCardStatus: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  bracketsComparisonProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  bracketsComparisonProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  bracketsComparisonDiffText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    textAlign: 'center',
+  },
   bracketsStageCard: {
     borderRadius: 14,
     borderWidth: 1.5,
@@ -1648,9 +1808,11 @@ export const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   rewardsNodeNavText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: '#94A3B8',
+    textAlign: 'center',
+    paddingHorizontal: 2,
   },
   rewardsNodeNavTextActive: {
     color: '#FFFFFF',

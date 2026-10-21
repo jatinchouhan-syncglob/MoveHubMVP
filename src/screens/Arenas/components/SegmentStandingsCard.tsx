@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { styles } from '../styles';
 import { ISegmentConfig } from '../types';
 
@@ -26,7 +26,7 @@ export const SegmentStandingsCard: React.FC<SegmentStandingsCardProps> = ({
         <Text
           style={[styles.standingsTitleText, { color: config.theme.coreAccent }]}
         >
-          {standings.title}
+          {config.key === 'MASS_INDIVIDUALS' ? 'METABOLIC LEAK RADAR' : standings.title}
         </Text>
       </View>
 
@@ -211,8 +211,40 @@ export const SegmentStandingsCard: React.FC<SegmentStandingsCardProps> = ({
         </View>
       )}
 
+      {/* 90-Second Movement Break Radar Action for Mass Individuals */}
+      {config.key === 'MASS_INDIVIDUALS' && (
+        <TouchableOpacity
+          style={[
+            styles.standingsActiveActionBtn,
+            {
+              borderColor: config.theme.coreAccent,
+              backgroundColor: config.theme.badgeBg,
+            },
+          ]}
+          activeOpacity={0.85}
+          onPress={() => {
+            Alert.alert(
+              'Movement Break Radar Active',
+              '90-Second Movement Break Radar monitoring is currently active on your device. Stasis resets automatically every 60 steps in 90 seconds.',
+            );
+          }}
+        >
+          <View style={styles.standingsActiveActionRow}>
+            <Text style={styles.standingsActiveActionIcon}>⏱️</Text>
+            <Text
+              style={[
+                styles.standingsActiveActionText,
+                { color: config.theme.coreAccent },
+              ]}
+            >
+              90-Second Movement Break Radar Monitoring is Activated
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
       {/* Footer Context Note */}
-      {standings.bannerStatusText ? (
+      {config.key !== 'MASS_INDIVIDUALS' && standings.bannerStatusText ? (
         <Text
           style={[
             styles.standingsFooterNote,

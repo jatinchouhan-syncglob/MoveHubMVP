@@ -34,13 +34,6 @@ export const ArenasSelectorTabs: React.FC<ArenasSelectorTabsProps> = ({
 
   return (
     <View style={styles.selectorSection}>
-      <View style={styles.selectorHeaderRow}>
-        <Text style={styles.selectorLabel}>WHO ARE YOU COMPETING AS?</Text>
-        <View style={styles.selectorCountBadge}>
-          <Text style={styles.selectorCountText}>{segments.length} SEGMENTS</Text>
-        </View>
-      </View>
-
       <ScrollView
         ref={scrollRef}
         horizontal

@@ -13,11 +13,11 @@ interface ArenasWarRoomViewProps {
 type MetricCategoryFilter = 'all' | 'volume' | 'cardiovascular' | 'metabolic' | 'circadian';
 
 const CATEGORY_TABS: Array<{ key: MetricCategoryFilter; label: string }> = [
-  { key: 'all', label: 'All (11)' },
-  { key: 'cardiovascular', label: 'Cardio (4)' },
-  { key: 'metabolic', label: 'Metabolic (3)' },
-  { key: 'volume', label: 'Volume (2)' },
+  { key: 'all', label: 'All (7)' },
+  { key: 'cardiovascular', label: 'Cardio (2)' },
+  { key: 'metabolic', label: 'Metabolic (2)' },
   { key: 'circadian', label: 'Circadian (2)' },
+  { key: 'volume', label: 'Volume (1)' },
 ];
 
 export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
@@ -47,7 +47,7 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
           🛡️ THE METRIC DEEP-DIVE & STRATEGY SANDBOX
         </Text>
         <Text style={styles.warRoomHeaderSub}>
-          Breaks down the 11 metrics (like S-DEX™, PPI™, and BARI™) into simple, actionable strategies so you know exactly how to score high and maximize performance.
+          Breaks down the 7 core metrics (S-DEX™, PPI™, BARI™, MHP™, IS™, E3™, and FFS™) into simple, actionable strategies so you know exactly how to score high and maximize performance.
         </Text>
       </View>
 

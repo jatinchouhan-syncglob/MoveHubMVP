@@ -112,10 +112,24 @@ export const SegmentActionButtons: React.FC<SegmentActionButtonsProps> = ({
     );
   };
 
+  if (config.key === 'MASS_INDIVIDUALS') {
+    const innerCircleAction = action2 || {
+      id: 'share_corporate',
+      label: 'Create Your Inner Circle',
+      icon: '👥',
+      type: 'share',
+    };
+    return (
+      <View style={styles.actionsSection}>
+        {renderButton(innerCircleAction, true)}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.actionsSection}>
-      {renderButton(action1, true)}
-      {renderButton(action2, false)}
+      {action1 && renderButton(action1, true)}
+      {action2 && renderButton(action2, false)}
     </View>
   );
 };

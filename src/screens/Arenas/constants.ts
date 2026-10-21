@@ -69,7 +69,7 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
       },
     ],
     standings: {
-      title: "DESK WORKER'S METABOLIC LEAK RADAR",
+      title: 'METABOLIC LEAK RADAR',
       historyItems: [
         {
           label: 'Sedentary Block Interception',
@@ -82,20 +82,19 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
           status: 'ACTIVE',
         },
       ],
-      bannerStatusText:
-        'Displays the "Desk Worker’s Metabolic Leak Radar." Teaches busy individuals how fixing poor walking posture and avoiding long sitting blocks boosts daily calorie burn economy without requiring more gym time.',
+      bannerStatusText: '',
     },
     actions: [
       {
         id: 'launch_alarm',
-        label: 'Launch 90-Second Movement Break Radar',
+        label: '90-Second Movement Break Radar Monitoring is Activated',
         icon: '⏱️',
         type: 'audit',
       },
       {
         id: 'share_corporate',
-        label: 'Share Corporate Wellness Ingress',
-        icon: '💼',
+        label: 'Create Your Inner Circle',
+        icon: '👥',
         type: 'share',
       },
     ],
@@ -104,15 +103,15 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
     contentHookTitle: "Desk Worker's Metabolic Leak Radar",
     bottomNavTabs: ['War Room', 'Metrics', 'Cadence', 'Profile'],
     category: 'Mass Individuals (B2C Core)',
-    tagline: "DESK WORKER'S METABOLIC LEAK RADAR",
+    tagline: 'The Metabolic Leak Radar',
     headline: 'THE CARDIOMETABOLIC WAR ROOM & WORKSPACE RECOVERY LOUNGE.',
     summary:
-      'Displays the "Desk Worker’s Metabolic Leak Radar." It teaches busy individuals how fixing poor walking posture and avoiding long sitting blocks boosts daily calorie burn economy without requiring more gym time.',
+      'Displays the "Metabolic Leak Radar." It teaches busy individuals how fixing poor walking posture and avoiding long sitting blocks boosts daily calorie burn economy without requiring more gym time.',
     facts: [
       '60-STEP / 90s RADAR',
       'S-DEX™ RUN 0.00',
       'E3™ CALORIE ECONOMY',
-      'INSTITUTIONAL INGRESS',
+      'CARDIO/METABOLIC ALIGNMENT',
     ],
   },
 
@@ -802,54 +801,6 @@ export const METRIC_STRATEGIES: IMetricStrategyItem[] = [
       'Incorporate 2-minute cadence accelerations during your morning transit to trigger anaerobic recruitment.',
     accentColor: '#A855F7',
     category: 'volume',
-  },
-  {
-    id: 'gcr',
-    code: 'GCR™',
-    name: 'Glycemic Clearance Rate (Postprandial Walk)',
-    target: 'Target: 15-min post-meal mobility',
-    simpleRule:
-      'Kinetic muscle contraction within 30 minutes of eating blunts blood glucose excursions by up to 34%.',
-    actionStrategy:
-      'Take a 10 to 15-minute gentle stroll immediately following lunch or dinner before sitting back down.',
-    accentColor: '#22C55E',
-    category: 'metabolic',
-  },
-  {
-    id: 'hrv-cs',
-    code: 'HRV-CS™',
-    name: 'HRV Circadian Stability',
-    target: 'Target: > 65 ms rMSSD baseline',
-    simpleRule:
-      'Measures parasympathetic nervous recovery depth and autonomic tone stability across 24-hour cycles.',
-    actionStrategy:
-      'Practice 4-7-8 physiological sigh breathing for 3 minutes before sleep to accelerate vagal reactivation.',
-    accentColor: '#06B6D4',
-    category: 'cardiovascular',
-  },
-  {
-    id: 'mac',
-    code: 'MAC™',
-    name: 'Micro-Activity Clusters (NEAT)',
-    target: 'Target: 8+ clusters/day',
-    simpleRule:
-      'Short spontaneous non-exercise movement bursts (>30 seconds) that prevent metabolic enzyme downregulation.',
-    actionStrategy:
-      'Pace while taking telephone calls, take stairs instead of elevators, and stretch during screen breaks.',
-    accentColor: '#EAB308',
-    category: 'volume',
-  },
-  {
-    id: 'cvi',
-    code: 'CVI™',
-    name: 'Cardiometabolic Velocity Index',
-    target: 'Target: > 82 / 100 Index',
-    simpleRule:
-      'Composite efficiency factor combining VO2 kinetic ramp, step volume, and resting recovery latency.',
-    actionStrategy:
-      'Combine brisk uphill walking with consistent circadian recovery sleep to drive this score to 90+.',
-    accentColor: '#F97316',
-    category: 'cardiovascular',
   },
 ];
 

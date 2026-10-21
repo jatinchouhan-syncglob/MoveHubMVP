@@ -28,18 +28,32 @@ export const GlobalTicker: React.FC<GlobalTickerProps> = ({ config }) => {
         {
           backgroundColor: config.theme.cardBg,
           borderColor: config.theme.mutedBorders,
+          borderLeftColor: config.theme.coreAccent,
         },
       ]}
     >
-      <View
-        style={[
-          styles.tickerLiveDot,
-          { backgroundColor: config.theme.coreAccent },
-        ]}
-      />
+      <View style={styles.tickerHeaderRow}>
+        <View style={styles.tickerBadgeLeft}>
+          <View
+            style={[
+              styles.tickerLiveDot,
+              { backgroundColor: config.theme.coreAccent },
+            ]}
+          />
+          <Text
+            style={[
+              styles.tickerTagText,
+              { color: config.theme.coreAccent },
+            ]}
+          >
+            LIVE TELEMETRY ALERT
+          </Text>
+        </View>
+        <Text style={styles.tickerTimeText}>REAL-TIME SYNC • JUST NOW</Text>
+      </View>
+
       <Text
         style={[styles.tickerText, { color: config.theme.textPrimary }]}
-        numberOfLines={1}
       >
         {currentMessage}
       </Text>

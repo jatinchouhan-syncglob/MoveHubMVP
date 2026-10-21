@@ -13,26 +13,22 @@ export const ArenasHeroHeader: React.FC<ArenasHeroHeaderProps> = ({ config }) =>
   return (
     <View style={styles.heroHeaderSection}>
       <View style={styles.eyebrowRow}>
-        <View
-          style={[
-            styles.eyebrowBar,
-            { backgroundColor: config.theme.coreAccent },
-          ]}
-        />
         <Text
           style={[
             styles.eyebrowText,
             { color: config.theme.coreAccent },
           ]}
         >
-          THE ARENA • {config.segmentNumber} {config.name.toUpperCase()}
+          THE ARENA • {config.name.toUpperCase()}
         </Text>
       </View>
 
       <Text style={styles.mainHeadline}>{headline}</Text>
 
       <Text style={[styles.subHeadline, { color: config.theme.textSecondary }]}>
-        {config.tagline || 'THE ULTIMATE CARDIOMETABOLIC WAITING LOUNGE & HABIT WAR ROOM'}
+        {config.key === 'MASS_INDIVIDUALS'
+          ? 'The Metabolic Leak Radar'
+          : (config.tagline || 'THE ULTIMATE CARDIOMETABOLIC WAITING LOUNGE & HABIT WAR ROOM')}
       </Text>
     </View>
   );

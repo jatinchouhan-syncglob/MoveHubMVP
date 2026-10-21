@@ -1167,7 +1167,7 @@ export const InsightsScreen: React.FC = () => {
             style={[styles.tabBtn, activeScreenTab === 'fitness' && styles.tabActiveBtn]}
           >
             <Text style={[styles.tabBtnText, activeScreenTab === 'fitness' && styles.tabActiveText]}>
-              Daily Metrics
+              CMAS
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1197,7 +1197,7 @@ export const InsightsScreen: React.FC = () => {
             style={[styles.tabBtn, activeScreenTab === 'trends' && styles.tabActiveBtn]}
           >
             <Text style={[styles.tabBtnText, activeScreenTab === 'trends' && styles.tabActiveText]}>
-              Activity Trends
+              Metrics Trends
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1316,7 +1316,7 @@ export const InsightsScreen: React.FC = () => {
           /* View 1: Activity Trends Chart */
           <View>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionMainTitle}>Activity Trends</Text>
+              <Text style={styles.sectionMainTitle}>Metrics Trends</Text>
               {/* Styled date filter dropdown badge */}
               <TouchableOpacity
                 style={styles.dropdownBadge}

@@ -153,7 +153,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
               activeNode === 'A' && { color: theme.coreAccent },
             ]}
           >
-            Node A: Squad
+            Inner Circle
           </Text>
         </TouchableOpacity>
 
@@ -173,7 +173,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
               activeNode === 'B' && { color: theme.coreAccent },
             ]}
           >
-            Node B: Ingress
+            College & University
           </Text>
         </TouchableOpacity>
 
@@ -193,7 +193,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
               activeNode === 'C' && { color: theme.coreAccent },
             ]}
           >
-            Node C: Partner
+            GYM/Partners
           </Text>
         </TouchableOpacity>
       </View>
@@ -207,7 +207,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
           ]}
         >
           <Text style={styles.rewardsCardTitle}>
-            Node A: WhatsApp Squad Multiplier (1.4x)
+            Inner Circle Multiplier (1.4x Active)
           </Text>
           <Text style={styles.rewardsCardDesc}>
             Form a 3-member squad to lock in the 1.4x scoring bonus. All members must log at least 5,000 steps daily to maintain streak.
@@ -255,7 +255,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
           ]}
         >
           <Text style={styles.rewardsCardTitle}>
-            Node B: Institutional Ingress (Campuses & Corporates)
+            College & University Ingress
           </Text>
           <Text style={styles.rewardsCardDesc}>
             Bring your university department or company into the Arena to unlock custom branded leaderboards, sponsor prizes, and wellness subsidies.
@@ -315,7 +315,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
           ]}
         >
           <Text style={styles.rewardsCardTitle}>
-            Node C: Commercial Gym & Nutrition Partner
+            GYM / Retail Partners
           </Text>
           <Text style={styles.rewardsCardDesc}>
             Nominate your fitness center, crossfit box, or organic store. Partner locations unlock exclusive 15% subscriber discounts and free body composition tests.

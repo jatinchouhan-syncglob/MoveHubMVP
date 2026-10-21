@@ -5,11 +5,11 @@ import {
   ScrollView,
   FlatList,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
@@ -146,7 +146,10 @@ export const ArenasScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: activeTheme.canvasBase }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: activeTheme.canvasBase }]}
+      edges={['top']}
+    >
       <StatusBar barStyle="light-content" backgroundColor={activeTheme.canvasBase} />
 
       {/* Top Header with Drawer trigger */}
@@ -158,7 +161,7 @@ export const ArenasScreen: React.FC = () => {
             ? 'The ARENA: War Room'
             : activeViewportTab === 'brackets'
             ? 'The ARENA: Brackets'
-            : 'The ARENA: 3-Way Referral'
+            : 'The ARENA: Rewards'
         }
         showDrawerButton={true}
         containerStyle={[
@@ -222,7 +225,20 @@ export const ArenasScreen: React.FC = () => {
             {/* 5. Global Live Ticker Stream */}
             <GlobalTicker config={activeConfig} />
 
-            {/* 6. Core Quadrants Launcher Chips */}
+            {/* 6. Cardiometabolic Focus Trackers Grid */}
+            <FocusTrackersGrid config={activeConfig} />
+
+            {/* 7. Standings / Tournament Knockout Bracket */}
+            <SegmentStandingsCard config={activeConfig} />
+
+            {/* 8. Primary Segment Action CTAs */}
+            <SegmentActionButtons
+              config={activeConfig}
+              onOpenReferralModal={() => setActiveViewportTab('rewards')}
+              onOpenPlaybookModal={() => setActiveViewportTab('brackets')}
+            />
+
+            {/* 9. Core Quadrants Launcher Chips (Tournament Playbook, Metric Sandbox, etc.) */}
             <CoreQuadrantsBar
               config={activeConfig}
               onOpenPlaybook={() => setActiveViewportTab('brackets')}
@@ -231,34 +247,6 @@ export const ArenasScreen: React.FC = () => {
               onOpenCalibration={handleOpenCalibration}
               onOpenDisclaimer={handleOpenDisclaimer}
             />
-
-            {/* 7. Cardiometabolic Focus Trackers Grid */}
-            <FocusTrackersGrid config={activeConfig} />
-
-            {/* 8. Standings / Tournament Knockout Bracket */}
-            <SegmentStandingsCard config={activeConfig} />
-
-            {/* 9. Primary Segment Action CTAs */}
-            <SegmentActionButtons
-              config={activeConfig}
-              onOpenReferralModal={() => setActiveViewportTab('rewards')}
-              onOpenPlaybookModal={() => setActiveViewportTab('brackets')}
-            />
-
-            {/* 10. Habit War Room Tailored Content Hook Banner */}
-            <View
-              style={[
-                styles.psychHookCard,
-                { borderColor: activeTheme.mutedBorders, backgroundColor: activeTheme.cardBg },
-              ]}
-            >
-              <Text style={[styles.psychHookHeading, { color: activeTheme.coreAccent }]}>
-                🎯 TAILORED CONTENT HOOK: {activeConfig.contentHookTitle.toUpperCase()}
-              </Text>
-              <Text style={[styles.psychHookText, { color: activeTheme.textSecondary }]}>
-                {activeConfig.summary}
-              </Text>
-            </View>
           </ScrollView>
         )}
 
