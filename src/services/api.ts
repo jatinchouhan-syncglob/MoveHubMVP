@@ -19,6 +19,10 @@ import {
   INominateEntityPayload,
   IAssociateEntityPayload,
 } from '../screens/Arena/types';
+import {
+  IServiceProvidersDirectory,
+  IRegisterProvidersPayload,
+} from '../screens/ServiceProviders/types';
 import { getDynamicDeviceId } from '../utils/device';
 
 // Future API Base URL (change in environment variables later)
@@ -694,6 +698,12 @@ export const apiService = {
     weight: number;
     height: number;
     calorieGoal: number;
+    occupation?: string;
+    universityName?: string;
+    department?: string;
+    companyName?: string;
+    location?: string;
+    city?: string;
   }): Promise<any> {
     try {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
@@ -711,6 +721,12 @@ export const apiService = {
         weight: profileData.weight,
         height: profileData.height,
         calorieGoal: profileData.calorieGoal,
+        occupation: profileData.occupation,
+        universityName: profileData.universityName,
+        department: profileData.department,
+        companyName: profileData.companyName,
+        location: profileData.location,
+        city: profileData.city,
       };
       const response = await axios.post(
         `${BACKEND_8082_URL}/backend/health-connect/setupProfile`,
@@ -762,6 +778,51 @@ export const apiService = {
       return response.data;
     } catch (error) {
       console.error('Error in savePacingProfile:', error);
+      throw error;
+    }
+  },
+
+  async getHealthServiceProviders(): Promise<IServiceProvidersDirectory> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/referral/health-service-providers`;
+      const response = await axios.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] GET Health Service Providers Response:',
+        response.data,
+      );
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data;
+      }
+      return { hospitals: [], labs: [], physicians: [], gyms: [] };
+    } catch (error) {
+      console.error('[apiService] Error in getHealthServiceProviders:', error);
+      throw error;
+    }
+  },
+
+  async registerServiceProviders(payload: IRegisterProvidersPayload): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/api/service-providers/register/`;
+      console.log(
+        '[apiService] POST Register Service Providers Payload:',
+        JSON.stringify(payload, null, 2),
+      );
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(
+        '[apiService] POST Register Service Providers Response:',
+        response.data,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('[apiService] Error in registerServiceProviders:', error);
       throw error;
     }
   },

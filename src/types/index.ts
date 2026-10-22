@@ -11,6 +11,12 @@ export interface UserProfile {
   email?: string;
   userId?: number;
   token?: string;
+  occupation?: 'Student' | 'Homemaker' | 'Working Professional' | 'Retired' | string;
+  universityName?: string;
+  department?: string;
+  companyName?: string;
+  location?: string;
+  city?: string;
 }
 
 export interface Activity {

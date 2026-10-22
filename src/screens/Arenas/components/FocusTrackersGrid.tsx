@@ -11,6 +11,7 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
   config,
 }) => {
   const [tracker1, tracker2] = config.focusTrackers;
+  const currentDate = new Date().toLocaleDateString('en-GB');
 
   const renderTracker = (tracker: IFocusTracker, index: number) => {
     return (
@@ -43,6 +44,7 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
           >
             {tracker.value}
           </Text>
+
           <Text
             style={[
               styles.focusTrackerSubLabel,
@@ -88,13 +90,13 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
             { color: config.theme.coreAccent },
           ]}
         >
-          YOUR FOCUS TRACKERS
+          YOUR FOCUS TRACKERS ({currentDate})
         </Text>
       </View>
 
       <View style={styles.focusTrackersRow}>
-        {renderTracker(tracker1, 1)}
-        {renderTracker(tracker2, 2)}
+        {tracker1 && renderTracker(tracker1, 1)}
+        {tracker2 && renderTracker(tracker2, 2)}
       </View>
     </View>
   );

@@ -16,7 +16,7 @@ export const STORAGE_KEYS = {
   DAILY_DISPLAY_BLOCK_CACHE: '@movehub_daily_display_block_cache',
   WORKOUT_LOGS_CACHE: '@movehub_workout_logs_cache',
   HEALTH_CONNECT_ACTIVITIES_CACHE: '@movehub_health_connect_activities_cache',
+  SERVICE_PROVIDERS: '@movehub_service_providers',
 } as const;
 
 export type StorageKeyType = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
-

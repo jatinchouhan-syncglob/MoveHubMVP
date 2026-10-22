@@ -138,7 +138,7 @@ export const ArenasBottomDock: React.FC<ArenasBottomDockProps> = ({
                 },
               ]}
             >
-              7 METRICS
+              3 METRICS
             </Text>
           </View>
           {activeTab === 'warRoom' && (

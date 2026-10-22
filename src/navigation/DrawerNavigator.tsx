@@ -31,6 +31,7 @@ import LifestyleProfilerScreen from '../screens/LifestyleProfiler';
 import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
+import ServiceProvidersScreen from '../screens/ServiceProviders';
 import ArenaScreen from '../screens/Arena';
 import ArenasScreen from '../screens/Arenas';
 import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
@@ -394,6 +395,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <InsightsScreen />;
       case 'Profile':
         return <ProfileScreen />;
+      case 'ServiceProviders':
+        return <ServiceProvidersScreen />;
       case 'DailyQuest':
         return <DailyQuestScreen />;
       case 'OngoingQuest':
@@ -474,11 +477,10 @@ const DrawerNavigatorContent: React.FC = () => {
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
+      { screen: 'ServiceProviders', label: 'Service Providers', icon: '🏥' },
       { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
     ];
 
-  const calorieGoal = profile?.calorieGoal || 2400;
-  const progressPercent = Math.min((todayCalories / calorieGoal) * 100, 100);
 
   return (
     <View style={styles.container}>
@@ -510,20 +512,6 @@ const DrawerNavigatorContent: React.FC = () => {
               <Text style={styles.profileName} numberOfLines={1}>
                 {profile?.name || 'Loading...'}
               </Text>
-              <Text style={styles.profileSub} numberOfLines={1}>
-                🔥 {todayCalories.toLocaleString()} /{' '}
-                {calorieGoal.toLocaleString()} kcal
-              </Text>
-
-              {/* Daily Calorie Goal Progress Bar */}
-              <View style={styles.miniProgressTrack}>
-                <View
-                  style={[
-                    styles.miniProgressFill,
-                    { width: `${progressPercent}%` },
-                  ]}
-                />
-              </View>
             </View>
           </View>
 

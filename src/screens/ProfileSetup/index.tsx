@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   TextInput,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -16,7 +17,16 @@ import { ROUTES } from '../../constants/routes';
 import { CustomButton } from '../../components/common/CustomButton';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
+import { UserProfile } from '../../types';
 
+export type OccupationType = 'Student' | 'Homemaker' | 'Working Professional' | 'Retired';
+
+const OCCUPATION_OPTIONS: { id: OccupationType; label: string; icon: string }[] = [
+  { id: 'Student', label: 'Student', icon: '🎓' },
+  { id: 'Working Professional', label: 'Working Professional', icon: '💼' },
+  { id: 'Homemaker', label: 'Homemaker', icon: '🏡' },
+  { id: 'Retired', label: 'Retired', icon: '🏖️' },
+];
 
 export const ProfileSetupScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,35 +36,62 @@ export const ProfileSetupScreen: React.FC = () => {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
 
+  // Occupation & Location Profile States (Requested by Client Anjan HB)
+  const [occupation, setOccupation] = useState<OccupationType | ''>('');
+  const [universityName, setUniversityName] = useState('');
+  const [department, setDepartment] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [location, setLocation] = useState('');
+  const [city, setCity] = useState('');
+
   // Local active focused state to highlight border
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    const loadProfileName = async () => {
+  useEffect(() => {
+    const loadProfileData = async () => {
       try {
         const cached = await apiService.getProfile();
-        if (cached && cached.name) {
-          setName(cached.name);
+        if (cached) {
+          if (cached.name) setName(cached.name);
+          if (cached.age) setAge(String(cached.age));
+          if (cached.weight) setWeight(String(cached.weight));
+          if (cached.height) setHeight(String(cached.height));
+          if (cached.occupation) setOccupation(cached.occupation as OccupationType);
+          if (cached.universityName) setUniversityName(cached.universityName);
+          if (cached.department) setDepartment(cached.department);
+          if (cached.companyName) setCompanyName(cached.companyName);
+          if (cached.location) setLocation(cached.location);
+          if (cached.city) setCity(cached.city);
         }
       } catch (err) {
-        console.error('Failed to prefill name in setup:', err);
+        console.error('Failed to prefill profile in setup:', err);
       }
     };
-    loadProfileName();
+    loadProfileData();
   }, []);
 
-  const isFormValid = name.trim() !== '' && age.trim() !== '' && weight.trim() !== '' && height.trim() !== '';
+  const isFormValid =
+    name.trim() !== '' &&
+    age.trim() !== '' &&
+    weight.trim() !== '' &&
+    height.trim() !== '';
 
   const handleCompleteSetup = async () => {
     setLoading(true);
     try {
-      const profileData = {
+      const profileData: UserProfile = {
         name: name.trim() || 'Alex Rivera',
         age: parseInt(age, 10) || 28,
         weight: parseFloat(weight) || 74.5,
         height: parseFloat(height) || 178,
         calorieGoal: 2400,
         isSetupComplete: true,
+        occupation: occupation || undefined,
+        universityName: occupation === 'Student' ? universityName.trim() : undefined,
+        department: occupation === 'Student' ? department.trim() : undefined,
+        companyName: occupation === 'Working Professional' ? companyName.trim() : undefined,
+        location: location.trim() || undefined,
+        city: city.trim() || undefined,
       };
 
       // Call real backend API for profile setup
@@ -64,13 +101,19 @@ export const ProfileSetupScreen: React.FC = () => {
         weight: profileData.weight,
         height: profileData.height,
         calorieGoal: profileData.calorieGoal,
+        occupation: profileData.occupation,
+        universityName: profileData.universityName,
+        department: profileData.department,
+        companyName: profileData.companyName,
+        location: profileData.location,
+        city: profileData.city,
       });
 
       // Update profile locally and cache in Local Storage
       await apiService.updateProfile(profileData);
 
-      // Navigate to Wellness Pacing Profile Screen
-      navigation.replace(ROUTES.WELLNESS_PACING_PROFILE);
+      // Navigate directly to Disclaimer Screen
+      navigation.replace(ROUTES.DISCLAIMER);
     } catch (error) {
       console.error('Failed to complete profile setup:', error);
     } finally {
@@ -81,19 +124,23 @@ export const ProfileSetupScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader title={STRINGS.PROFILE_SETUP.TITLE} />
-      
+
       {/* Background Soft Glow Spots */}
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Progress Step Indicator */}
           <View style={styles.stepContainer}>
-            <Text style={styles.stepText}>STEP 1 OF 2: PROFILE SETUP</Text>
+            <Text style={styles.stepText}>PROFILE SETUP</Text>
             <View style={styles.stepLineBg}>
               <View style={styles.stepLineFill} />
             </View>
@@ -103,7 +150,10 @@ export const ProfileSetupScreen: React.FC = () => {
           <View style={styles.headerSection}>
             <Text style={styles.subtitle}>{STRINGS.PROFILE_SETUP.SUBTITLE}</Text>
           </View>
-          
+
+          {/* ========================================================= */}
+          {/* CARD 1: PERSONAL BIOMETRICS                              */}
+          {/* ========================================================= */}
           <View style={styles.formCard}>
             <Text style={styles.cardTitle}>🎯 Personal Biometrics</Text>
             <View style={styles.divider} />
@@ -115,10 +165,7 @@ export const ProfileSetupScreen: React.FC = () => {
                 <Text style={styles.label}>{STRINGS.PROFILE_SETUP.LABEL_NAME}</Text>
               </View>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.inputDisabled
-                ]}
+                style={[styles.input, styles.inputDisabled]}
                 value={name}
                 editable={false}
               />
@@ -133,7 +180,7 @@ export const ProfileSetupScreen: React.FC = () => {
               <TextInput
                 style={[
                   styles.input,
-                  focusedField === 'age' && styles.inputFocused
+                  focusedField === 'age' && styles.inputFocused,
                 ]}
                 placeholder={STRINGS.PROFILE_SETUP.PLACEHOLDER_AGE}
                 placeholderTextColor={theme.colors.textLight}
@@ -154,7 +201,7 @@ export const ProfileSetupScreen: React.FC = () => {
               <TextInput
                 style={[
                   styles.input,
-                  focusedField === 'weight' && styles.inputFocused
+                  focusedField === 'weight' && styles.inputFocused,
                 ]}
                 placeholder={STRINGS.PROFILE_SETUP.PLACEHOLDER_WEIGHT}
                 placeholderTextColor={theme.colors.textLight}
@@ -175,7 +222,7 @@ export const ProfileSetupScreen: React.FC = () => {
               <TextInput
                 style={[
                   styles.input,
-                  focusedField === 'height' && styles.inputFocused
+                  focusedField === 'height' && styles.inputFocused,
                 ]}
                 placeholder={STRINGS.PROFILE_SETUP.PLACEHOLDER_HEIGHT}
                 placeholderTextColor={theme.colors.textLight}
@@ -186,8 +233,261 @@ export const ProfileSetupScreen: React.FC = () => {
                 onBlur={() => setFocusedField(null)}
               />
             </View>
+          </View>
 
+          {/* ========================================================= */}
+          {/* CARD 2: OCCUPATION & LOCATION BACKGROUND (Requested by Anjan HB) */}
+          {/* ========================================================= */}
+          <View style={styles.formCard}>
+            <Text style={styles.cardTitle}>💼 Occupation & Background</Text>
+            <Text style={styles.cardSubtitle}>
+              Select your primary lifestyle role to calibrate institutional and collegiate rankings.
+            </Text>
+            <View style={styles.divider} />
 
+            {/* 4 Occupation Choices */}
+            <View style={styles.occupationGrid}>
+              {OCCUPATION_OPTIONS.map(opt => {
+                const isSelected = occupation === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[
+                      styles.occupationCard,
+                      isSelected && styles.occupationCardActive,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => setOccupation(opt.id)}
+                  >
+                    <Text style={styles.occupationIcon}>{opt.icon}</Text>
+                    <Text
+                      style={[
+                        styles.occupationLabel,
+                        isSelected && styles.occupationLabelActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                    {isSelected && (
+                      <View style={styles.selectedCheckPill}>
+                        <Text style={styles.selectedCheckText}>✓ Selected</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* CONDITIONAL FIELDS BASED ON SELECTION */}
+            {occupation === 'Student' && (
+              <View style={styles.conditionalSection}>
+                <View style={styles.conditionalBanner}>
+                  <Text style={styles.conditionalBannerText}>
+                    🎓 Student Academic Information
+                  </Text>
+                </View>
+
+                {/* University / College Name */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>🏛️</Text>
+                    <Text style={styles.label}>University / College Name</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'university' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Delhi University / IIT / BITS Pilani"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={universityName}
+                    onChangeText={setUniversityName}
+                    onFocus={() => setFocusedField('university')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* Department / Stream */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>📚</Text>
+                    <Text style={styles.label}>Department / Stream</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'department' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Computer Science, Mechanical, MBA"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={department}
+                    onChangeText={setDepartment}
+                    onFocus={() => setFocusedField('department')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* Campus Location / Area */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>📍</Text>
+                    <Text style={styles.label}>Campus Location / Area</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'location' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. North Campus, Powai, Indiranagar"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={location}
+                    onChangeText={setLocation}
+                    onFocus={() => setFocusedField('location')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* City */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>🏙️</Text>
+                    <Text style={styles.label}>City</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'city' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. New Delhi, Mumbai, Bengaluru"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={city}
+                    onChangeText={setCity}
+                    onFocus={() => setFocusedField('city')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+              </View>
+            )}
+
+            {occupation === 'Working Professional' && (
+              <View style={styles.conditionalSection}>
+                <View style={styles.conditionalBanner}>
+                  <Text style={styles.conditionalBannerText}>
+                    💼 Organization & Work Information
+                  </Text>
+                </View>
+
+                {/* Company Name */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>🏢</Text>
+                    <Text style={styles.label}>Company / Organization Name</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'company' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Google, Infosys, Tata Consultancy Services"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={companyName}
+                    onChangeText={setCompanyName}
+                    onFocus={() => setFocusedField('company')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* Office Location / Area */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>📍</Text>
+                    <Text style={styles.label}>Office Location / Area</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'location' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Electronic City, Cyber Hub, BKC"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={location}
+                    onChangeText={setLocation}
+                    onFocus={() => setFocusedField('location')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* City */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>🏙️</Text>
+                    <Text style={styles.label}>City</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'city' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Bengaluru, Gurugram, Mumbai"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={city}
+                    onChangeText={setCity}
+                    onFocus={() => setFocusedField('city')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+              </View>
+            )}
+
+            {(occupation === 'Homemaker' || occupation === 'Retired') && (
+              <View style={styles.conditionalSection}>
+                <View style={styles.conditionalBanner}>
+                  <Text style={styles.conditionalBannerText}>
+                    {occupation === 'Homemaker' ? '🏡' : '🏖️'} Location & City Details
+                  </Text>
+                </View>
+
+                {/* Locality / Area */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>📍</Text>
+                    <Text style={styles.label}>Locality / Area</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'location' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Indiranagar, Jayanagar, Vasant Kunj"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={location}
+                    onChangeText={setLocation}
+                    onFocus={() => setFocusedField('location')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+
+                {/* City */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.labelIcon}>🏙️</Text>
+                    <Text style={styles.label}>City</Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'city' && styles.inputFocused,
+                    ]}
+                    placeholder="e.g. Bengaluru, New Delhi, Pune"
+                    placeholderTextColor={theme.colors.textLight}
+                    value={city}
+                    onChangeText={setCity}
+                    onFocus={() => setFocusedField('city')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+              </View>
+            )}
           </View>
         </ScrollView>
 
@@ -199,13 +499,6 @@ export const ProfileSetupScreen: React.FC = () => {
             loading={loading}
             disabled={loading || !isFormValid}
             style={styles.button}
-          />
-          <CustomButton
-            title="Skip & Use Demo Profile"
-            onPress={handleCompleteSetup}
-            variant="text"
-            disabled={loading}
-            style={styles.skipButton}
           />
         </View>
       </KeyboardAvoidingView>
@@ -260,13 +553,14 @@ const styles = StyleSheet.create({
   stepLineFill: {
     height: '100%',
     backgroundColor: theme.colors.primary,
-    width: '50%', // First step of onboarding (1/2)
+    width: '100%',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     padding: theme.spacing.lg,
+    paddingBottom: 30,
   },
   headerSection: {
     marginBottom: theme.spacing.md,
@@ -284,19 +578,23 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    // iOS shadow
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    // Android elevation
     elevation: 4,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: theme.fonts.weights.bold as any,
     color: theme.colors.text,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 12.5,
+    color: theme.colors.textSecondary,
+    lineHeight: 18,
     marginBottom: theme.spacing.sm,
   },
   divider: {
@@ -313,11 +611,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   labelIcon: {
-    fontSize: 18,
+    fontSize: 17,
     marginRight: 6,
   },
   label: {
-    fontSize: 15, // slightly increased size
+    fontSize: 14.5,
     fontWeight: theme.fonts.weights.semibold as any,
     color: theme.colors.text,
   },
@@ -328,7 +626,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.spacing.borderRadiusMd,
     height: 50,
     paddingHorizontal: theme.spacing.md,
-    fontSize: 16.5, // slightly increased font size
+    fontSize: 15.5,
     color: theme.colors.text,
   },
   inputFocused: {
@@ -342,6 +640,81 @@ const styles = StyleSheet.create({
     color: '#475569',
     opacity: 0.8,
   },
+
+  // 4 Occupation Choice Cards
+  occupationGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: theme.spacing.sm,
+  },
+  occupationCard: {
+    width: '48%',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.spacing.borderRadiusMd,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  occupationCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight + '35',
+  },
+  occupationIcon: {
+    fontSize: 26,
+    marginBottom: 6,
+  },
+  occupationLabel: {
+    fontSize: 12.5,
+    fontWeight: theme.fonts.weights.bold as any,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  occupationLabelActive: {
+    color: theme.colors.primary,
+  },
+  selectedCheckPill: {
+    marginTop: 6,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  selectedCheckText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+
+  // Conditional Questions Section
+  conditionalSection: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  conditionalBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primaryLight + '25',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: theme.spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary,
+  },
+  conditionalBannerText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+
   footer: {
     padding: theme.spacing.lg,
     borderTopWidth: 1,
@@ -350,10 +723,6 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-  },
-  skipButton: {
-    width: '100%',
-    marginTop: theme.spacing.xs,
   },
 });
 

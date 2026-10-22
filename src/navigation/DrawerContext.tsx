@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type DrawerScreenType = 'Arena' | 'Arenas' | 'FitnessPrescription' | 'Prescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'NutritionalProfiler' | 'LifestyleProfiler' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'OngoingQuest' | 'CommunityFeed' | 'Training' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
+export type DrawerScreenType = 'Arena' | 'Arenas' | 'FitnessPrescription' | 'Prescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'ActivityTracking' | 'NutritionalProfiler' | 'LifestyleProfiler' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'ServiceProviders' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'OngoingQuest' | 'CommunityFeed' | 'Training' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
 
 interface DrawerContextProps {
   isOpen: boolean;
@@ -49,4 +49,5 @@ export const useDrawer = () => {
   }
   return context;
 };
+
 export default DrawerContext;

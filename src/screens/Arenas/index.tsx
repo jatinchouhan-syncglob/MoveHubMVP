@@ -156,12 +156,12 @@ export const ArenasScreen: React.FC = () => {
       <CustomHeader
         title={
           activeViewportTab === 'arena'
-            ? 'The ARENA'
+            ? 'THE ARENA'
             : activeViewportTab === 'warRoom'
-            ? 'The ARENA: War Room'
+            ? 'THE ARENA: War Room'
             : activeViewportTab === 'brackets'
-            ? 'The ARENA: Brackets'
-            : 'The ARENA: Rewards'
+            ? 'THE ARENA: Brackets'
+            : 'THE ARENA: Rewards'
         }
         showDrawerButton={true}
         containerStyle={[

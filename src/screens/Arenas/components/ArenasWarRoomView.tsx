@@ -10,14 +10,12 @@ interface ArenasWarRoomViewProps {
   onOpenDisclaimer: () => void;
 }
 
-type MetricCategoryFilter = 'all' | 'volume' | 'cardiovascular' | 'metabolic' | 'circadian';
+type MetricCategoryFilter = 'all' | 'cardiovascular' | 'metabolic';
 
 const CATEGORY_TABS: Array<{ key: MetricCategoryFilter; label: string }> = [
-  { key: 'all', label: 'All (7)' },
-  { key: 'cardiovascular', label: 'Cardio (2)' },
+  { key: 'all', label: 'ALL (3)' },
+  { key: 'cardiovascular', label: 'Cardio (1)' },
   { key: 'metabolic', label: 'Metabolic (2)' },
-  { key: 'circadian', label: 'Circadian (2)' },
-  { key: 'volume', label: 'Volume (1)' },
 ];
 
 export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
@@ -43,15 +41,31 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
     >
       {/* Header Info */}
       <View style={styles.warRoomHeader}>
+        <View
+          style={[
+            styles.warRoomPhaseBadge,
+            {
+              backgroundColor: theme.badgeBg,
+              borderColor: theme.coreAccent,
+            },
+          ]}
+        >
+          <Text style={[styles.warRoomPhaseBadgeText, { color: theme.coreAccent }]}>
+            WAR ROOM for PHASE-1
+          </Text>
+        </View>
         <Text style={styles.warRoomHeaderTitle}>
           🛡️ THE METRIC DEEP-DIVE & STRATEGY SANDBOX
         </Text>
+        <Text style={[styles.warRoomHeaderSubtitle, { color: theme.coreAccent }]}>
+          PHASE-1: The Cardiovascular Shield
+        </Text>
         <Text style={styles.warRoomHeaderSub}>
-          Breaks down the 7 core metrics (S-DEX™, PPI™, BARI™, MHP™, IS™, E3™, and FFS™) into simple, actionable strategies so you know exactly how to score high and maximize performance.
+          Breaks down the core metrics used in Phase-1 of the tournament, to track your fitness and longevity into simple, actionable strategies so you know how to score high and maximize your performance.
         </Text>
       </View>
 
-      {/* Segment Directive Hook Card */}
+      {/* 🏆 THE GAUNTLET: PHASE 1 Card */}
       <View
         style={[
           styles.warRoomDirectiveCard,
@@ -59,10 +73,10 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
         ]}
       >
         <Text style={[styles.warRoomDirectiveTag, { color: theme.coreAccent }]}>
-          🎯 TAILORED CONTENT HOOK • {config.segmentNumber} {config.name.toUpperCase()}
+          🏆 THE GAUNTLET: PHASE 1 (BEHAVIORAL FOUNDATION)
         </Text>
         <Text style={[styles.warRoomDirectiveBody, { color: theme.textSecondary }]}>
-          {config.summary || config.psychologicalHook}
+          The primary goal of Phase 1 is to build your foundational cardiovascular shield and eliminate the hidden dangers of physical stagnation. By measuring your daily CMAS™ (Cardio-Metabolic Activation Score), the system evaluates the real-time quality, quantity, and hourly consistency of your movements completely through your smartphone. The core objective is to break up continuous 60-minute immobility blocks, up-regulate your muscle glucose vacuums, and optimize active insulin sensitivity—whether you are working at an office desk, moving across a retail floor, or operating on a factory line. It establishes the un-gameable behavioural discipline required to protect your blood vessels and secure your rank safely above the high-stakes Tournament Axe Line.
         </Text>
       </View>
 
@@ -149,7 +163,7 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
         activeOpacity={0.8}
         onPress={onOpenCalibration}
       >
-        <Text style={styles.warRoomActionBtnText}>
+        <Text style={[styles.warRoomActionBtnText, { color: '#080C15', fontWeight: '900' }]}>
           ⚙️ Calibrate Biophysical Sensors (Drift Audit)
         </Text>
       </TouchableOpacity>

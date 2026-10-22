@@ -1375,11 +1375,32 @@ export const styles = StyleSheet.create({
   warRoomHeader: {
     marginBottom: 14,
   },
+  warRoomPhaseBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  warRoomPhaseBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   warRoomHeaderTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  warRoomHeaderSubtitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+    marginBottom: 4,
+    letterSpacing: 0.4,
   },
   warRoomHeaderSub: {
     fontSize: 12,

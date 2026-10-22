@@ -24,6 +24,7 @@ export const ROUTES = {
   FORGOT_PASSWORD: 'ForgotPassword',
   PRIVACY_POLICY: 'PrivacyPolicy',
   JOIN_CHALLENGE: 'JoinChallenge',
+  SERVICE_PROVIDERS: 'ServiceProviders',
 } as const;
 
 export type RouteType = typeof ROUTES[keyof typeof ROUTES];

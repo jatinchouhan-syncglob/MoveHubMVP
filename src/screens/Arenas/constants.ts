@@ -26,7 +26,7 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
   MASS_INDIVIDUALS: {
     key: 'MASS_INDIVIDUALS',
     segmentNumber: '01',
-    name: 'Mass Individuals (B2C Core)',
+    name: 'Mass Individuals',
     shortLabel: 'Mass Individuals',
     icon: '💻',
     targetAudience: 'White-collar Office Workers & Remote Desk Workers',
@@ -61,10 +61,10 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
         badgeType: 'active',
       },
       {
-        title: 'E3™ EXPENDITURE ECONOMY',
-        value: '3.8 kcal/km',
-        subLabel: 'METABOLIC ACCELERATED',
-        statusBadge: '🔥 HIGH ECONOMY',
+        title: 'MHP: Modified Heart Points',
+        value: '20',
+        subLabel: 'MODERATE RISK',
+        statusBadge: '🔥 SILVER',
         badgeType: 'optimal',
       },
     ],
@@ -102,7 +102,7 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
       'Appeals directly to busy white-collar office desk workers. It frames the app page as an active tool built to combat the physical exhaustion and metabolic damage of long, sedentary sitting runs.',
     contentHookTitle: "Desk Worker's Metabolic Leak Radar",
     bottomNavTabs: ['War Room', 'Metrics', 'Cadence', 'Profile'],
-    category: 'Mass Individuals (B2C Core)',
+    category: 'Mass Individuals',
     tagline: 'The Metabolic Leak Radar',
     headline: 'THE CARDIOMETABOLIC WAR ROOM & WORKSPACE RECOVERY LOUNGE.',
     summary:
@@ -110,7 +110,7 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
     facts: [
       '60-STEP / 90s RADAR',
       'S-DEX™ RUN 0.00',
-      'E3™ CALORIE ECONOMY',
+      'MHP: Modified Heart Points',
       'CARDIO/METABOLIC ALIGNMENT',
     ],
   },
@@ -670,7 +670,7 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
     summary:
       'Displays the "Clean Nutrition Fuel Counter." It maps out how raw, unrefined Indian food substrates (like ragi upma, sprouted pulses, and warm turmeric-ashwagandha mixes) balance blood sugar profiles. It rewards users with custom shopping-list tokens they can redeem for healthy items at their local partner store.',
     facts: [
-      'E3™ CALORIE ECONOMY',
+      'MHP: Modified Heart Points',
       '7-DAY INDIAN MENU',
       'QR CHECKOUT 10% TOKEN',
       'CLEAN MACRO FUEL',
@@ -719,64 +719,28 @@ export const TOURNAMENT_STAGES: ITournamentBracketStage[] = [
 
 export const METRIC_STRATEGIES: IMetricStrategyItem[] = [
   {
-    id: 's-dex',
-    code: 'S-DEX™',
-    name: 'Sedentary Stasis Index',
-    target: 'Target: 0.00 (Zero Continuous Stasis)',
-    simpleRule:
-      'If you sit still at your desk for 60 minutes, your score drops. Taking 60 steps in 90 seconds resets your sitting run back to 0 instantly.',
-    actionStrategy:
-      'Set the 90-second radar break. Stand up between meetings or calls and walk 60 brisk steps to keep the index clean.',
-    accentColor: '#00E5FF',
-    category: 'metabolic',
-  },
-  {
-    id: 'ppi',
-    code: 'PPI™',
-    name: 'Pulse-Pace Friction Index',
-    target: 'Target: < 0.40 (Low Cardiac Drag)',
-    simpleRule:
-      'Tracks how much internal cardiac overhead your body uses for each step. Sluggish vagal recovery flags friction.',
-    actionStrategy:
-      'Maintain steady breathing during stair climbs. Avoid sudden heart-rate spikes to keep cardiac friction low.',
-    accentColor: '#DFFF00',
-    category: 'cardiovascular',
-  },
-  {
-    id: 'bari',
-    code: 'BARI™',
-    name: 'Bio-Age Resilience Index',
-    target: 'Target: > 90/100 (Cellular Rebound)',
-    simpleRule:
-      'Evaluates tissue recovery speed and cellular adaptation after movement sessions.',
-    actionStrategy:
-      'Ensure 7.5 hours of circadian sleep window and hydrate immediately post-movement to maximize resilience.',
-    accentColor: '#10B981',
-    category: 'circadian',
-  },
-  {
     id: 'mhp',
     code: 'MHP™',
     name: 'Modified Heart Points',
-    target: 'Target: 150+ pts/week (Brisk Intensity)',
+    target: 'Target: 150+ pts/week (>129 steps/min)',
     simpleRule:
-      'Awards double points for brisk cadence blocks (>115 steps/min) that induce cardiovascular adaptation.',
+      'Awards double points for brisk cadence blocks (>129 steps/min) that induce cardiovascular adaptation.',
     actionStrategy:
-      'Dedicate one 15-minute brisk walk daily where cadence stays consistently above 115 steps per minute.',
+      'Dedicate one 15-minute brisk walk daily where cadence stays consistently above 129 steps per minute.',
     accentColor: '#FF0055',
     category: 'cardiovascular',
   },
   {
-    id: 'is',
-    code: 'IS™',
-    name: 'Interdaily Stamina Schedule Uniformity',
-    target: 'Target: > 0.85 (Circadian Sync)',
+    id: 's-dex',
+    code: 'S-DEX™',
+    name: 'Sedentary Drag Index',
+    target: 'Target: 0.00 (Zero Continuous Stasis)',
     simpleRule:
-      'Measures consistency of wake, sleep, and physical activity timing day over day.',
+      'If you sit still at your desk for 60 minutes, your score drops. Taking 60 steps in 90 seconds resets your sitting run back to 0 instantly.',
     actionStrategy:
-      'Wake and start movement within the same 30-minute window across weekdays and weekends.',
-    accentColor: '#FF6B6B',
-    category: 'circadian',
+      'Set the 90 second radar break. Place your smartphone in your pocket or hold it in your hand and take a quick walk to grab a glass of water, print a document, or step down a corridor, if possible. This easily hits the 60-step, 90-second target and will reset your S-DEX™ stasis counter back to zero, clear lower-limb blood pooling, release arterial nitric oxide, and instantly protect your leaderboard rank.',
+    accentColor: '#00E5FF',
+    category: 'metabolic',
   },
   {
     id: 'e3',
@@ -789,18 +753,6 @@ export const METRIC_STRATEGIES: IMetricStrategyItem[] = [
       'Avoid slouching. An upright spine and light ground strike improve walking economy by 18%.',
     accentColor: '#38BDF8',
     category: 'metabolic',
-  },
-  {
-    id: 'ffs',
-    code: 'FFS™',
-    name: 'Fast Functional Score (Cadence Velocity)',
-    target: 'Target: ≥ 120 steps/min peak',
-    simpleRule:
-      'Measures explosive ambulatory bursts and rapid gait rate transitions during everyday locomotion.',
-    actionStrategy:
-      'Incorporate 2-minute cadence accelerations during your morning transit to trigger anaerobic recruitment.',
-    accentColor: '#A855F7',
-    category: 'volume',
   },
 ];
 
