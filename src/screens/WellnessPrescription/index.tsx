@@ -126,7 +126,6 @@ export const WellnessPrescriptionScreen: React.FC<
       try {
         const pacingProfileRes = await fetch(`https://txsbp7baq1.execute-api.ap-south-1.amazonaws.com/backend/health-connect/pacingProfile?uhid=${targetUhid}`);
         const pacingProfileJson = await pacingProfileRes.json();
-        console.log('[WellnessPrescription] GET Pacing Profile Response:', JSON.stringify(pacingProfileJson, null, 2));
         if (pacingProfileJson && pacingProfileJson.status === 'Success' && pacingProfileJson.data) {
           setApiPacingProfile(pacingProfileJson.data);
         }
@@ -135,9 +134,7 @@ export const WellnessPrescriptionScreen: React.FC<
       }
 
       // 1. TanStack Query Prescription API (POST Form-Data) - MUST succeed
-      console.log(`[WellnessPrescription] Calling TanStack Query Prescription API for UHID: ${targetUhid}...`);
       const payloadData = await fetchPrescriptionMutation.mutateAsync(targetUhid);
-      console.log('[WellnessPrescription] TanStack Query Full Response Payload:', JSON.stringify(payloadData, null, 2));
       
       if (!payloadData) {
         throw new Error('Server returned empty prescription data.');

@@ -1,4 +1,4 @@
-import {Linking, NativeModules, Platform} from 'react-native';
+import { Linking, NativeModules, Platform } from 'react-native';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';
@@ -106,7 +106,11 @@ const HEALTH_CONNECT_PERMISSIONS: Permission[] =
     recordType,
   }));
 
-const HEALTH_CONNECT_REQUEST_PERMISSIONS: (Permission | BackgroundAccessPermission | ReadHealthDataHistoryPermission)[] = [
+const HEALTH_CONNECT_REQUEST_PERMISSIONS: (
+  | Permission
+  | BackgroundAccessPermission
+  | ReadHealthDataHistoryPermission
+)[] = [
   ...HEALTH_CONNECT_PERMISSIONS,
   {
     accessType: 'read' as const,
@@ -115,7 +119,7 @@ const HEALTH_CONNECT_REQUEST_PERMISSIONS: (Permission | BackgroundAccessPermissi
   {
     accessType: 'read' as const,
     recordType: 'ReadHealthDataHistory',
-  }
+  },
 ];
 
 export const HEALTH_CONNECT_PERMISSION_COUNT =
@@ -180,7 +184,7 @@ const hasAllRequiredPermissions = (
 const createWeeklySummarySeed = () => {
   const startDate = dayjs().subtract(6, 'day').startOf('day');
 
-  return Array.from({length: 7}, (_, index) => {
+  return Array.from({ length: 7 }, (_, index) => {
     const date = startDate.add(index, 'day');
 
     return {
@@ -357,7 +361,7 @@ const getHeartRateSummary = (
   const measurements = samples.length;
 
   if (!measurements) {
-    return {averageHeartRate: null, heartRateMeasurements: 0};
+    return { averageHeartRate: null, heartRateMeasurements: 0 };
   }
 
   const totalBpm = samples.reduce(
@@ -476,7 +480,11 @@ const safeReadRecords = async <T extends RecordType>(
     } as unknown as ReadRecordsResult<T>;
   } catch (error: any) {
     console.warn(`Health Connect readRecords failed for ${recordType}`, error);
-    throw new Error(`Health Connect readRecords failed for ${recordType}: ${error?.message || error}`);
+    throw new Error(
+      `Health Connect readRecords failed for ${recordType}: ${
+        error?.message || error
+      }`,
+    );
   }
 };
 
@@ -488,7 +496,11 @@ const safeAggregateRecord = async (args: any) => {
       `Health Connect aggregateRecord failed for ${args.recordType}`,
       error,
     );
-    throw new Error(`Health Connect aggregateRecord failed for ${args.recordType}: ${error?.message || error}`);
+    throw new Error(
+      `Health Connect aggregateRecord failed for ${args.recordType}: ${
+        error?.message || error
+      }`,
+    );
   }
 };
 
@@ -524,11 +536,13 @@ const getTotalCaloriesInKcal = async (
     timeRangeFilter,
   });
 
-  return roundToOneDecimal((totalCalories as any).ENERGY_TOTAL?.inKilocalories ?? 0);
+  return roundToOneDecimal(
+    (totalCalories as any).ENERGY_TOTAL?.inKilocalories ?? 0,
+  );
 };
 
 const mergeRecordTotalsByDate = <
-  TRecord extends {startTime: string} | {endTime: string},
+  TRecord extends { startTime: string } | { endTime: string },
 >(
   weeklySummaryMap: Map<string, IHealthConnectDailySummary>,
   records: TRecord[],
@@ -580,13 +594,13 @@ const initializeGoogleHealthConnect = async ({
   throwOnInitializeFailure?: boolean;
 } = {}): Promise<IHealthConnectAccessState> => {
   if (Platform.OS !== 'android') {
-    return {...EMPTY_ACCESS_STATE, availability: 'unsupported_platform'};
+    return { ...EMPTY_ACCESS_STATE, availability: 'unsupported_platform' };
   }
 
   const availability = await checkGoogleHealthConnectAvailability();
 
   if (availability !== 'available') {
-    return {...EMPTY_ACCESS_STATE, availability};
+    return { ...EMPTY_ACCESS_STATE, availability };
   }
 
   const isInitialized = await initialize();
@@ -596,7 +610,7 @@ const initializeGoogleHealthConnect = async ({
       throw new Error('Health Connect initialization failed');
     }
 
-    return {...EMPTY_ACCESS_STATE, availability, isInitialized: false};
+    return { ...EMPTY_ACCESS_STATE, availability, isInitialized: false };
   }
 
   if (!checkPermissions) {
@@ -787,25 +801,27 @@ export const loadHealthConnectSnapshot = async (
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Steps'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Steps'>),
     canRead('SleepSession')
       ? safeReadRecords('SleepSession', {
           timeRangeFilter: sleepTodayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'SleepSession'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'SleepSession'>),
     canRead('HeartRate')
       ? safeReadRecords('HeartRate', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'HeartRate'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'HeartRate'>),
     canRead('ExerciseSession')
       ? safeReadRecords('ExerciseSession', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'ExerciseSession'>),
+      : Promise.resolve({
+          records: [],
+        } as ReadRecordsResult<'ExerciseSession'>),
     canRead('Distance') ? getDistanceInKm(todayTimeRange) : 0,
     canRead('ActiveCaloriesBurned')
       ? getActiveCaloriesInKcal(todayTimeRange)
@@ -816,57 +832,59 @@ export const loadHealthConnectSnapshot = async (
           timeRangeFilter: weeklyTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Steps'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Steps'>),
     canRead('SleepSession')
       ? safeReadRecords('SleepSession', {
           timeRangeFilter: sleepWeeklyTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'SleepSession'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'SleepSession'>),
     canRead('SleepSession')
       ? safeReadRecords('SleepSession', {
           timeRangeFilter: sleepWeeklyTimeRange,
           ascendingOrder: false,
           pageSize: 5,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'SleepSession'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'SleepSession'>),
     canRead('HeartRate')
       ? safeReadRecords('HeartRate', {
           timeRangeFilter: weeklyTimeRange,
           ascendingOrder: false,
           pageSize: 5,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'HeartRate'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'HeartRate'>),
     canRead('Weight')
       ? safeReadRecords('Weight', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Weight'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Weight'>),
     canRead('BloodPressure')
       ? safeReadRecords('BloodPressure', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'BloodPressure'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'BloodPressure'>),
     canRead('RestingHeartRate')
       ? safeReadRecords('RestingHeartRate', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'RestingHeartRate'>),
+      : Promise.resolve({
+          records: [],
+        } as ReadRecordsResult<'RestingHeartRate'>),
     canRead('Vo2Max')
       ? safeReadRecords('Vo2Max', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Vo2Max'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Vo2Max'>),
     canRead('Distance')
       ? safeReadRecords('Distance', {
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Distance'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Distance'>),
     canRead('ActiveCaloriesBurned')
       ? safeReadRecords('ActiveCaloriesBurned', {
           timeRangeFilter: todayTimeRange,
@@ -896,10 +914,10 @@ export const loadHealthConnectSnapshot = async (
           timeRangeFilter: todayTimeRange,
           pageSize: RECORDS_PAGE_SIZE,
         })
-      : Promise.resolve({records: []} as ReadRecordsResult<'Speed'>),
+      : Promise.resolve({ records: [] } as ReadRecordsResult<'Speed'>),
   ]);
 
-  const isRecordInSession = (record: {endTime: string}) => {
+  const isRecordInSession = (record: { endTime: string }) => {
     const endMs = dayjs(record.endTime).valueOf();
     const startMs = sessionStartTime.valueOf();
     const endLimitMs = sessionEndTime.valueOf();
@@ -1034,20 +1052,20 @@ export const openHealthConnectAppSettings = () => {
 export const refreshHealthConnectPermissions =
   async (): Promise<IHealthConnectAccessState> => {
     if (Platform.OS !== 'android') {
-      return {...EMPTY_ACCESS_STATE, availability: 'unsupported_platform'};
+      return { ...EMPTY_ACCESS_STATE, availability: 'unsupported_platform' };
     }
 
     const availability = await checkGoogleHealthConnectAvailability();
 
     if (availability !== 'available') {
-      return {...EMPTY_ACCESS_STATE, availability};
+      return { ...EMPTY_ACCESS_STATE, availability };
     }
 
     const isInitialized = await initialize();
 
     if (!isInitialized) {
       console.warn('Health Connect initialization failed on refresh');
-      return {...EMPTY_ACCESS_STATE, availability, isInitialized: false};
+      return { ...EMPTY_ACCESS_STATE, availability, isInitialized: false };
     }
 
     const permissionState = await checkGoogleHealthPermissionsGranted();
@@ -1151,7 +1169,9 @@ export const getHealthConnectSyncedKeys = async (): Promise<string[]> => {
   return healthConnectWorkManagerModule.getSyncedKeys();
 };
 
-export const getHealthConnectChangesToken = async (): Promise<string | null> => {
+export const getHealthConnectChangesToken = async (): Promise<
+  string | null
+> => {
   if (
     Platform.OS !== 'android' ||
     !healthConnectWorkManagerModule?.getChangesToken
@@ -1186,8 +1206,14 @@ export const saveHealthConnectSyncedKeys = async (
 export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
   try {
     const access = await refreshHealthConnectPermissions();
-    if (access.availability !== 'available' || !access.isInitialized || access.grantedPermissions.length === 0) {
-      console.warn('Sync cancelled: Health Connect access/permissions not ready');
+    if (
+      access.availability !== 'available' ||
+      !access.isInitialized ||
+      access.grantedPermissions.length === 0
+    ) {
+      console.warn(
+        'Sync cancelled: Health Connect access/permissions not ready',
+      );
       return false;
     }
 
@@ -1197,7 +1223,8 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     const uhid = cachedProfile?.uhid || 'SAUSHA9775';
     const deviceId = await getDynamicDeviceId();
 
-    const API_BASE_URL = 'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/backend';
+    const API_BASE_URL =
+      'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/backend';
     const syncedIntervalsSet = new Set(await getHealthConnectSyncedIntervals());
 
     // 2a. Fetch synced keys cache from SharedPreferences
@@ -1225,84 +1252,6 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
       uhid,
     });
 
-    // 2b. Fetch Remote lastSyncTime from Server
-    let lastSyncTimeVal: dayjs.Dayjs | null = null;
-    try {
-      let lastSyncUrl = `${API_BASE_URL}/health-connect/getLastSyncDateTime`;
-      if (lastSyncUrl.includes('97c0imknqe')) {
-        lastSyncUrl = lastSyncUrl.replace('97c0imknqe', 'txsbp7baq1');
-      } else {
-        lastSyncUrl = lastSyncUrl.replace(':8082', ':8081');
-      }
-
-      const res = await axios.post(
-        lastSyncUrl,
-        { uhid, device_id: deviceId },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-      if (res.data) {
-        console.log(`[JS Sync] Raw getLastSyncDateTime response:`, JSON.stringify(res.data, null, 2));
-        const data = res.data.data;
-        if (data && data.lastSyncTime && data.lastSyncTime.includes('T')) {
-          lastSyncTimeVal = dayjs(data.lastSyncTime);
-        } else if (data && data.lastSyncDate && data.lastSyncTime) {
-          lastSyncTimeVal = dayjs(`${data.lastSyncDate} ${data.lastSyncTime}:00`);
-        } else if (data && data.lastSyncTime) {
-          lastSyncTimeVal = dayjs(data.lastSyncTime);
-        } else if (res.data.lastSyncTime) {
-          lastSyncTimeVal = dayjs(res.data.lastSyncTime);
-        }
-      }
-      console.log(`[JS Sync] Parsed remote lastSyncTime:`, lastSyncTimeVal ? lastSyncTimeVal.format('YYYY-MM-DD HH:mm:ss') : 'NULL (Syncing all data)');
-    } catch (err) {
-      console.error('[JS Sync] Failed to fetch remote lastSyncTime, defaulting to NULL:', err);
-    }
-
-    // Purge local cache based on remote lastSyncTimeVal
-    if (lastSyncTimeVal !== null) {
-      // 1. Purge syncedIntervalsSet
-      for (const intervalKey of Array.from(syncedIntervalsSet)) {
-        const parts = intervalKey.split(':');
-        if (parts.length >= 2) {
-          const dateStr = parts[0];
-          const sessionName = parts[1];
-          const selectedDay = dayjs(dateStr);
-          let sessionStartTime = selectedDay.startOf('day');
-          switch (sessionName) {
-            case 'morning':
-              sessionStartTime = selectedDay.hour(6).minute(0).second(0).millisecond(0);
-              break;
-            case 'afternoon':
-              sessionStartTime = selectedDay.hour(12).minute(0).second(0).millisecond(0);
-              break;
-            case 'evening':
-              sessionStartTime = selectedDay.hour(17).minute(0).second(0).millisecond(0);
-              break;
-            case 'night':
-              sessionStartTime = selectedDay.hour(21).minute(0).second(0).millisecond(0);
-              break;
-          }
-          if (sessionStartTime.isAfter(lastSyncTimeVal)) {
-            syncedIntervalsSet.delete(intervalKey);
-          }
-        }
-      }
-      
-      // 2. Purge syncedKeysSet
-      for (const key of Array.from(syncedKeysSet)) {
-        const parts = key.split('|');
-        if (parts.length >= 2) {
-          const recordStart = dayjs(parts[1]);
-          if (recordStart.isAfter(lastSyncTimeVal)) {
-            syncedKeysSet.delete(key);
-          }
-        }
-      }
-    } else {
-      syncedIntervalsSet.clear();
-      syncedKeysSet.clear();
-    }
-
     for (const item of intervalsToSync) {
       const { dateStr, session: sessionName } = item;
       const intervalKey = `${dateStr}:${sessionName}`;
@@ -1314,20 +1263,53 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
       switch (sessionName) {
         case 'morning':
-          sessionStartTime = selectedDay.hour(6).minute(0).second(0).millisecond(0);
-          sessionEndTime = selectedDay.hour(11).minute(59).second(59).millisecond(999);
+          sessionStartTime = selectedDay
+            .hour(6)
+            .minute(0)
+            .second(0)
+            .millisecond(0);
+          sessionEndTime = selectedDay
+            .hour(11)
+            .minute(59)
+            .second(59)
+            .millisecond(999);
           break;
         case 'afternoon':
-          sessionStartTime = selectedDay.hour(12).minute(0).second(0).millisecond(0);
-          sessionEndTime = selectedDay.hour(16).minute(59).second(59).millisecond(999);
+          sessionStartTime = selectedDay
+            .hour(12)
+            .minute(0)
+            .second(0)
+            .millisecond(0);
+          sessionEndTime = selectedDay
+            .hour(16)
+            .minute(59)
+            .second(59)
+            .millisecond(999);
           break;
         case 'evening':
-          sessionStartTime = selectedDay.hour(17).minute(0).second(0).millisecond(0);
-          sessionEndTime = selectedDay.hour(20).minute(59).second(59).millisecond(999);
+          sessionStartTime = selectedDay
+            .hour(17)
+            .minute(0)
+            .second(0)
+            .millisecond(0);
+          sessionEndTime = selectedDay
+            .hour(20)
+            .minute(59)
+            .second(59)
+            .millisecond(999);
           break;
         case 'night':
-          sessionStartTime = selectedDay.hour(21).minute(0).second(0).millisecond(0);
-          sessionEndTime = selectedDay.add(1, 'day').hour(5).minute(59).second(59).millisecond(999);
+          sessionStartTime = selectedDay
+            .hour(21)
+            .minute(0)
+            .second(0)
+            .millisecond(0);
+          sessionEndTime = selectedDay
+            .add(1, 'day')
+            .hour(5)
+            .minute(59)
+            .second(59)
+            .millisecond(999);
           break;
       }
 
@@ -1338,14 +1320,6 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
       const isPastSession = sessionEndTime.isBefore(now);
 
-      // Skip if session ended before remote lastSyncTimeVal (already fully synced on server)
-      if (lastSyncTimeVal !== null && (sessionEndTime.isBefore(lastSyncTimeVal) || sessionEndTime.isSame(lastSyncTimeVal))) {
-        if (isPastSession) {
-          syncedIntervalsSet.add(intervalKey);
-        }
-        continue;
-      }
-
       // Skip already synced completed past sessions
       if (isPastSession && syncedIntervalsSet.has(intervalKey)) {
         continue;
@@ -1353,7 +1327,11 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
       try {
         // Load data snapshot for target day and session
-        const snapshot = await loadHealthConnectSnapshot(access, dateStr, sessionName);
+        const snapshot = await loadHealthConnectSnapshot(
+          access,
+          dateStr,
+          sessionName,
+        );
         const summary = snapshot.summary;
 
         if (!summary) {
@@ -1365,23 +1343,24 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
 
         const filterDetailedRecords = (arr: any[], dataType: string) => {
           if (!arr || !arr.length) return [];
-          const sorted = [...arr].sort((a, b) => dayjs(a.startTime).valueOf() - dayjs(b.startTime).valueOf());
+          const sorted = [...arr].sort(
+            (a, b) =>
+              dayjs(a.startTime).valueOf() - dayjs(b.startTime).valueOf(),
+          );
           const result: any[] = [];
           const lastEndTimeByType: Record<string, dayjs.Dayjs> = {};
 
           for (const record of sorted) {
             const recType = record.type || 'DEFAULT';
-            const key = `${dataType}|${record.type || ''}|${record.startTime}|${record.endTime}`;
+            const key = `${dataType}|${record.type || ''}|${record.startTime}|${
+              record.endTime
+            }`;
             if (syncedKeysSet.has(key)) {
               continue;
             }
             const recordStart = dayjs(record.startTime);
             const recordEnd = dayjs(record.endTime);
-            if (lastSyncTimeVal !== null) {
-              if (recordStart.isBefore(lastSyncTimeVal) || recordStart.isSame(lastSyncTimeVal)) {
-                continue;
-              }
-            }
+
             const lastEndTime = lastEndTimeByType[recType];
             if (lastEndTime && recordStart.isBefore(lastEndTime)) {
               continue; // Skip overlapping intervals within same type locally
@@ -1393,32 +1372,44 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           return result;
         };
 
-        const filteredSteps = filterDetailedRecords(summary.detailedRecords?.stepsObject, 'steps');
-        const filteredDistance = filterDetailedRecords(summary.detailedRecords?.distanceObject, 'distance');
-        const filteredCalories = filterDetailedRecords(summary.detailedRecords?.caloriesObject, 'calories');
-        const filteredSpeed = filterDetailedRecords(summary.detailedRecords?.speedObject, 'speed');
+        const filteredSteps = filterDetailedRecords(
+          summary.detailedRecords?.stepsObject,
+          'steps',
+        );
+        const filteredDistance = filterDetailedRecords(
+          summary.detailedRecords?.distanceObject,
+          'distance',
+        );
+        const filteredCalories = filterDetailedRecords(
+          summary.detailedRecords?.caloriesObject,
+          'calories',
+        );
+        const filteredSpeed = filterDetailedRecords(
+          summary.detailedRecords?.speedObject,
+          'speed',
+        );
 
-        const filteredExercises = (summary.todayExerciseRecords || []).filter((record: any) => {
-          const key = `exercise|${record.startTime}|${record.endTime}`;
-          if (syncedKeysSet.has(key)) return false;
-          if (lastSyncTimeVal !== null) {
-            const recordStart = dayjs(record.startTime);
-            if (recordStart.isBefore(lastSyncTimeVal) || recordStart.isSame(lastSyncTimeVal)) {
-              return false;
-            }
-          }
-          sessionSyncedKeys.push(key);
-          return true;
-        });
+        const filteredExercises = (summary.todayExerciseRecords || []).filter(
+          (record: any) => {
+            const key = `exercise|${record.startTime}|${record.endTime}`;
+            if (syncedKeysSet.has(key)) return false;
 
-        const hasNewData = filteredSteps.length > 0 ||
-                           filteredDistance.length > 0 ||
-                           filteredCalories.length > 0 ||
-                           filteredSpeed.length > 0 ||
-                           filteredExercises.length > 0;
+            sessionSyncedKeys.push(key);
+            return true;
+          },
+        );
+
+        const hasNewData =
+          filteredSteps.length > 0 ||
+          filteredDistance.length > 0 ||
+          filteredCalories.length > 0 ||
+          filteredSpeed.length > 0 ||
+          filteredExercises.length > 0;
 
         if (!hasNewData) {
-          console.log(`[JS Sync] No new detailed data for session ${intervalKey}. Skipping upload.`);
+          console.log(
+            `[JS Sync] No new detailed data for session ${intervalKey}. Skipping upload.`,
+          );
           if (isPastSession) {
             syncedIntervalsSet.add(intervalKey);
           }
@@ -1434,7 +1425,8 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           date: dateStr,
           steps: summary.steps || 0,
           heartPoint: 0,
-          activeCaloriesInKcal: summary.activeCaloriesInKcal || summary.totalCaloriesInKcal || 0,
+          activeCaloriesInKcal:
+            summary.activeCaloriesInKcal || summary.totalCaloriesInKcal || 0,
           averageHeartRate: summary.averageHeartRate || 0,
           heartRateMeasurements: summary.heartRateMeasurements || 0,
           sleepHours: summary.sleepHours || 0,
@@ -1448,18 +1440,21 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
           speedObject: filteredSpeed,
         };
 
-        console.log(`[JS Sync] Posting Detailed Payload for session ${intervalKey}:`, JSON.stringify([payload], null, 2));
+        console.log(
+          `[JS Sync] Posting Detailed Payload for session ${intervalKey}:`,
+          JSON.stringify([payload], null, 2),
+        );
 
         // POST request to client telemetry endpoint with all original fields wrapped in array
         const clientPayload = {
           ...payload,
           user_id: uhid || 'TEST001',
-          event_type: 'TELEMETRY_SYNC'
+          event_type: 'TELEMETRY_SYNC',
         };
         await axios.post(
           'https://97c0imknqe.execute-api.ap-south-1.amazonaws.com/v1/telemetry',
           [clientPayload],
-          { headers: { 'Content-Type': 'application/json' } }
+          { headers: { 'Content-Type': 'application/json' } },
         );
 
         console.log(`[JS Sync] Successfully synced session: ${intervalKey}`);
@@ -1473,7 +1468,10 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
       } catch (err: any) {
         console.warn(`[JS Sync] Failed to sync session: ${intervalKey}`, err);
         if (err?.response?.data) {
-          console.warn(`[JS Sync] Server error response for ${intervalKey}:`, JSON.stringify(err.response.data, null, 2));
+          console.warn(
+            `[JS Sync] Server error response for ${intervalKey}:`,
+            JSON.stringify(err.response.data, null, 2),
+          );
         }
         overallSuccess = false;
       }
@@ -1491,7 +1489,9 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     }
 
     if (!overallSuccess) {
-      throw new Error('Sync failed for one or more sessions. Please check logs.');
+      throw new Error(
+        'Sync failed for one or more sessions. Please check logs.',
+      );
     }
     return true;
   } catch (err: any) {

@@ -59,8 +59,13 @@ axios.interceptors.request.use(
 axios.interceptors.response.use(
   response => response,
   async error => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      console.warn('[apiService] 401/403 Unauthorized detected! Token expired or invalid.');
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      console.warn(
+        '[apiService] 401/403 Unauthorized detected! Token expired or invalid.',
+      );
       try {
         await storageHelper.removeItem(STORAGE_KEYS.TOKEN);
       } catch (e) {
@@ -79,7 +84,6 @@ export const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
 
 // Helper function to simulate network delay for MVP demo purposes
 const simulateNetworkCall = <T>(mockData: T, delayMs = 800): Promise<T> => {
@@ -249,8 +253,12 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
-      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
-      console.log(`[apiService] GET getActivities (kafka_raw_workout_activity): ${url}`);
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(
+        `[apiService] GET getActivities (kafka_raw_workout_activity): ${url}`,
+      );
       const response = await axios.get(url);
 
       if (
@@ -260,96 +268,107 @@ export const apiService = {
         Array.isArray(response.data.data)
       ) {
         const userWeight = cachedProfile?.weight || 70;
-        const mapped: Activity[] = response.data.data.map((item: any, index: number) => {
-          let parsedTimestamp = new Date().toISOString();
-          if (item.receivedAt) {
-            const dateObj = new Date(item.receivedAt);
-            if (!isNaN(dateObj.getTime())) {
-              parsedTimestamp = dateObj.toISOString();
-            }
-          } else if (item.kafkaTimestampMs) {
-            const dateObj = new Date(Number(item.kafkaTimestampMs));
-            if (!isNaN(dateObj.getTime())) {
-              parsedTimestamp = dateObj.toISOString();
-            }
-          } else {
-            const rawTime =
-              item.timestamp || item.created_at || item.activityDate;
-            if (rawTime) {
-              let tsStr = String(rawTime).trim();
-              if (tsStr.includes(' ') && !tsStr.includes('T')) {
-                tsStr = tsStr.replace(' ', 'T');
-              }
-              if (
-                tsStr.includes('T') &&
-                !tsStr.endsWith('Z') &&
-                !tsStr.includes('+') &&
-                !tsStr.includes('-')
-              ) {
-                tsStr = tsStr + 'Z';
-              }
-              const dateObj = new Date(tsStr);
+        const mapped: Activity[] = response.data.data.map(
+          (item: any, index: number) => {
+            let parsedTimestamp = new Date().toISOString();
+            if (item.receivedAt) {
+              const dateObj = new Date(item.receivedAt);
               if (!isNaN(dateObj.getTime())) {
                 parsedTimestamp = dateObj.toISOString();
               }
+            } else if (item.kafkaTimestampMs) {
+              const dateObj = new Date(Number(item.kafkaTimestampMs));
+              if (!isNaN(dateObj.getTime())) {
+                parsedTimestamp = dateObj.toISOString();
+              }
+            } else {
+              const rawTime =
+                item.timestamp || item.created_at || item.activityDate;
+              if (rawTime) {
+                let tsStr = String(rawTime).trim();
+                if (tsStr.includes(' ') && !tsStr.includes('T')) {
+                  tsStr = tsStr.replace(' ', 'T');
+                }
+                if (
+                  tsStr.includes('T') &&
+                  !tsStr.endsWith('Z') &&
+                  !tsStr.includes('+') &&
+                  !tsStr.includes('-')
+                ) {
+                  tsStr = tsStr + 'Z';
+                }
+                const dateObj = new Date(tsStr);
+                if (!isNaN(dateObj.getTime())) {
+                  parsedTimestamp = dateObj.toISOString();
+                }
+              }
             }
-          }
 
-          const duration = Number(
-            item.durationMinutes !== undefined && item.durationMinutes !== null
-              ? item.durationMinutes
-              : item.activityValue || item.value || 30,
-          );
-          const value = Number(
-            item.activityValue !== undefined && item.activityValue !== null
-              ? item.activityValue
-              : item.value || duration || 30,
-          );
-          const metric = item.metricType || item.metric || 'mins';
-          const type = item.activityType || item.type || 'Workout';
-          const met = Number(item.met) || 4.0;
+            const duration = Number(
+              item.durationMinutes !== undefined &&
+                item.durationMinutes !== null
+                ? item.durationMinutes
+                : item.activityValue || item.value || 30,
+            );
+            const value = Number(
+              item.activityValue !== undefined && item.activityValue !== null
+                ? item.activityValue
+                : item.value || duration || 30,
+            );
+            const metric = item.metricType || item.metric || 'mins';
+            const type = item.activityType || item.type || 'Workout';
+            const met = Number(item.met) || 4.0;
 
-          const caloriesBurned =
-            item.caloriesBurned !== undefined && item.caloriesBurned !== null
-              ? Number(item.caloriesBurned)
-              : Math.round(met * userWeight * duration * 0.0175);
+            const caloriesBurned =
+              item.caloriesBurned !== undefined && item.caloriesBurned !== null
+                ? Number(item.caloriesBurned)
+                : Math.round(met * userWeight * duration * 0.0175);
 
-          const gainPoints =
-            item.gainPoints !== undefined && item.gainPoints !== null
-              ? Number(item.gainPoints)
-              : Math.round(caloriesBurned / (userWeight * 0.0175));
+            const gainPoints =
+              item.gainPoints !== undefined && item.gainPoints !== null
+                ? Number(item.gainPoints)
+                : Math.round(caloriesBurned / (userWeight * 0.0175));
 
-          const cardioPoints =
-            item.cardioPoints !== undefined && item.cardioPoints !== null
-              ? Number(item.cardioPoints)
-              : Math.round(gainPoints * 0.5);
+            const cardioPoints =
+              item.cardioPoints !== undefined && item.cardioPoints !== null
+                ? Number(item.cardioPoints)
+                : Math.round(gainPoints * 0.5);
 
-          const musculoPoints =
-            item.musculoPoints !== undefined && item.musculoPoints !== null
-              ? Number(item.musculoPoints)
-              : Math.round(gainPoints * 0.3);
+            const musculoPoints =
+              item.musculoPoints !== undefined && item.musculoPoints !== null
+                ? Number(item.musculoPoints)
+                : Math.round(gainPoints * 0.3);
 
-          const notes =
-            item.notes ||
-            (item.userRpe ? `RPE Scale: ${item.userRpe}` : undefined);
+            const notes =
+              item.notes ||
+              (item.userRpe ? `RPE Scale: ${item.userRpe}` : undefined);
 
-          return {
-            id: String(item.rawId || item.transactionId || item.id || `hc-${index}-${Date.now()}`),
-            type,
-            value,
-            metric,
-            durationMinutes: duration,
-            caloriesBurned,
-            timestamp: parsedTimestamp,
-            notes,
-            gainPoints,
-            cardioPoints,
-            musculoPoints,
-          };
-        });
+            return {
+              id: String(
+                item.rawId ||
+                  item.transactionId ||
+                  item.id ||
+                  `hc-${index}-${Date.now()}`,
+              ),
+              type,
+              value,
+              metric,
+              durationMinutes: duration,
+              caloriesBurned,
+              timestamp: parsedTimestamp,
+              notes,
+              gainPoints,
+              cardioPoints,
+              musculoPoints,
+            };
+          },
+        );
 
         // Sort descending by timestamp so latest logged activities appear first
-        return mapped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return mapped.sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        );
       }
       return [];
     } catch (error: any) {
@@ -478,13 +497,23 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
-      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
-      console.log(`[API Request] GET getHealthConnectActivities (kafka_raw_workout_activity): ${url}`);
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(
+        `[API Request] GET getHealthConnectActivities (kafka_raw_workout_activity): ${url}`,
+      );
       const response = await axios.get(url);
-      console.log(`[API Response] GET getHealthConnectActivities SUCCESS for UHID: ${targetUhid}`, JSON.stringify(response.data, null, 2));
+      console.log(
+        `[API Response] GET getHealthConnectActivities SUCCESS for UHID: ${targetUhid}`,
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
-      console.error(`[API Error] GET getHealthConnectActivities FAILED:`, error);
+      console.error(
+        `[API Error] GET getHealthConnectActivities FAILED:`,
+        error,
+      );
       throw error;
     }
   },
@@ -495,10 +524,17 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
-      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(targetUhid)}`;
-      console.log(`[API Request] GET getWorkoutLog (kafka_raw_workout_activity): ${url}`);
+      const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(
+        `[API Request] GET getWorkoutLog (kafka_raw_workout_activity): ${url}`,
+      );
       const response = await axios.get(url);
-      console.log(`[API Response] GET getWorkoutLog SUCCESS for UHID: ${targetUhid}`, JSON.stringify(response.data, null, 2));
+      console.log(
+        `[API Response] GET getWorkoutLog SUCCESS for UHID: ${targetUhid}`,
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error(`[API Error] GET getWorkoutLog FAILED:`, error);
@@ -512,7 +548,9 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
-      const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(targetUhid)}`;
+      const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
       console.log(`[API Request] GET getLatestWorkoutLog: ${url}`);
       const response = await axios.get(url);
       console.log(
@@ -528,7 +566,9 @@ export const apiService = {
 
   async submitAssessment(uhid: string = 'JATCHO5525'): Promise<any> {
     const url = 'http://13.204.123.149:8000/api/v1/assessments/submit';
-    console.log(`[API Request] POST submitAssessment: ${url} for UHID: ${uhid}`);
+    console.log(
+      `[API Request] POST submitAssessment: ${url} for UHID: ${uhid}`,
+    );
     try {
       const formData = new FormData();
       formData.append('uhid', uhid);
@@ -544,11 +584,18 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.warn(`[API Warning] POST submitAssessment with FormData failed, attempting json fallback:`, error?.message);
+      console.warn(
+        `[API Warning] POST submitAssessment with FormData failed, attempting json fallback:`,
+        error?.message,
+      );
       try {
-        const response = await axios.post(url, { uhid }, {
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const response = await axios.post(
+          url,
+          { uhid },
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
         console.log(
           `[API Response] POST submitAssessment JSON fallback SUCCESS for UHID: ${uhid}`,
           JSON.stringify(response.data, null, 2),
@@ -660,9 +707,15 @@ export const apiService = {
         notes: payload.notes || 'Activity was not available in catalog',
       };
       console.log('[apiService] POST saveCustomActivity URL:', url);
-      console.log('[apiService] POST saveCustomActivity Body:', JSON.stringify(body, null, 2));
+      console.log(
+        '[apiService] POST saveCustomActivity Body:',
+        JSON.stringify(body, null, 2),
+      );
       const response = await axios.post(url, body);
-      console.log('[apiService] POST saveCustomActivity Response:', JSON.stringify(response.data, null, 2));
+      console.log(
+        '[apiService] POST saveCustomActivity Response:',
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
       console.error('Error in saveCustomActivity:', error);
@@ -679,9 +732,15 @@ export const apiService = {
         status: [flareToken],
         timestamp: new Date().toISOString(),
       };
-      console.log('[apiService] POST postStatusFlare Payload:', JSON.stringify(payload, null, 2));
+      console.log(
+        '[apiService] POST postStatusFlare Payload:',
+        JSON.stringify(payload, null, 2),
+      );
       const response = await axios.post(url, payload).catch(err => {
-        console.warn('[apiService] POST postStatusFlare non-blocking warning:', err?.message);
+        console.warn(
+          '[apiService] POST postStatusFlare non-blocking warning:',
+          err?.message,
+        );
         return null;
       });
       return response?.data;
@@ -804,7 +863,9 @@ export const apiService = {
     }
   },
 
-  async registerServiceProviders(payload: IRegisterProvidersPayload): Promise<any> {
+  async registerServiceProviders(
+    payload: IRegisterProvidersPayload,
+  ): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/api/service-providers/register/`;
       console.log(
@@ -881,10 +942,6 @@ export const apiService = {
       )}`;
 
       const response = await axios.get(url);
-      console.log(
-        '[apiService] GET Pull Steps Logs Response:',
-        JSON.stringify(response.data, null, 2),
-      );
       return response.data;
     } catch (error) {
       console.error('Error in getPullStepsLogs:', error);
@@ -956,14 +1013,22 @@ export const apiService = {
   },
 
   async getDailyDisplayBlock(uhid: string, date: string): Promise<any> {
-    const url = `http://13.204.123.149:8001/api/v1/display-block/daily?uhid=${encodeURIComponent(uhid)}&date=${encodeURIComponent(date)}`;
+    const url = `http://13.204.123.149:8001/api/v1/display-block/daily?uhid=${encodeURIComponent(
+      uhid,
+    )}&date=${encodeURIComponent(date)}`;
     console.log(`[API Request] GET getDailyDisplayBlock: ${url}`);
     try {
       const response = await axios.get(url);
-      console.log(`[API Response] GET getDailyDisplayBlock SUCCESS for UHID: ${uhid} and Date: ${date}`, JSON.stringify(response.data, null, 2));
+      console.log(
+        `[API Response] GET getDailyDisplayBlock SUCCESS for UHID: ${uhid} and Date: ${date}`,
+        JSON.stringify(response.data, null, 2),
+      );
       return response.data;
     } catch (error) {
-      console.error(`[API Error] GET getDailyDisplayBlock FAILED for UHID: ${uhid} and Date: ${date}`, error);
+      console.error(
+        `[API Error] GET getDailyDisplayBlock FAILED for UHID: ${uhid} and Date: ${date}`,
+        error,
+      );
       throw error;
     }
   },
@@ -973,19 +1038,21 @@ export const apiService = {
     const body = `uhid=${encodeURIComponent(uhid)}`;
     console.log(`[API Request] POST ${url} | Body: ${body}`);
     try {
-      const response = await axios.post(
-        url,
-        body,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+      const response = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
+      });
+      console.log(
+        `[API Response] POST getDailyCharts SUCCESS for UHID: ${uhid}`,
+        JSON.stringify(response.data, null, 2),
       );
-      console.log(`[API Response] POST getDailyCharts SUCCESS for UHID: ${uhid}`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error(`[API Error] POST getDailyCharts FAILED for UHID: ${uhid}`, error);
+      console.error(
+        `[API Error] POST getDailyCharts FAILED for UHID: ${uhid}`,
+        error,
+      );
       throw error;
     }
   },
@@ -1015,12 +1082,17 @@ export const apiService = {
   }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/reset-password`;
-      console.log('[apiService] POST resetPassword Request URL:', url, 'Payload:', {
-        ...payload,
-        oldPassword: '***',
-        newPassword: '***',
-        confirmPassword: '***',
-      });
+      console.log(
+        '[apiService] POST resetPassword Request URL:',
+        url,
+        'Payload:',
+        {
+          ...payload,
+          oldPassword: '***',
+          newPassword: '***',
+          confirmPassword: '***',
+        },
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1032,7 +1104,10 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in resetPassword:', error.response?.data || error.message);
+      console.error(
+        'Error in resetPassword:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
@@ -1046,11 +1121,16 @@ export const apiService = {
   }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password`;
-      console.log('[apiService] POST forgotPassword Request URL:', url, 'Payload:', {
-        ...payload,
-        password: '***',
-        confirmPassword: '***',
-      });
+      console.log(
+        '[apiService] POST forgotPassword Request URL:',
+        url,
+        'Payload:',
+        {
+          ...payload,
+          password: '***',
+          confirmPassword: '***',
+        },
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1062,7 +1142,10 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in forgotPassword:', error.response?.data || error.message);
+      console.error(
+        'Error in forgotPassword:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
@@ -1071,7 +1154,12 @@ export const apiService = {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/send-otp`;
       const payload = { mobile };
-      console.log('[apiService] POST sendLoginOtp Request URL:', url, 'Payload:', payload);
+      console.log(
+        '[apiService] POST sendLoginOtp Request URL:',
+        url,
+        'Payload:',
+        payload,
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1083,15 +1171,26 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in sendLoginOtp:', error.response?.data || error.message);
+      console.error(
+        'Error in sendLoginOtp:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
 
-  async validateLoginOtp(payload: { mobile: string; otp: string }): Promise<any> {
+  async validateLoginOtp(payload: {
+    mobile: string;
+    otp: string;
+  }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/validate-otp`;
-      console.log('[apiService] POST validateLoginOtp Request URL:', url, 'Payload:', payload);
+      console.log(
+        '[apiService] POST validateLoginOtp Request URL:',
+        url,
+        'Payload:',
+        payload,
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1103,7 +1202,10 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in validateLoginOtp:', error.response?.data || error.message);
+      console.error(
+        'Error in validateLoginOtp:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
@@ -1112,7 +1214,12 @@ export const apiService = {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password/send-otp`;
       const payload = { mobile };
-      console.log('[apiService] POST sendForgotPasswordOtp Request URL:', url, 'Payload:', payload);
+      console.log(
+        '[apiService] POST sendForgotPasswordOtp Request URL:',
+        url,
+        'Payload:',
+        payload,
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1124,15 +1231,26 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in sendForgotPasswordOtp:', error.response?.data || error.message);
+      console.error(
+        'Error in sendForgotPasswordOtp:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
 
-  async verifyForgotPasswordOtp(payload: { mobile: string; otp: string }): Promise<any> {
+  async verifyForgotPasswordOtp(payload: {
+    mobile: string;
+    otp: string;
+  }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/auth/forgot-password/verify-otp`;
-      console.log('[apiService] POST verifyForgotPasswordOtp Request URL:', url, 'Payload:', payload);
+      console.log(
+        '[apiService] POST verifyForgotPasswordOtp Request URL:',
+        url,
+        'Payload:',
+        payload,
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1144,7 +1262,10 @@ export const apiService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error in verifyForgotPasswordOtp:', error.response?.data || error.message);
+      console.error(
+        'Error in verifyForgotPasswordOtp:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
@@ -1155,7 +1276,9 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
-      const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/latest?uhid=${encodeURIComponent(targetUhid)}`;
+      const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/latest?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
       console.log(`[apiService] GET getLatestLifestyleQuestionnaire: ${url}`);
       const response = await axios.get(url, {
         headers: { Accept: 'application/json' },
@@ -1197,7 +1320,10 @@ export const apiService = {
   }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/save`;
-      console.log(`[apiService] POST saveLifestyleQuestionnaire URL: ${url}`, JSON.stringify(payload, null, 2));
+      console.log(
+        `[apiService] POST saveLifestyleQuestionnaire URL: ${url}`,
+        JSON.stringify(payload, null, 2),
+      );
       const response = await axios.post(url, payload, {
         headers: {
           'Content-Type': 'application/json',
@@ -1228,7 +1354,10 @@ export const apiService = {
       });
       return response.data;
     } catch (error: any) {
-      console.error('[apiService] Error in getArenas:', error.response?.data || error.message);
+      console.error(
+        '[apiService] Error in getArenas:',
+        error.response?.data || error.message,
+      );
       throw error;
     }
   },
@@ -1281,13 +1410,17 @@ export const apiService = {
     }
   },
 
-  async getPhase1Leaderboard(uhid?: string): Promise<Phase1LeaderboardResponse> {
+  async getPhase1Leaderboard(
+    uhid?: string,
+  ): Promise<Phase1LeaderboardResponse> {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
     const targetUhid = uhid || cachedProfile?.uhid || 'ANJROY3773';
     const url = 'http://13.204.123.149:8001/health/api/phase1leaderboard';
-    console.log(`[apiService] POST getPhase1Leaderboard: ${url} for UHID: ${targetUhid}`);
+    console.log(
+      `[apiService] POST getPhase1Leaderboard: ${url} for UHID: ${targetUhid}`,
+    );
 
     try {
       const formData = new FormData();
@@ -1298,7 +1431,9 @@ export const apiService = {
           'Content-Type': 'multipart/form-data',
         },
       });
-      console.log(`[apiService] POST getPhase1Leaderboard SUCCESS for UHID: ${targetUhid}`);
+      console.log(
+        `[apiService] POST getPhase1Leaderboard SUCCESS for UHID: ${targetUhid}`,
+      );
       return response.data;
     } catch (error: any) {
       console.warn(
@@ -1309,7 +1444,9 @@ export const apiService = {
       // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
       if (targetUhid !== 'ANJROY3773') {
         try {
-          console.log(`[apiService] Fallback to ANJROY3773 for phase1leaderboard...`);
+          console.log(
+            `[apiService] Fallback to ANJROY3773 for phase1leaderboard...`,
+          );
           const fallbackForm = new FormData();
           fallbackForm.append('uhid', 'ANJROY3773');
           const fallbackRes = await axios.post(url, fallbackForm, {
@@ -1317,20 +1454,27 @@ export const apiService = {
           });
           return fallbackRes.data;
         } catch (fbErr: any) {
-          console.error(`[apiService] Fallback also failed:`, fbErr?.response?.data || fbErr?.message);
+          console.error(
+            `[apiService] Fallback also failed:`,
+            fbErr?.response?.data || fbErr?.message,
+          );
         }
       }
       throw error;
     }
   },
 
-  async getPhase2Leaderboard(uhid?: string): Promise<Phase2LeaderboardResponse> {
+  async getPhase2Leaderboard(
+    uhid?: string,
+  ): Promise<Phase2LeaderboardResponse> {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
     const targetUhid = uhid || cachedProfile?.uhid || 'ANJROY3773';
     const url = 'http://13.204.123.149:8001/health/api/phase2leaderboard';
-    console.log(`[apiService] POST getPhase2Leaderboard: ${url} for UHID: ${targetUhid}`);
+    console.log(
+      `[apiService] POST getPhase2Leaderboard: ${url} for UHID: ${targetUhid}`,
+    );
 
     try {
       const formData = new FormData();
@@ -1341,7 +1485,9 @@ export const apiService = {
           'Content-Type': 'multipart/form-data',
         },
       });
-      console.log(`[apiService] POST getPhase2Leaderboard SUCCESS for UHID: ${targetUhid}`);
+      console.log(
+        `[apiService] POST getPhase2Leaderboard SUCCESS for UHID: ${targetUhid}`,
+      );
       return response.data;
     } catch (error: any) {
       console.warn(
@@ -1352,7 +1498,9 @@ export const apiService = {
       // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
       if (targetUhid !== 'ANJROY3773') {
         try {
-          console.log(`[apiService] Fallback to ANJROY3773 for phase2leaderboard...`);
+          console.log(
+            `[apiService] Fallback to ANJROY3773 for phase2leaderboard...`,
+          );
           const fallbackForm = new FormData();
           fallbackForm.append('uhid', 'ANJROY3773');
           const fallbackRes = await axios.post(url, fallbackForm, {
@@ -1360,7 +1508,10 @@ export const apiService = {
           });
           return fallbackRes.data;
         } catch (fbErr: any) {
-          console.error(`[apiService] Phase 2 Fallback also failed:`, fbErr?.response?.data || fbErr?.message);
+          console.error(
+            `[apiService] Phase 2 Fallback also failed:`,
+            fbErr?.response?.data || fbErr?.message,
+          );
         }
       }
       throw error;
@@ -1378,7 +1529,9 @@ export const apiService = {
     try {
       const url =
         query && query.trim()
-          ? `${BACKEND_8081_URL}/backend/health-connect/referral/entities/search?query=${encodeURIComponent(query.trim())}`
+          ? `${BACKEND_8081_URL}/backend/health-connect/referral/entities/search?query=${encodeURIComponent(
+              query.trim(),
+            )}`
           : `${BACKEND_8081_URL}/backend/health-connect/referral/entities/search`;
       console.log(`[apiService] GET searchReferralEntities: ${url}`);
       const response = await axios.get(url);
@@ -1456,9 +1609,13 @@ export const apiService = {
  * Called immediately after Login, on Splash, and on App launch
  * so that Steps Logs screen renders instantly with 0-second delay.
  */
-export const prefetchStepsLogsData = async (targetUhid?: string): Promise<void> => {
+export const prefetchStepsLogsData = async (
+  targetUhid?: string,
+): Promise<void> => {
   try {
-    const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+    const cachedProfile = await storageHelper.getItem<UserProfile>(
+      STORAGE_KEYS.USER_PROFILE,
+    );
     const uhid = targetUhid || cachedProfile?.uhid || 'SAUSHA9775';
 
     const sysDate = new Date();
@@ -1467,22 +1624,31 @@ export const prefetchStepsLogsData = async (targetUhid?: string): Promise<void> 
     const sysD = String(sysDate.getDate()).padStart(2, '0');
     const systemDateStr = `${sysY}-${sysM}-${sysD}`;
 
-    console.log(`[prefetchStepsLogsData] 🚀 Background pre-fetching Steps Logs for UHID: ${uhid}...`);
+    console.log(
+      `[prefetchStepsLogsData] 🚀 Background pre-fetching Steps Logs for UHID: ${uhid}...`,
+    );
 
-    const [pullRes, displayBlockRes, workoutLogRes, healthConnectRes] = await Promise.allSettled([
-      apiService.getPullStepsLogs(uhid),
-      apiService.getDailyDisplayBlock(uhid, systemDateStr),
-      apiService.getWorkoutLog(uhid),
-      apiService.getHealthConnectActivities(uhid),
-    ]);
+    const [pullRes, displayBlockRes, workoutLogRes, healthConnectRes] =
+      await Promise.allSettled([
+        apiService.getPullStepsLogs(uhid),
+        apiService.getDailyDisplayBlock(uhid, systemDateStr),
+        apiService.getWorkoutLog(uhid),
+        apiService.getHealthConnectActivities(uhid),
+      ]);
 
     if (pullRes.status === 'fulfilled' && pullRes.value?.data?.steplogs?.data) {
-      await storageHelper.setItem(STORAGE_KEYS.STEPS_LOGS_CACHE, pullRes.value.data.steplogs.data);
+      await storageHelper.setItem(
+        STORAGE_KEYS.STEPS_LOGS_CACHE,
+        pullRes.value.data.steplogs.data,
+      );
       console.log('[prefetchStepsLogsData] ✅ Cached pullStepsLogs data');
     }
 
     if (displayBlockRes.status === 'fulfilled' && displayBlockRes.value) {
-      await storageHelper.setItem(STORAGE_KEYS.DAILY_DISPLAY_BLOCK_CACHE, displayBlockRes.value);
+      await storageHelper.setItem(
+        STORAGE_KEYS.DAILY_DISPLAY_BLOCK_CACHE,
+        displayBlockRes.value,
+      );
       console.log('[prefetchStepsLogsData] ✅ Cached dailyDisplayBlock data');
     }
 
@@ -1492,19 +1658,30 @@ export const prefetchStepsLogsData = async (targetUhid?: string): Promise<void> 
       workoutLogRes.value.status === 'Success' &&
       Array.isArray(workoutLogRes.value.data)
     ) {
-      await storageHelper.setItem(STORAGE_KEYS.WORKOUT_LOGS_CACHE, workoutLogRes.value.data);
+      await storageHelper.setItem(
+        STORAGE_KEYS.WORKOUT_LOGS_CACHE,
+        workoutLogRes.value.data,
+      );
       console.log('[prefetchStepsLogsData] ✅ Cached workoutLogs data');
     }
 
     if (healthConnectRes.status === 'fulfilled' && healthConnectRes.value) {
-      await storageHelper.setItem(STORAGE_KEYS.HEALTH_CONNECT_ACTIVITIES_CACHE, healthConnectRes.value);
-      console.log('[prefetchStepsLogsData] ✅ Cached healthConnectActivities data');
+      await storageHelper.setItem(
+        STORAGE_KEYS.HEALTH_CONNECT_ACTIVITIES_CACHE,
+        healthConnectRes.value,
+      );
+      console.log(
+        '[prefetchStepsLogsData] ✅ Cached healthConnectActivities data',
+      );
     }
 
-    console.log('[prefetchStepsLogsData] 🎉 Steps Logs background pre-fetch completed!');
+    console.log(
+      '[prefetchStepsLogsData] 🎉 Steps Logs background pre-fetch completed!',
+    );
   } catch (err) {
-    console.warn('[prefetchStepsLogsData] Background prefetch non-fatal error:', err);
+    console.warn(
+      '[prefetchStepsLogsData] Background prefetch non-fatal error:',
+      err,
+    );
   }
 };
-
-
