@@ -47,6 +47,15 @@ function App(): React.JSX.Element {
         return;
       }
 
+      // Check promo code: if MASS01, suppress health connect permission modal completely!
+      const promo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
+      const userProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const activePromo = (promo || userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
+      if (activePromo === 'MASS01') {
+        setIsHealthConnectModalVisible(false);
+        return;
+      }
+
       // 2. Do not show modal on pre-login or onboarding auth screens
       const currentRoute = getCurrentRouteName();
       const unauthenticatedRoutes = [
@@ -88,6 +97,15 @@ function App(): React.JSX.Element {
     try {
       const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       if (!token) return;
+
+      // Suppress background permission alerts for MASS01 promo code
+      const promo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
+      const userProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
+      const activePromo = (promo || userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
+      if (activePromo === 'MASS01') {
+        return;
+      }
+
       const nativeStatus = await getHealthConnectWorkManagerStatus();
       if (!nativeStatus) return;
 

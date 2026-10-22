@@ -17,6 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
+
+type PhaseType = 'general' | 'providers';
+type OccupationOptionType = 'Working Professional' | 'Student' | 'Homemaker' | 'Retired';
+
+const OCCUPATION_OPTIONS: { id: OccupationOptionType; label: string; icon: string }[] = [
+  { id: 'Working Professional', label: 'Working Professional', icon: '💼' },
+  { id: 'Student', label: 'Student', icon: '🎓' },
+  { id: 'Homemaker', label: 'Homemaker', icon: '🏡' },
+  { id: 'Retired', label: 'Retired', icon: '🏖️' },
+];
 import {
   IServiceProvider,
   ProviderCategory,
@@ -27,6 +40,24 @@ import { CATEGORIES_CONFIG } from './mockData';
 import { styles } from './styles';
 
 export const ServiceProvidersScreen: React.FC = () => {
+  // Phase 1 vs Phase 2 State
+  const [activePhase, setActivePhase] = useState<PhaseType>('general');
+
+  // Phase 1: General Information States
+  const [profileLoading, setProfileLoading] = useState<boolean>(true);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+  const [uhid, setUhid] = useState<string>('LIVSCO4573');
+  const [name, setName] = useState<string>('Living Scope');
+  const [age, setAge] = useState<string>('30');
+  const [weight, setWeight] = useState<string>('70');
+  const [height, setHeight] = useState<string>('170');
+  const [occupation, setOccupation] = useState<OccupationOptionType>('Working Professional');
+  const [universityName, setUniversityName] = useState<string>('Delhi University');
+  const [department, setDepartment] = useState<string>('Computer Science');
+  const [companyName, setCompanyName] = useState<string>('Google');
+  const [location, setLocation] = useState<string>('Indiranagar');
+  const [city, setCity] = useState<string>('Bengaluru');
+
   // Dynamic API Directory State
   const [directory, setDirectory] = useState<Record<ProviderCategory, IServiceProvider[]>>({
     hospital: [],
@@ -77,10 +108,39 @@ export const ServiceProvidersScreen: React.FC = () => {
   // Custom added providers list (dynamic in-memory)
   const [customProviders, setCustomProviders] = useState<IServiceProvider[]>([]);
 
-  // Load providers from backend API on mount
+  // Load providers & profile from backend API on mount
   useEffect(() => {
+    fetchUserProfileData();
     fetchProviders();
   }, []);
+
+  const fetchUserProfileData = async () => {
+    try {
+      setProfileLoading(true);
+      const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cached?.uhid || 'LIVSCO4573';
+      const data = await apiService.getUserProfile(targetUhid);
+      if (data) {
+        setUhid(data.uhid || targetUhid);
+        setName(data.name || 'Living Scope');
+        setAge(data.age !== undefined && data.age !== null ? String(data.age) : '30');
+        setWeight(data.weight !== undefined && data.weight !== null ? String(data.weight) : '70');
+        setHeight(data.height !== undefined && data.height !== null ? String(data.height) : '170');
+        if (data.occupation) {
+          setOccupation(data.occupation as OccupationOptionType);
+        }
+        setUniversityName(data.universityName || '');
+        setDepartment(data.department || '');
+        setCompanyName(data.companyName || '');
+        setLocation(data.location || '');
+        setCity(data.city || '');
+      }
+    } catch (err) {
+      console.warn('[ServiceProviders] Failed to load user profile:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const fetchProviders = async () => {
     try {
@@ -138,7 +198,12 @@ export const ServiceProvidersScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchProviders();
+    if (activePhase === 'general') {
+      await fetchUserProfileData();
+    } else {
+      await fetchProviders();
+    }
+    setRefreshing(false);
   };
 
   // Toggle Category Dropdown
@@ -225,6 +290,70 @@ export const ServiceProvidersScreen: React.FC = () => {
     }));
 
     setIsAddModalVisible(false);
+  };
+
+  // HANDLE NEXT: GENERAL INFORMATION -> SERVICE PROVIDERS
+  const handleNextToServiceProviders = async () => {
+    if (!age.trim() || !weight.trim() || !height.trim()) {
+      setAlertTitle('Missing Information');
+      setAlertMessage('Please enter your age, weight, and height to proceed.');
+      setAlertType('warning');
+      setAlertModalVisible(true);
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const payload = {
+        uhid,
+        name,
+        age: parseInt(age, 10) || 30,
+        weight: parseFloat(weight) || 70,
+        height: parseFloat(height) || 170,
+        calorieGoal: 2400,
+        occupation,
+        universityName: occupation === 'Student' ? universityName.trim() : undefined,
+        department: occupation === 'Student' ? department.trim() : undefined,
+        companyName: occupation === 'Working Professional' ? companyName.trim() : undefined,
+        location: location.trim() || undefined,
+        city: city.trim() || undefined,
+      };
+
+      console.log('[ServiceProviders] Saving setupProfile:', payload);
+      await apiService.setupProfile(payload);
+
+      const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const updatedProfile: UserProfile = {
+        ...(cached || {}),
+        uhid,
+        name,
+        age: payload.age,
+        weight: payload.weight,
+        height: payload.height,
+        calorieGoal: 2400,
+        isSetupComplete: true,
+        occupation: payload.occupation,
+        universityName: payload.universityName,
+        department: payload.department,
+        companyName: payload.companyName,
+        location: payload.location,
+        city: payload.city,
+      };
+      await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, updatedProfile);
+
+      setActivePhase('providers');
+    } catch (error: any) {
+      console.error('[ServiceProviders] setupProfile error:', error);
+      setAlertTitle('Save Error');
+      setAlertMessage(
+        error?.response?.data?.message ||
+          'Failed to update general information. Please check your network and try again.'
+      );
+      setAlertType('error');
+      setAlertModalVisible(true);
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   // REGISTER BUTTON ACTION (DYNAMIC API CALL)
@@ -324,13 +453,88 @@ export const ServiceProvidersScreen: React.FC = () => {
 
       {/* Top Header */}
       <CustomHeader
-        title="Service Providers"
+        title="Profile"
         showDrawerButton={true}
         containerStyle={styles.headerContainer}
         titleStyle={styles.headerTitle}
         buttonStyle={styles.headerButton}
         iconStyle={styles.headerIcon}
       />
+
+      {/* Two-Phase Stepper */}
+      <View style={styles.phaseStepperContainer}>
+        <TouchableOpacity
+          style={[
+            styles.phaseStepTab,
+            activePhase === 'general' && styles.phaseStepTabActive,
+          ]}
+          onPress={() => setActivePhase('general')}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.phaseStepNumberBox,
+              activePhase === 'general' && styles.phaseStepNumberBoxActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.phaseStepNumberText,
+                activePhase === 'general' && styles.phaseStepNumberTextActive,
+              ]}
+            >
+              1
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.phaseStepLabel,
+              activePhase === 'general' && styles.phaseStepLabelActive,
+            ]}
+            numberOfLines={1}
+          >
+            General Information
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.phaseArrowContainer}>
+          <Text style={styles.phaseArrowText}>→</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.phaseStepTab,
+            activePhase === 'providers' && styles.phaseStepTabActive,
+          ]}
+          onPress={() => setActivePhase('providers')}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.phaseStepNumberBox,
+              activePhase === 'providers' && styles.phaseStepNumberBoxActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.phaseStepNumberText,
+                activePhase === 'providers' && styles.phaseStepNumberTextActive,
+              ]}
+            >
+              2
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.phaseStepLabel,
+              activePhase === 'providers' && styles.phaseStepLabelActive,
+            ]}
+            numberOfLines={1}
+          >
+            Service Providers
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         style={styles.container}
@@ -346,6 +550,209 @@ export const ServiceProvidersScreen: React.FC = () => {
           />
         }
       >
+        {activePhase === 'general' ? (
+          profileLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#10B981" />
+              <Text style={styles.loadingText}>Loading profile data...</Text>
+            </View>
+          ) : (
+            <View>
+              {/* Card 1: Personal Biometrics */}
+              <View style={styles.profileCard}>
+                <View style={styles.profileCardHeader}>
+                  <Text style={styles.profileCardIcon}>🎯</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.profileCardTitle}>Personal Biometrics</Text>
+                    <Text style={styles.profileCardSubtitle}>
+                      Core metrics prefilled from your health record
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.profileDivider} />
+
+                {/* Name (Read-only / Unchangeable) */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <TextInput
+                    style={[styles.inputField, styles.disabledInputField]}
+                    value={name}
+                    editable={false}
+                    placeholder="Full Name"
+                    placeholderTextColor="#64748B"
+                  />
+                  <View style={styles.lockBadge}>
+                    <Text style={{ fontSize: 10 }}>🔒</Text>
+                    <Text style={styles.lockBadgeText}>Read-only (Unchangeable)</Text>
+                  </View>
+                </View>
+
+                {/* Age, Weight, Height Row */}
+                <View style={styles.formRow}>
+                  <View style={[styles.inputGroup, styles.formCol]}>
+                    <Text style={styles.inputLabel}>Age *</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={age}
+                      onChangeText={setAge}
+                      placeholder="e.g. 30"
+                      placeholderTextColor="#64748B"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, styles.formCol]}>
+                    <Text style={styles.inputLabel}>Weight (kg) *</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={weight}
+                      onChangeText={setWeight}
+                      placeholder="e.g. 70.0"
+                      placeholderTextColor="#64748B"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, styles.formCol]}>
+                    <Text style={styles.inputLabel}>Height (cm) *</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={height}
+                      onChangeText={setHeight}
+                      placeholder="e.g. 170.0"
+                      placeholderTextColor="#64748B"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 2: Professional & Location Info */}
+              <View style={styles.profileCard}>
+                <View style={styles.profileCardHeader}>
+                  <Text style={styles.profileCardIcon}>💼</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.profileCardTitle}>Professional & Location</Text>
+                    <Text style={styles.profileCardSubtitle}>
+                      Demographic details for customized fitness recommendations
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.profileDivider} />
+
+                {/* Occupation Chips */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Occupation</Text>
+                  <View style={styles.occupationChipsContainer}>
+                    {OCCUPATION_OPTIONS.map(opt => {
+                      const isSelected = occupation === opt.id;
+                      return (
+                        <TouchableOpacity
+                          key={opt.id}
+                          style={[
+                            styles.occupationChip,
+                            isSelected && styles.occupationChipActive,
+                          ]}
+                          activeOpacity={0.7}
+                          onPress={() => setOccupation(opt.id)}
+                        >
+                          <Text style={{ fontSize: 13 }}>{opt.icon}</Text>
+                          <Text
+                            style={[
+                              styles.occupationChipText,
+                              isSelected && styles.occupationChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Conditional Fields based on Occupation */}
+                {occupation === 'Working Professional' && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Company / Employer Name</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={companyName}
+                      onChangeText={setCompanyName}
+                      placeholder="e.g. Google"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                )}
+
+                {occupation === 'Student' && (
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>University / College Name</Text>
+                      <TextInput
+                        style={styles.inputField}
+                        value={universityName}
+                        onChangeText={setUniversityName}
+                        placeholder="e.g. Delhi University"
+                        placeholderTextColor="#64748B"
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Department / Field of Study</Text>
+                      <TextInput
+                        style={styles.inputField}
+                        value={department}
+                        onChangeText={setDepartment}
+                        placeholder="e.g. Computer Science"
+                        placeholderTextColor="#64748B"
+                      />
+                    </View>
+                  </>
+                )}
+
+                {/* Location and City */}
+                <View style={styles.formRow}>
+                  <View style={[styles.inputGroup, styles.formCol]}>
+                    <Text style={styles.inputLabel}>Area / Locality</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={location}
+                      onChangeText={setLocation}
+                      placeholder="e.g. Indiranagar"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, styles.formCol]}>
+                    <Text style={styles.inputLabel}>City</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={city}
+                      onChangeText={setCity}
+                      placeholder="e.g. Bengaluru"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Next Button */}
+              <TouchableOpacity
+                style={styles.nextPhaseBtn}
+                activeOpacity={0.85}
+                disabled={isSavingProfile}
+                onPress={handleNextToServiceProviders}
+              >
+                {isSavingProfile ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.nextPhaseBtnText}>Next: Service Providers</Text>
+                    <Text style={styles.nextPhaseBtnArrow}>→</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )
+        ) : (
+          <View>
         {/* 1. Hero Summary Card */}
         <View style={styles.heroCard}>
           <View style={styles.heroHeaderRow}>
@@ -742,11 +1149,14 @@ export const ServiceProvidersScreen: React.FC = () => {
             </View>
           );
         })}
+          </View>
+        )}
       </ScrollView>
 
       {/* ========================================================= */}
       {/* 5. BOTTOM REGISTER BUTTON (DYNAMIC API REGISTRATION)       */}
       {/* ========================================================= */}
+      {activePhase === 'providers' && (
       <View style={styles.registerBottomBar}>
         <TouchableOpacity
           style={[styles.registerBtn, isSubmitting && styles.registerBtnDisabled]}
@@ -766,6 +1176,7 @@ export const ServiceProvidersScreen: React.FC = () => {
           Registers your selected healthcare & gym partners directly with MoveHub
         </Text>
       </View>
+      )}
 
       {/* ========================================================= */}
       {/* 6. ADD CUSTOM PROVIDER MODAL                               */}
@@ -933,7 +1344,12 @@ export const ServiceProvidersScreen: React.FC = () => {
         message={alertMessage}
         type={alertType}
         buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
-        onClose={() => setAlertModalVisible(false)}
+        onClose={() => {
+          setAlertModalVisible(false);
+          if (alertType === 'success' && alertTitle === 'Registration Successful') {
+            setActivePhase('general');
+          }
+        }}
       />
     </SafeAreaView>
   );

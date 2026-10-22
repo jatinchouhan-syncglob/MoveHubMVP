@@ -212,15 +212,26 @@ export const apiService = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name || 'Robert D.',
           age: apiData.age || cachedProfile?.age || 55,
-          weight: apiData.weight || cachedProfile?.weight || 75.0,
-          height: apiData.height || cachedProfile?.height || 178,
+          weight: apiData.weight !== undefined ? apiData.weight : (cachedProfile?.weight || 75.0),
+          height: apiData.height !== undefined ? apiData.height : (cachedProfile?.height || 178),
           calorieGoal:
             apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
           isSetupComplete: cachedProfile?.isSetupComplete || false,
           email: apiData.email || cachedProfile?.email || 'sam@gmail.com',
           userId: apiData.userId || cachedProfile?.userId,
+          occupation: apiData.occupation || cachedProfile?.occupation,
+          universityName: apiData.universityName || cachedProfile?.universityName,
+          department: apiData.department || cachedProfile?.department,
+          companyName: apiData.companyName || cachedProfile?.companyName,
+          location: apiData.location || cachedProfile?.location,
+          city: apiData.city || cachedProfile?.city,
+          promocode: apiData.promocode || apiData.promoCode || cachedProfile?.promocode,
+          promoCode: apiData.promoCode || apiData.promocode || cachedProfile?.promoCode,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
+        if (merged.promocode) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, merged.promocode);
+        }
         return merged;
       }
       return cachedProfile || MOCK_PROFILE;
@@ -233,6 +244,56 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       return cachedProfile || MOCK_PROFILE;
+    }
+  },
+
+  async getUserProfile(uhid?: string): Promise<UserProfile> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'LIVSCO4573';
+      const response = await axios.get(
+        `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${targetUhid}`,
+      );
+
+      if (
+        response &&
+        response.data &&
+        response.data.status === 'Success' &&
+        response.data.data
+      ) {
+        const apiData = response.data.data;
+        const profile: UserProfile = {
+          uhid: apiData.uhid || targetUhid,
+          name: apiData.name || cachedProfile?.name || 'Living Scope',
+          age: apiData.age !== undefined ? apiData.age : (cachedProfile?.age || 30),
+          weight: apiData.weight !== undefined ? apiData.weight : (cachedProfile?.weight || 70.0),
+          height: apiData.height !== undefined ? apiData.height : (cachedProfile?.height || 170.0),
+          calorieGoal: apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
+          isSetupComplete: true,
+          occupation: apiData.occupation || cachedProfile?.occupation || '',
+          universityName: apiData.universityName || cachedProfile?.universityName || '',
+          department: apiData.department || cachedProfile?.department || '',
+          companyName: apiData.companyName || cachedProfile?.companyName || '',
+          location: apiData.location || cachedProfile?.location || '',
+          city: apiData.city || cachedProfile?.city || '',
+          email: apiData.email || cachedProfile?.email,
+          userId: apiData.userId || cachedProfile?.userId,
+          promocode: apiData.promocode || apiData.promoCode || cachedProfile?.promocode,
+          promoCode: apiData.promoCode || apiData.promocode || cachedProfile?.promoCode,
+        };
+        await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, profile);
+        if (profile.promocode) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, profile.promocode);
+        }
+        return profile;
+      }
+      return cachedProfile || MOCK_PROFILE;
+    } catch (err) {
+      console.error('[apiService] Error fetching getUserProfile:', err);
+      const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      return cached || MOCK_PROFILE;
     }
   },
 

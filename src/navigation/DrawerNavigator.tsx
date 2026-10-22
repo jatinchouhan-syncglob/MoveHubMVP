@@ -84,6 +84,9 @@ const DrawerNavigatorContent: React.FC = () => {
   }, [route.params?.screen]);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [todayCalories, setTodayCalories] = React.useState(0);
+  const [promoCode, setPromoCode] = React.useState<string | null>(null);
+  const isMassPromo =
+    (promoCode || profile?.promocode || profile?.promoCode || '').toUpperCase() === 'MASS01';
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
   const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
@@ -126,6 +129,28 @@ const DrawerNavigatorContent: React.FC = () => {
     };
   }, []);
 
+  React.useEffect(() => {
+    const initPromo = async () => {
+      try {
+        const storedPromo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
+        const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        const c = (storedPromo || cachedProf?.promocode || cachedProf?.promoCode || '').toUpperCase();
+        if (c) {
+          setPromoCode(c);
+        }
+        if (c === 'MASS01') {
+          setIsMoveHubExpanded(true);
+          if (activeScreen !== 'Arenas' && activeScreen !== 'ServiceProviders') {
+            setActiveScreen('Arenas');
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking promo in Drawer:', e);
+      }
+    };
+    initPromo();
+  }, []);
+
   const handleDelayedNavigation = (screen: DrawerScreenType) => {
     if (navTimeoutRef.current) {
       clearTimeout(navTimeoutRef.current);
@@ -155,6 +180,7 @@ const DrawerNavigatorContent: React.FC = () => {
   };
 
   const checkAndTriggerWellnessModal = async () => {
+    if (isMassPromo) return;
     const cycleDate = getCheckinCycleDate();
     if (!cycleDate) return;
 
@@ -216,6 +242,7 @@ const DrawerNavigatorContent: React.FC = () => {
       'Insights',
       'Awards',
       'FitnessTraining',
+      'ServiceProviders',
     ];
     const homeHubScreens = [
       'DailyQuest',
@@ -320,11 +347,22 @@ const DrawerNavigatorContent: React.FC = () => {
   useEffect(() => {
     const fetchDrawerData = async () => {
       try {
-        const [profileData, activitiesData] = await Promise.all([
+        const [profileData, activitiesData, storedPromo] = await Promise.all([
           apiService.getProfile(),
           apiService.getActivities(),
+          storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE),
         ]);
         setProfile(profileData);
+        const c = (storedPromo || profileData?.promocode || profileData?.promoCode || '').toUpperCase();
+        if (c) {
+          setPromoCode(c);
+        }
+        if (c === 'MASS01') {
+          setIsMoveHubExpanded(true);
+          if (activeScreen !== 'Arenas' && activeScreen !== 'ServiceProviders') {
+            setActiveScreen('Arenas');
+          }
+        }
 
         const total = activitiesData.reduce(
           (sum, act) => sum + (act.caloriesBurned || 0),
@@ -477,9 +515,16 @@ const DrawerNavigatorContent: React.FC = () => {
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
-      { screen: 'ServiceProviders', label: 'Service Providers', icon: '🏥' },
+      { screen: 'ServiceProviders', label: 'Profile', icon: '👤' },
       { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
     ];
+
+  const displayedMoveItems = isMassPromo
+    ? [
+        { screen: 'Arenas' as DrawerScreenType, label: 'Arenas', icon: '⚡' },
+        { screen: 'ServiceProviders' as DrawerScreenType, label: 'Profile', icon: '👤' },
+      ]
+    : menuItems;
 
 
   return (
@@ -522,6 +567,8 @@ const DrawerNavigatorContent: React.FC = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.menuContainer}>
+              {!isMassPromo && (
+              <>
               {/* Home Hub Accordion Trigger */}
               {(() => {
                 const isHomeHubActive =
@@ -628,7 +675,11 @@ const DrawerNavigatorContent: React.FC = () => {
                   })}
                 </View>
               )}
+              </>
+              )}
 
+              {!isMassPromo && (
+              <>
               {/* Vault Hub Accordion Trigger */}
               {(() => {
                 const isVaultHubActive =
@@ -737,6 +788,8 @@ const DrawerNavigatorContent: React.FC = () => {
                   })}
                 </View>
               )}
+              </>
+              )}
 
               {/* Move Hub Accordion Trigger */}
               {(() => {
@@ -807,7 +860,7 @@ const DrawerNavigatorContent: React.FC = () => {
               {/* Expanded Move Hub Sub-Menus */}
               {isMoveHubExpanded && (
                 <View style={styles.subMenuContainer}>
-                  {menuItems.map(subItem => {
+                  {displayedMoveItems.map(subItem => {
                     const isSubActive =
                       pendingScreen !== null
                         ? pendingScreen === subItem.screen
@@ -840,6 +893,8 @@ const DrawerNavigatorContent: React.FC = () => {
                 </View>
               )}
 
+              {!isMassPromo && (
+              <>
               {/* Nourish Hub Accordion Trigger */}
               {(() => {
                 const isNutritionActive =
@@ -955,7 +1010,11 @@ const DrawerNavigatorContent: React.FC = () => {
                   })}
                 </View>
               )}
+              </>
+              )}
 
+              {!isMassPromo && (
+              <>
               {/* Vitality Hub Accordion Trigger */}
               {(() => {
                 const isVitalityHubActive =
@@ -1064,7 +1123,11 @@ const DrawerNavigatorContent: React.FC = () => {
                   })}
                 </View>
               )}
+              </>
+              )}
 
+              {!isMassPromo && (
+              <>
               {/* Shield Hub Accordion Trigger */}
               {(() => {
                 const isShieldHubActive =
@@ -1186,6 +1249,8 @@ const DrawerNavigatorContent: React.FC = () => {
                     );
                   })}
                 </View>
+              )}
+              </>
               )}
             </View>
           </ScrollView>

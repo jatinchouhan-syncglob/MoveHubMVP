@@ -17,6 +17,8 @@ export interface UserProfile {
   companyName?: string;
   location?: string;
   city?: string;
+  promocode?: string;
+  promoCode?: string;
 }
 
 export interface Activity {

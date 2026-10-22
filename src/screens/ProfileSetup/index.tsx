@@ -140,7 +140,7 @@ export const ProfileSetupScreen: React.FC = () => {
         >
           {/* Progress Step Indicator */}
           <View style={styles.stepContainer}>
-            <Text style={styles.stepText}>PROFILE SETUP</Text>
+            <Text style={styles.stepText}>GENERAL INFORMATION</Text>
             <View style={styles.stepLineBg}>
               <View style={styles.stepLineFill} />
             </View>

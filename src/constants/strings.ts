@@ -10,7 +10,7 @@ export const STRINGS = {
     ACCEPT_BUTTON: 'Accept & Begin',
   },
   PROFILE_SETUP: {
-    TITLE: 'Set Up Your Profile',
+    TITLE: 'General Information',
     SUBTITLE: 'Help us personalize your fitness journey',
     LABEL_NAME: 'Full Name',
     LABEL_AGE: 'Age',
