@@ -37,6 +37,10 @@ export const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 10,
   },
+  brandLogoImage: {
+    width: 270,
+    height: 56,
+  },
   logoBadge: {
     width: 76,
     height: 76,

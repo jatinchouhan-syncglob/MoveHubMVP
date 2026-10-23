@@ -234,7 +234,7 @@ export const ArenasBottomDock: React.FC<ArenasBottomDockProps> = ({
             numberOfLines={1}
             adjustsFontSizeToFit={true}
           >
-            Rewards
+            Referral
           </Text>
           <View
             style={[

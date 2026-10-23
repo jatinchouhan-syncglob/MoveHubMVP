@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,10 +18,10 @@ import { theme } from '../theme';
 import { useDrawer, DrawerProvider, DrawerScreenType } from './DrawerContext';
 import { apiService } from '../services/api';
 import { UserProfile } from '../types';
-import { getInitials } from '../utils/helpers';
 import { ROUTES } from '../constants/routes';
 import { storageHelper } from '../storage/storageHelper';
 import { STORAGE_KEYS } from '../storage/storageKeys';
+import { IMAGES } from '../assets/images';
 
 import DashboardScreen from '../screens/Dashboard';
 import AwardsScreen from '../screens/Awards';
@@ -132,17 +133,22 @@ const DrawerNavigatorContent: React.FC = () => {
   React.useEffect(() => {
     const initPromo = async () => {
       try {
-        const storedPromo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
         const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        const c = (storedPromo || cachedProf?.promocode || cachedProf?.promoCode || '').toUpperCase();
-        if (c) {
-          setPromoCode(c);
-        }
-        if (c === 'MASS01') {
+        const userPromo = (cachedProf?.promocode || cachedProf?.promoCode || '').toString().trim().toUpperCase();
+        if (userPromo === 'MASS01') {
+          setPromoCode('MASS01');
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setIsMoveHubExpanded(true);
-          if (activeScreen !== 'Arenas' && activeScreen !== 'ServiceProviders') {
+          if (
+            activeScreen !== 'Arenas' &&
+            activeScreen !== 'ServiceProviders' &&
+            activeScreen !== 'FitnessChallenges'
+          ) {
             setActiveScreen('Arenas');
           }
+        } else {
+          setPromoCode(null);
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
       } catch (e) {
         console.warn('Error checking promo in Drawer:', e);
@@ -331,6 +337,8 @@ const DrawerNavigatorContent: React.FC = () => {
       await storageHelper.removeItem(STORAGE_KEYS.PACING_OTHER_TEXT);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_CARDIO_SUBS);
       await storageHelper.removeItem(STORAGE_KEYS.PACING_METABOLIC_SUBS);
+      await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
+      setPromoCode(null);
 
       setLogoutLoading(false);
       setLogoutModalVisible(false);
@@ -347,21 +355,31 @@ const DrawerNavigatorContent: React.FC = () => {
   useEffect(() => {
     const fetchDrawerData = async () => {
       try {
-        const [profileData, activitiesData, storedPromo] = await Promise.all([
+        const [profileData, activitiesData] = await Promise.all([
           apiService.getProfile(),
           apiService.getActivities(),
-          storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE),
         ]);
         setProfile(profileData);
-        const c = (storedPromo || profileData?.promocode || profileData?.promoCode || '').toUpperCase();
-        if (c) {
-          setPromoCode(c);
-        }
-        if (c === 'MASS01') {
+        const userPromo = (
+          profileData?.promocode ||
+          profileData?.promoCode ||
+          ''
+        ).toString().trim().toUpperCase();
+
+        if (userPromo === 'MASS01') {
+          setPromoCode('MASS01');
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setIsMoveHubExpanded(true);
-          if (activeScreen !== 'Arenas' && activeScreen !== 'ServiceProviders') {
+          if (
+            activeScreen !== 'Arenas' &&
+            activeScreen !== 'ServiceProviders' &&
+            activeScreen !== 'FitnessChallenges'
+          ) {
             setActiveScreen('Arenas');
           }
+        } else {
+          setPromoCode(null);
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
 
         const total = activitiesData.reduce(
@@ -522,6 +540,7 @@ const DrawerNavigatorContent: React.FC = () => {
   const displayedMoveItems = isMassPromo
     ? [
         { screen: 'Arenas' as DrawerScreenType, label: 'Arenas', icon: '⚡' },
+        { screen: 'FitnessChallenges' as DrawerScreenType, label: 'Fitness Challenges', icon: '🎯' },
         { screen: 'ServiceProviders' as DrawerScreenType, label: 'Profile', icon: '👤' },
       ]
     : menuItems;
@@ -547,17 +566,11 @@ const DrawerNavigatorContent: React.FC = () => {
       >
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <View style={styles.profileHeader}>
-            <View style={styles.avatarGlow} />
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {profile ? getInitials(profile.name) : 'MH'}
-              </Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {profile?.name || 'Loading...'}
-              </Text>
-            </View>
+            <Image
+              source={IMAGES.uncurlLogo}
+              style={styles.drawerLogoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Menu Items List */}
@@ -842,7 +855,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         { flex: 1 },
                       ]}
                     >
-                      Move Hub
+                    Home
                     </Text>
                     <Text
                       style={{
@@ -1378,14 +1391,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   profileHeader: {
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 16,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    position: 'relative',
-    paddingTop: Platform.OS === 'ios' ? 12 : theme.spacing.lg,
+    minHeight: 74,
+  },
+  drawerLogoImage: {
+    width: DRAWER_WIDTH - 40,
+    height: 40,
   },
   avatarGlow: {
     position: 'absolute',

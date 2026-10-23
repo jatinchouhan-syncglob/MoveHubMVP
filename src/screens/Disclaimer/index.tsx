@@ -33,9 +33,9 @@ export const DisclaimerScreen: React.FC = () => {
             <Text style={styles.iconText}>🛡️</Text>
           </View>
           
-          <Text style={styles.welcomeText}>Welcome to MoveHub</Text>
+          <Text style={styles.welcomeText}>Welcome to Uncurl: health</Text>
           <Text style={styles.introText}>
-            MoveHub is a digital tracking tool designed to encourage personal physical activity, habit building, and general wellness.
+            Uncurl: health is a digital tracking tool designed to encourage personal physical activity, habit building, and general wellness.
           </Text>
 
           {/* Structured Warn Box */}

@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
+import { IMAGES } from '../../assets/images';
 import { styles } from './styles';
 
 export const SignupScreen: React.FC = () => {
@@ -202,22 +204,17 @@ export const SignupScreen: React.FC = () => {
           >
             {/* Brand Logo Section */}
             <View style={styles.brandContainer}>
-              <LinearGradient
-                colors={['#14b8a6', '#0d9488']}
-                style={styles.logoBadge}
-              >
-                <Text style={styles.logoText}>🚀</Text>
-              </LinearGradient>
-              <Text style={styles.brandTitle}>
-                Move<Text style={{ color: theme.colors.secondaryDark, fontWeight: '800' }}>Hub</Text>
-              </Text>
-              <Text style={styles.brandTagline}>AI-Powered Bio-Computational Pacing</Text>
+              <Image
+                source={IMAGES.uncurlLogo}
+                style={styles.brandLogoImage}
+                resizeMode="contain"
+              />
             </View>
 
             {/* Glassmorphic Signup Card */}
             <View style={styles.card}>
               <Text style={styles.welcomeText}>Create Account</Text>
-              <Text style={styles.subtitleText}>Join MoveHub to begin tracking your biometric pacing</Text>
+              <Text style={styles.subtitleText}>Join Uncurl: health to begin tracking your biometric pacing</Text>
 
               {/* Input Forms */}
               <View style={styles.formContainer}>

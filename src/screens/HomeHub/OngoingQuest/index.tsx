@@ -227,7 +227,7 @@ export const OngoingQuestScreen: React.FC = () => {
     {
       id: 'up_marathon',
       icon: '🏅',
-      category: 'INOX MINI MARATHON',
+      category: 'ECFL MINI MARATHON',
       subtitle: 'Register and prepare for the 5K run',
       progressPercent: 0,
       xp: 200,

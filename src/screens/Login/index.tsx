@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +26,7 @@ import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
 import { syncHealthConnectAnalytics } from '../../services/healthConnect';
 import ReactNativeBiometrics from 'react-native-biometrics';
+import { IMAGES } from '../../assets/images';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -150,6 +152,22 @@ export const LoginScreen: React.FC = () => {
             if (authToken) {
               await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
             }
+            const rawPromoBio = (
+              userData.promocode ||
+              userData.promoCode ||
+              userData.referralCode ||
+              response.promocode ||
+              response.promoCode ||
+              response.referralCode ||
+              ''
+            ).toString().trim().toUpperCase();
+            const isMassBio = rawPromoBio === 'MASS01';
+            if (isMassBio) {
+              await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+            } else {
+              await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
+            }
+
             const userProfile: UserProfile = {
               uhid: userData.uhid || 'SAUSHA9775',
               name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
@@ -160,6 +178,8 @@ export const LoginScreen: React.FC = () => {
               isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
               email: userData.email || savedCredentials.email,
               token: authToken,
+              promocode: isMassBio ? 'MASS01' : undefined,
+              promoCode: isMassBio ? 'MASS01' : undefined,
             };
             await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
             syncHealthConnectAnalytics().catch(() => {});
@@ -240,8 +260,11 @@ export const LoginScreen: React.FC = () => {
           response.referralCode ||
           ''
         ).toString().trim().toUpperCase();
-        if (extractedPromo) {
-          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, extractedPromo);
+        const isMass = extractedPromo === 'MASS01';
+        if (isMass) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+        } else {
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
 
         const userProfile: UserProfile = {
@@ -254,8 +277,8 @@ export const LoginScreen: React.FC = () => {
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || email.trim(),
           token: authToken,
-          promocode: extractedPromo || undefined,
-          promoCode: extractedPromo || undefined,
+          promocode: isMass ? 'MASS01' : undefined,
+          promoCode: isMass ? 'MASS01' : undefined,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
         syncHealthConnectAnalytics().catch(() => {});
@@ -392,8 +415,11 @@ export const LoginScreen: React.FC = () => {
           response.referralCode ||
           ''
         ).toString().trim().toUpperCase();
-        if (extractedPromoOtp) {
-          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, extractedPromoOtp);
+        const isMassOtp = extractedPromoOtp === 'MASS01';
+        if (isMassOtp) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+        } else {
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
 
         const userProfile: UserProfile = {
@@ -406,8 +432,8 @@ export const LoginScreen: React.FC = () => {
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || '',
           token: authToken,
-          promocode: extractedPromoOtp || undefined,
-          promoCode: extractedPromoOtp || undefined,
+          promocode: isMassOtp ? 'MASS01' : undefined,
+          promoCode: isMassOtp ? 'MASS01' : undefined,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
         syncHealthConnectAnalytics().catch(() => {});
@@ -486,16 +512,11 @@ export const LoginScreen: React.FC = () => {
           >
             {/* Brand Logo Section */}
             <View style={styles.brandContainer}>
-              <LinearGradient
-                colors={['#6366f1', '#4f46e5']}
-                style={styles.logoBadge}
-              >
-                <Text style={styles.logoText}>🏃‍♂️</Text>
-              </LinearGradient>
-              <Text style={styles.brandTitle}>
-                Move<Text style={{ color: theme.colors.primary, fontWeight: '800' }}>Hub</Text>
-              </Text>
-              <Text style={styles.brandTagline}>AI-Powered Bio-Computational Pacing</Text>
+              <Image
+                source={IMAGES.uncurlLogo}
+                style={styles.brandLogoImage}
+                resizeMode="contain"
+              />
             </View>
 
             {/* Glassmorphic Login Card */}
@@ -865,6 +886,11 @@ const styles = StyleSheet.create({
   brandContainer: {
     alignItems: 'center',
     marginBottom: 20,
+    marginTop: 6,
+  },
+  brandLogoImage: {
+    width: 270,
+    height: 56,
   },
   logoBadge: {
     width: 72,

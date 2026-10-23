@@ -17,6 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { ROUTES } from '../../constants/routes';
 import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
 import { styles, SECTION_WIDTH } from './styles';
 import { FALLBACK_ARENAS, ARENA_THEMES } from './constants';
 import { IArena } from './types';
@@ -35,6 +38,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const ArenaScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const [isMassPromo, setIsMassPromo] = useState<boolean>(false);
   const [activeNavTab, setActiveNavTab] = useState<ArenaNavTab>('arenas');
   const [arenas, setArenas] = useState<IArena[]>(FALLBACK_ARENAS);
   const [activeIndex, setActiveIndex] = useState<number>(0);
@@ -49,12 +53,30 @@ export const ArenaScreen: React.FC = () => {
   activeIndexRef.current = activeIndex;
   const isUserInteractingRef = useRef<boolean>(false);
 
-  // Fetch arenas from API
+  // Fetch arenas from API & check MASS01 promo code
   const fetchArenas = useCallback(async () => {
     try {
+      const rawProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const userPromo = (rawProfile?.promocode || rawProfile?.promoCode || '').toString().trim().toUpperCase();
+      const isMass = userPromo === 'MASS01';
+      setIsMassPromo(isMass);
+
       const data = await apiService.getArenas();
       if (Array.isArray(data) && data.length > 0) {
-        setArenas(data);
+        if (isMass) {
+          const massOnly = data.filter(
+            a =>
+              a.id === '01' ||
+              a.id === 'solo' ||
+              a.name?.toLowerCase().includes('solo') ||
+              a.name?.toLowerCase().includes('mass'),
+          );
+          setArenas(massOnly.length > 0 ? massOnly : [data[0]]);
+        } else {
+          setArenas(data);
+        }
+      } else if (isMass) {
+        setArenas([FALLBACK_ARENAS[0]]);
       }
     } catch (err) {
       console.warn('[ArenaScreen] Failed to fetch arenas from API, using fallback data:', err);
@@ -233,12 +255,14 @@ export const ArenaScreen: React.FC = () => {
             {/* Dynamic Display Title & Eyebrow */}
             <ArenaHeader currentArena={currentArena} />
 
-            {/* Horizontal Arena Category Tabs */}
-            <ArenaSelectorTabs
-              arenas={arenas}
-              selectedIndex={activeIndex}
-              onSelectArena={handleSelectArena}
-            />
+            {/* Horizontal Arena Category Tabs - Hidden for MASS01 */}
+            {!isMassPromo && (
+              <ArenaSelectorTabs
+                arenas={arenas}
+                selectedIndex={activeIndex}
+                onSelectArena={handleSelectArena}
+              />
+            )}
 
             {/* Carousel Slider */}
             <View style={styles.carouselSection}>

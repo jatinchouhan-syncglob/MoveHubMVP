@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { apiService } from '../../services/api';
+import { IMAGES } from '../../assets/images';
 
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -327,15 +329,11 @@ export const ForgotPasswordScreen: React.FC = () => {
           >
             {/* Top Brand Header */}
             <View style={styles.brandContainer}>
-              <LinearGradient
-                colors={['#6366f1', '#4f46e5']}
-                style={styles.logoBadge}
-              >
-                <Text style={styles.logoText}>🔑</Text>
-              </LinearGradient>
-              <Text style={styles.brandTitle}>
-                Move<Text style={{ color: theme.colors.primary, fontWeight: '800' }}>Hub</Text>
-              </Text>
+              <Image
+                source={IMAGES.uncurlLogo}
+                style={styles.brandLogoImage}
+                resizeMode="contain"
+              />
               <Text style={styles.brandTagline}>Reset & Secure Your Password</Text>
             </View>
 
@@ -734,6 +732,11 @@ const styles = StyleSheet.create({
   brandContainer: {
     alignItems: 'center',
     marginVertical: 14,
+  },
+  brandLogoImage: {
+    width: 270,
+    height: 56,
+    marginBottom: 6,
   },
   logoBadge: {
     width: 58,

@@ -48,9 +48,8 @@ function App(): React.JSX.Element {
       }
 
       // Check promo code: if MASS01, suppress health connect permission modal completely!
-      const promo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
       const userProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
-      const activePromo = (promo || userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
+      const activePromo = (userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
       if (activePromo === 'MASS01') {
         setIsHealthConnectModalVisible(false);
         return;
@@ -99,9 +98,8 @@ function App(): React.JSX.Element {
       if (!token) return;
 
       // Suppress background permission alerts for MASS01 promo code
-      const promo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
       const userProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
-      const activePromo = (promo || userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
+      const activePromo = (userProfile?.promocode || userProfile?.promoCode || '').toString().trim().toUpperCase();
       if (activePromo === 'MASS01') {
         return;
       }

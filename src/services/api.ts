@@ -208,6 +208,15 @@ export const apiService = {
         response.data.data
       ) {
         const apiData = response.data.data;
+        const currentPromo = (
+          cachedProfile?.promocode ||
+          cachedProfile?.promoCode ||
+          apiData.promocode ||
+          apiData.promoCode ||
+          ''
+        ).toString().trim().toUpperCase();
+        const isMass = currentPromo === 'MASS01';
+
         const merged: UserProfile = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name || 'Robert D.',
@@ -225,12 +234,14 @@ export const apiService = {
           companyName: apiData.companyName || cachedProfile?.companyName,
           location: apiData.location || cachedProfile?.location,
           city: apiData.city || cachedProfile?.city,
-          promocode: apiData.promocode || apiData.promoCode || cachedProfile?.promocode,
-          promoCode: apiData.promoCode || apiData.promocode || cachedProfile?.promoCode,
+          promocode: isMass ? 'MASS01' : undefined,
+          promoCode: isMass ? 'MASS01' : undefined,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
-        if (merged.promocode) {
-          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, merged.promocode);
+        if (isMass) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+        } else {
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
         return merged;
       }
@@ -264,6 +275,15 @@ export const apiService = {
         response.data.data
       ) {
         const apiData = response.data.data;
+        const currentPromo = (
+          cachedProfile?.promocode ||
+          cachedProfile?.promoCode ||
+          apiData.promocode ||
+          apiData.promoCode ||
+          ''
+        ).toString().trim().toUpperCase();
+        const isMass = currentPromo === 'MASS01';
+
         const profile: UserProfile = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name || 'Living Scope',
@@ -280,12 +300,14 @@ export const apiService = {
           city: apiData.city || cachedProfile?.city || '',
           email: apiData.email || cachedProfile?.email,
           userId: apiData.userId || cachedProfile?.userId,
-          promocode: apiData.promocode || apiData.promoCode || cachedProfile?.promocode,
-          promoCode: apiData.promoCode || apiData.promocode || cachedProfile?.promoCode,
+          promocode: isMass ? 'MASS01' : undefined,
+          promoCode: isMass ? 'MASS01' : undefined,
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, profile);
-        if (profile.promocode) {
-          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, profile.promocode);
+        if (isMass) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+        } else {
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
         return profile;
       }
