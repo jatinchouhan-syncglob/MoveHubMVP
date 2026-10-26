@@ -19,6 +19,7 @@ export interface UserProfile {
   city?: string;
   promocode?: string;
   promoCode?: string;
+  referralCode?: string;
 }
 
 export interface Activity {

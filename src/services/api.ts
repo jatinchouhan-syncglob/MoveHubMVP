@@ -211,8 +211,10 @@ export const apiService = {
         const currentPromo = (
           cachedProfile?.promocode ||
           cachedProfile?.promoCode ||
+          cachedProfile?.referralCode ||
           apiData.promocode ||
           apiData.promoCode ||
+          apiData.referralCode ||
           ''
         ).toString().trim().toUpperCase();
         const isMass = currentPromo === 'MASS01';
@@ -234,8 +236,9 @@ export const apiService = {
           companyName: apiData.companyName || cachedProfile?.companyName,
           location: apiData.location || cachedProfile?.location,
           city: apiData.city || cachedProfile?.city,
-          promocode: isMass ? 'MASS01' : undefined,
-          promoCode: isMass ? 'MASS01' : undefined,
+          referralCode: apiData.referralCode || cachedProfile?.referralCode,
+          promocode: isMass ? 'MASS01' : (apiData.promocode || cachedProfile?.promocode),
+          promoCode: isMass ? 'MASS01' : (apiData.promoCode || cachedProfile?.promoCode),
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, merged);
         if (isMass) {
@@ -278,8 +281,10 @@ export const apiService = {
         const currentPromo = (
           cachedProfile?.promocode ||
           cachedProfile?.promoCode ||
+          cachedProfile?.referralCode ||
           apiData.promocode ||
           apiData.promoCode ||
+          apiData.referralCode ||
           ''
         ).toString().trim().toUpperCase();
         const isMass = currentPromo === 'MASS01';
@@ -300,8 +305,9 @@ export const apiService = {
           city: apiData.city || cachedProfile?.city || '',
           email: apiData.email || cachedProfile?.email,
           userId: apiData.userId || cachedProfile?.userId,
-          promocode: isMass ? 'MASS01' : undefined,
-          promoCode: isMass ? 'MASS01' : undefined,
+          referralCode: apiData.referralCode || cachedProfile?.referralCode,
+          promocode: isMass ? 'MASS01' : (apiData.promocode || cachedProfile?.promocode),
+          promoCode: isMass ? 'MASS01' : (apiData.promoCode || cachedProfile?.promoCode),
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, profile);
         if (isMass) {

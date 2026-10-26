@@ -57,7 +57,7 @@ export const ArenaScreen: React.FC = () => {
   const fetchArenas = useCallback(async () => {
     try {
       const rawProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const userPromo = (rawProfile?.promocode || rawProfile?.promoCode || '').toString().trim().toUpperCase();
+      const userPromo = (rawProfile?.promocode || rawProfile?.promoCode || rawProfile?.referralCode || '').toString().trim().toUpperCase();
       const isMass = userPromo === 'MASS01';
       setIsMassPromo(isMass);
 

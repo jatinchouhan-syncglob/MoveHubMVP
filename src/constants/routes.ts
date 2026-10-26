@@ -11,6 +11,7 @@ export const ROUTES = {
   DASHBOARD: 'Dashboard',
   ACTIVITY_TRACKING: 'ActivityTracking',
   NUTRITIONAL_PROFILER: 'NutritionalProfiler',
+  EXERCISE_PRESCRIPTION: 'ExercisePrescription',
   LIFESTYLE_PROFILER: 'LifestyleProfiler',
   LEADERBOARD: 'Leaderboard',
   INSIGHTS: 'Insights',

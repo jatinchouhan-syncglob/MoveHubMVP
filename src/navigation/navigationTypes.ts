@@ -4,6 +4,7 @@ export type DrawerParamList = {
   Dashboard: undefined;
   ActivityTracking: undefined;
   NutritionalProfiler: undefined;
+  ExercisePrescription: undefined;
   LifestyleProfiler: undefined;
   Leaderboard: undefined;
   Insights: undefined;

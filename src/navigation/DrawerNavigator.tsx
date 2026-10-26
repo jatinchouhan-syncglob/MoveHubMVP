@@ -28,6 +28,7 @@ import AwardsScreen from '../screens/Awards';
 import FitnessChallengesScreen from '../screens/FitnessChallenges';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
 import NutritionalProfilerScreen from '../screens/NutritionalProfiler';
+import ExercisePrescriptionScreen from '../screens/ExercisePrescription';
 import LifestyleProfilerScreen from '../screens/LifestyleProfiler';
 import LeaderboardScreen from '../screens/Leaderboard';
 import InsightsScreen from '../screens/Insights';
@@ -87,7 +88,7 @@ const DrawerNavigatorContent: React.FC = () => {
   const [todayCalories, setTodayCalories] = React.useState(0);
   const [promoCode, setPromoCode] = React.useState<string | null>(null);
   const isMassPromo =
-    (promoCode || profile?.promocode || profile?.promoCode || '').toUpperCase() === 'MASS01';
+    (promoCode || profile?.promocode || profile?.promoCode || profile?.referralCode || '').toUpperCase() === 'MASS01';
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
   const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
@@ -134,10 +135,11 @@ const DrawerNavigatorContent: React.FC = () => {
     const initPromo = async () => {
       try {
         const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        const userPromo = (cachedProf?.promocode || cachedProf?.promoCode || '').toString().trim().toUpperCase();
+        const userPromo = (cachedProf?.promocode || cachedProf?.promoCode || cachedProf?.referralCode || '').toString().trim().toUpperCase();
         if (userPromo === 'MASS01') {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+          setWellnessModalVisible(false);
           setIsMoveHubExpanded(true);
           if (
             activeScreen !== 'Arenas' &&
@@ -186,11 +188,19 @@ const DrawerNavigatorContent: React.FC = () => {
   };
 
   const checkAndTriggerWellnessModal = async () => {
-    if (isMassPromo) return;
-    const cycleDate = getCheckinCycleDate();
-    if (!cycleDate) return;
-
     try {
+      const storedPromo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
+      const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const effectivePromo = (storedPromo || cachedProf?.promocode || cachedProf?.promoCode || cachedProf?.referralCode || promoCode || '').toString().trim().toUpperCase();
+
+      if (effectivePromo === 'MASS01' || isMassPromo) {
+        setWellnessModalVisible(false);
+        return;
+      }
+
+      const cycleDate = getCheckinCycleDate();
+      if (!cycleDate) return;
+
       const lastSubmittedDate = await storageHelper.getItem<string>(
         STORAGE_KEYS.LAST_WELLNESS_CHECKIN_DATE,
       );
@@ -241,6 +251,7 @@ const DrawerNavigatorContent: React.FC = () => {
       'FitnessPrescription',
       'ActivityTracking',
       'NutritionalProfiler',
+      'ExercisePrescription',
       'LifestyleProfiler',
       'FitnessChallenges',
       'Leaderboard',
@@ -363,12 +374,14 @@ const DrawerNavigatorContent: React.FC = () => {
         const userPromo = (
           profileData?.promocode ||
           profileData?.promoCode ||
+          profileData?.referralCode ||
           ''
         ).toString().trim().toUpperCase();
 
         if (userPromo === 'MASS01') {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+          setWellnessModalVisible(false);
           setIsMoveHubExpanded(true);
           if (
             activeScreen !== 'Arenas' &&
@@ -441,6 +454,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <ActivityTrackingScreen />;
       case 'NutritionalProfiler':
         return <NutritionalProfilerScreen />;
+      case 'ExercisePrescription':
+        return <ExercisePrescriptionScreen />;
       case 'LifestyleProfiler':
         return <LifestyleProfilerScreen />;
       case 'Leaderboard':
@@ -522,6 +537,11 @@ const DrawerNavigatorContent: React.FC = () => {
         screen: 'NutritionalProfiler',
         label: 'Nutritional Profiler',
         icon: '🥗',
+      },
+      {
+        screen: 'ExercisePrescription',
+        label: 'Exercise Prescription',
+        icon: '🏋️‍♂️',
       },
       {
         screen: 'LifestyleProfiler',
@@ -814,6 +834,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
+                        'ExercisePrescription',
                         'LifestyleProfiler',
                         'FitnessChallenges',
                         'Leaderboard',
@@ -828,6 +849,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'FitnessPrescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
+                        'ExercisePrescription',
                         'LifestyleProfiler',
                         'FitnessChallenges',
                         'Leaderboard',
@@ -1332,11 +1354,13 @@ const DrawerNavigatorContent: React.FC = () => {
         </View>
       </Modal>
 
-      <WellnessModal
-        visible={wellnessModalVisible}
-        onClose={() => setWellnessModalVisible(false)}
-        onSuccess={() => setWellnessModalVisible(false)}
-      />
+      {!isMassPromo && (
+        <WellnessModal
+          visible={wellnessModalVisible}
+          onClose={() => setWellnessModalVisible(false)}
+          onSuccess={() => setWellnessModalVisible(false)}
+        />
+      )}
     </View>
   );
 };

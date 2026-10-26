@@ -18,6 +18,8 @@ import { CustomButton } from '../../components/common/CustomButton';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { apiService } from '../../services/api';
 import { UserProfile } from '../../types';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
 
 export type OccupationType = 'Student' | 'Homemaker' | 'Working Professional' | 'Retired';
 
@@ -50,18 +52,56 @@ export const ProfileSetupScreen: React.FC = () => {
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const cached = await apiService.getProfile();
+        const cached = await storageHelper.getItem<UserProfile>(
+          STORAGE_KEYS.USER_PROFILE,
+        );
         if (cached) {
-          if (cached.name) setName(cached.name);
-          if (cached.age) setAge(String(cached.age));
-          if (cached.weight) setWeight(String(cached.weight));
-          if (cached.height) setHeight(String(cached.height));
-          if (cached.occupation) setOccupation(cached.occupation as OccupationType);
-          if (cached.universityName) setUniversityName(cached.universityName);
-          if (cached.department) setDepartment(cached.department);
-          if (cached.companyName) setCompanyName(cached.companyName);
-          if (cached.location) setLocation(cached.location);
-          if (cached.city) setCity(cached.city);
+          // Pre-fill Name from signup if available
+          if (
+            cached.name &&
+            cached.name.trim() !== '' &&
+            cached.name !== 'Alex Rivera' &&
+            cached.name !== 'Robert D.'
+          ) {
+            setName(cached.name.trim());
+          }
+
+          // For biometric values (age, weight, height), if setup is not yet complete (new user after signup),
+          // DO NOT autofill them! Let the user type their real details, only showing placeholders.
+          if (cached.isSetupComplete) {
+            if (
+              cached.age &&
+              cached.age > 0 &&
+              cached.age !== 28 &&
+              cached.age !== 30 &&
+              cached.age !== 55
+            ) {
+              setAge(String(cached.age));
+            }
+            if (
+              cached.weight &&
+              cached.weight > 0 &&
+              cached.weight !== 74.5 &&
+              cached.weight !== 70 &&
+              cached.weight !== 75
+            ) {
+              setWeight(String(cached.weight));
+            }
+            if (
+              cached.height &&
+              cached.height > 0 &&
+              cached.height !== 178 &&
+              cached.height !== 170
+            ) {
+              setHeight(String(cached.height));
+            }
+            if (cached.occupation) setOccupation(cached.occupation as OccupationType);
+            if (cached.universityName) setUniversityName(cached.universityName);
+            if (cached.department) setDepartment(cached.department);
+            if (cached.companyName) setCompanyName(cached.companyName);
+            if (cached.location) setLocation(cached.location);
+            if (cached.city) setCity(cached.city);
+          }
         }
       } catch (err) {
         console.error('Failed to prefill profile in setup:', err);
@@ -79,12 +119,19 @@ export const ProfileSetupScreen: React.FC = () => {
   const handleCompleteSetup = async () => {
     setLoading(true);
     try {
+      const parsedAge = parseInt(age, 10);
+      const parsedWeight = parseFloat(weight);
+      const parsedHeight = parseFloat(height);
+
+      const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+
       const profileData: UserProfile = {
-        name: name.trim() || 'Alex Rivera',
-        age: parseInt(age, 10) || 28,
-        weight: parseFloat(weight) || 74.5,
-        height: parseFloat(height) || 178,
-        calorieGoal: 2400,
+        ...cached,
+        name: name.trim() || cached?.name || '',
+        age: parsedAge,
+        weight: parsedWeight,
+        height: parsedHeight,
+        calorieGoal: cached?.calorieGoal || 2400,
         isSetupComplete: true,
         occupation: occupation || undefined,
         universityName: occupation === 'Student' ? universityName.trim() : undefined,
@@ -94,8 +141,22 @@ export const ProfileSetupScreen: React.FC = () => {
         city: city.trim() || undefined,
       };
 
+      const effectivePromo = (
+        cached?.promocode ||
+        cached?.promoCode ||
+        cached?.referralCode ||
+        ''
+      ).toString().trim().toUpperCase();
+      const isMass = effectivePromo === 'MASS01';
+      if (isMass) {
+        profileData.promocode = 'MASS01';
+        profileData.promoCode = 'MASS01';
+        await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+      }
+
       // Call real backend API for profile setup
       await apiService.setupProfile({
+        uhid: cached?.uhid,
         name: profileData.name,
         age: profileData.age,
         weight: profileData.weight,

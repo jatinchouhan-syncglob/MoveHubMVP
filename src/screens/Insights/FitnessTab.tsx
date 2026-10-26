@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import RNLinearGradient from 'react-native-linear-gradient';
 import { ScrollView, Text, View, Animated } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
@@ -7,6 +8,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 import {
   BarChart,
   SingleLineChart,
+  DonutChart,
 } from '../../components/charts/CustomSvgCharts';
 import {
   healthVitalityColors as C,
@@ -133,6 +135,15 @@ const FitnessTab = ({
 
   const heartPointsMax = getDynamicMax(dailyHeartPoints?.values || []);
 
+  const staticMhpData = {
+    labels:
+      dailyHeartPoints?.labels && dailyHeartPoints.labels.length > 0
+        ? dailyHeartPoints.labels
+        : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    values: [18.5, 24.0, 31.2, 22.8, 27.5, 36.0, 29.4],
+  };
+  const mhpMax = getDynamicMax(staticMhpData.values);
+
   const sdexMax = getDynamicMax(sdexActivity?.values || []);
 
   const energyExpendedMax = getDynamicMax(energyExpended?.values || []);
@@ -171,6 +182,101 @@ const FitnessTab = ({
 
   return (
     <>
+      {/* Cardio Metabolic Score (CMAS) Card */}
+      <RNLinearGradient
+        colors={['#ECFDF5', '#D1FAE5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#A7F3D0',
+            shadowColor: '#059669',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 3,
+            padding: 16,
+          },
+        ]}
+      >
+        <View style={[styles.cardTitleRow, { justifyContent: 'space-between', marginBottom: 14 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={[
+                styles.cardIconContainer,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: '#A7F3D0',
+                  shadowColor: '#059669',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+              ]}>
+              <Text style={styles.emptyChartIcon}>🫀</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: '#064E3B', fontSize: 15, fontWeight: '800' }]}>
+                Cardio Metabolic Score (CMAS)
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                borderColor: '#10B981',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 20,
+              },
+            ]}>
+            <Text style={[styles.statusText, { color: '#047857', fontSize: 10, fontWeight: '800' }]}>
+              OPTIMAL
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.donutContainer, { marginTop: 4, alignItems: 'center' }]}>
+          <View style={[styles.donutChartWrapper, { backgroundColor: '#FFFFFF', borderRadius: 60, padding: 6, shadowColor: '#059669', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 }]}>
+            <DonutChart
+              pct={82}
+              size={100}
+              color="#059669"
+              trackColor="#A7F3D0"
+            />
+            <View style={styles.donutScoreContainer}>
+              <View
+                style={[
+                  styles.trafficLightDot,
+                  { backgroundColor: '#10B981' },
+                ]}
+              />
+              <Text style={[styles.donutScoreValue, { color: '#064E3B', fontWeight: '900' }]}>
+                82
+              </Text>
+              <Text style={[styles.donutScorePercent, { color: '#059669', fontWeight: '700' }]}>%</Text>
+            </View>
+          </View>
+
+          <View style={{ flex: 1, paddingLeft: 8 }}>
+            <Text
+              style={[
+                styles.cardSub,
+                { color: '#065F46', fontSize: 12.5, lineHeight: 18, fontWeight: '500' },
+              ]}>
+              Cardio Metabolic Score (CMAS) performance based on your weekly health trends.
+            </Text>
+          </View>
+        </View>
+      </RNLinearGradient>
+
       <View style={[styles.card, styles.performanceCard, { gap: 5 }]}>
         <View style={styles.cardTitleRow}>
           <View
@@ -408,6 +514,42 @@ const FitnessTab = ({
                 )}
             </View>
           )}
+      </View>
+
+      {/* Modified Heart Point (MHP) Card */}
+      <View style={[styles.card, styles.heartPointsCard]}>
+        <View style={styles.cardTitleRow}>
+          <View
+            style={[
+              styles.cardIconContainer,
+              { backgroundColor: '#FEE2E2' },
+            ]}
+          >
+            <Text style={styles.emptyChartIcon}>💓</Text>
+          </View>
+          <Text style={styles.cardTitle}>Modified Heart Point (MHP)</Text>
+        </View>
+
+        <View style={styles.chartWrapper}>
+          <ScrollableChart
+            dataLength={staticMhpData.values.length}
+            visibleWidth={chartWidth}
+          >
+            {computedWidth => (
+              <BarChart
+                values={staticMhpData.values}
+                labels={staticMhpData.labels}
+                width={computedWidth}
+                height={180}
+                maxY={mhpMax}
+                yTicks={getDynamicTicks(mhpMax)}
+                color="#E11D48"
+              />
+            )}
+          </ScrollableChart>
+        </View>
+
+        <Text style={styles.caption}>Modified Heart Point (MHP) progress across active recovery days.</Text>
       </View>
       {!isINOXuser && (
         <>

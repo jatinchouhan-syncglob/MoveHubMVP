@@ -76,7 +76,7 @@ export const ArenasScreen: React.FC = () => {
           : rawProfile
         : null;
 
-      const userPromo = (parsed?.promocode || parsed?.promoCode || '').toString().trim().toUpperCase();
+      const userPromo = (parsed?.promocode || parsed?.promoCode || parsed?.referralCode || '').toString().trim().toUpperCase();
       const isMass = userPromo === 'MASS01';
       setIsMassPromo(isMass);
 

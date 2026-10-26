@@ -36,16 +36,12 @@ export const FitnessChallengesScreen: React.FC = () => {
 
   const handleJoinTrial = () => {
     if (trialJoined) return;
-    setModalType('trial');
-    setTrialJoined(true);
-    setSuccessModalVisible(true);
+    setDisclaimerModalVisible(true);
   };
 
   const handleJoinChallenge = () => {
     if (challengeJoined) return;
-    setModalType('challenge');
-    setChallengeJoined(true);
-    setSuccessModalVisible(true);
+    setDisclaimerModalVisible(true);
   };
 
   const handleGoToLeaderboard = () => {
@@ -117,14 +113,7 @@ export const FitnessChallengesScreen: React.FC = () => {
             <Text style={styles.progressMetaText}>🏢 Master</Text>
           </View> */}
 
-          {/* Terms & Conditions Link */}
-          <TouchableOpacity
-            style={styles.termsContainer}
-            activeOpacity={0.7}
-            onPress={() => setDisclaimerModalVisible(true)}
-          >
-            <Text style={styles.termsText}>Term & Conditions</Text>
-          </TouchableOpacity>
+         
 
           {/* Action button */}
           <TouchableOpacity
@@ -267,7 +256,7 @@ export const FitnessChallengesScreen: React.FC = () => {
             </View>
             <Text style={styles.modalSuccessTitle}>
               {modalType === 'trial'
-                ? 'Trial Joined Successfully!'
+                ? 'Joined Successfully!'
                 : 'Challenge Joined Successfully!'}
             </Text>
             <Text style={styles.modalSuccessDesc}>
@@ -322,11 +311,15 @@ export const FitnessChallengesScreen: React.FC = () => {
               </Text>
             </ScrollView>
 
-            {/* Agree Button */}
+            {/* Agree / Challenge Joined Button */}
             <TouchableOpacity
               style={styles.disclaimerAgreeBtn}
               activeOpacity={0.85}
-              onPress={() => setDisclaimerModalVisible(false)}
+              onPress={() => {
+                setTrialJoined(true);
+                setChallengeJoined(true);
+                setDisclaimerModalVisible(false);
+              }}
             >
               <LinearGradient
                 colors={['#10B981', '#059669']}
@@ -335,7 +328,7 @@ export const FitnessChallengesScreen: React.FC = () => {
                 style={styles.disclaimerAgreeGradient}
               >
                 <Text style={styles.disclaimerAgreeBtnText}>
-                  I understand and agree.
+                  Challenge Joined Successfully! ✅
                 </Text>
               </LinearGradient>
             </TouchableOpacity>

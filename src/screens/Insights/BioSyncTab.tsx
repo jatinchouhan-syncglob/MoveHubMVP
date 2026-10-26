@@ -1,5 +1,6 @@
 import React from 'react';
 import {ScrollView, Text, View} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
 import {
   BarChart,
@@ -225,64 +226,99 @@ const BioSyncTab = ({
 
   return (
     <>
-      <View style={[styles.card, styles.efficiencyCard]}>
-        <View style={styles.cardTitleRow}>
+      <LinearGradient
+        colors={['#EEF2FF', '#E0E7FF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#C7D2FE',
+            shadowColor: '#4F46E5',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 3,
+            padding: 16,
+          },
+        ]}
+      >
+        <View style={[styles.cardTitleRow, { justifyContent: 'space-between', marginBottom: 14 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={[
+                styles.cardIconContainer,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: '#C7D2FE',
+                  shadowColor: '#4F46E5',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+              ]}>
+              <Text style={styles.emptyChartIcon}>✨</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: '#312E81', fontSize: 15, fontWeight: '800' }]}>
+                Bio Sync Efficiency (BSE)
+              </Text>
+            </View>
+          </View>
+
           <View
             style={[
-              styles.cardIconContainer,
-              {backgroundColor: DC.indigoLight},
+              styles.statusBadge,
+              {
+                backgroundColor: statusDetails.bgColor,
+                borderColor: statusDetails.color,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 20,
+              },
             ]}>
-            <Text style={styles.emptyChartIcon}>✨</Text>
+            <Text style={[styles.statusText, { color: statusDetails.textColor, fontSize: 10, fontWeight: '800' }]}>
+              {statusDetails.text.toUpperCase()}
+            </Text>
           </View>
-          <Text style={[styles.cardTitle, {color: DC.indigoBrand}]}>
-            Bio Sync Efficiency (BSE)
-          </Text>
         </View>
-        <View style={styles.donutContainer}>
-          <View style={styles.donutChartWrapper}>
+
+        <View style={[styles.donutContainer, { marginTop: 4, alignItems: 'center' }]}>
+          <View style={[styles.donutChartWrapper, { backgroundColor: '#FFFFFF', borderRadius: 60, padding: 6, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 }]}>
             <DonutChart
               pct={weeklyBioSyncEfficiencyScore}
               size={100}
               color={DC.indigoBrand}
-              trackColor={DC.indigoLight}
+              trackColor="#C7D2FE"
             />
             <View style={styles.donutScoreContainer}>
-              {/* <View
+              <View
                 style={[
                   styles.trafficLightDot,
-                  {backgroundColor: statusDetails.color},
+                  { backgroundColor: statusDetails.color },
                 ]}
-              /> */}
-              <Text style={styles.donutScoreValue}>
+              />
+              <Text style={[styles.donutScoreValue, { color: '#1E1B4B', fontWeight: '900' }]}>
                 {weeklyBioSyncEfficiencyScore}
               </Text>
-              <Text style={styles.donutScorePercent}>%</Text>
+              <Text style={[styles.donutScorePercent, { color: '#6366F1', fontWeight: '700' }]}>%</Text>
             </View>
           </View>
-          <View style={{flex: 1}}>
-            {/* <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor: statusDetails.bgColor,
-                  borderColor: statusDetails.textColor,
-                },
-              ]}>
-              <Text style={[styles.statusText, {color: statusDetails.textColor}]}>
-                STATUS: {statusDetails.text.toUpperCase()}
-              </Text>
-            </View> */}
-            <Spacing top={8} />
+
+          <View style={{ flex: 1, paddingLeft: 8 }}>
             <Text
               style={[
                 styles.cardSub,
-                {color: DC.indigoBrand, opacity: 0.8, fontSize: 13},
+                { color: '#3730A3', fontSize: 12.5, lineHeight: 18, fontWeight: '500' },
               ]}>
               Bio Sync Efficiency (BSE) performance based on your weekly health trends.
             </Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={[styles.card, {backgroundColor: DC.roseSoft}]}>
         <View style={styles.cardTitleRow}>

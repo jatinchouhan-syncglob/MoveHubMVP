@@ -149,19 +149,40 @@ export const SignupScreen: React.FC = () => {
           await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
         }
         
-        // Save the profile locally
+        const rawPromo = (
+          userData.referralCode ||
+          userData.referral_code ||
+          userData.promocode ||
+          userData.promoCode ||
+          response.referralCode ||
+          response.promocode ||
+          referralCode ||
+          ''
+        ).toString().trim().toUpperCase();
+        const isMass = rawPromo === 'MASS01';
+
+        // Save the profile locally without dummy biometrics
         const userProfile: UserProfile = {
-          uhid: userData.uhid || 'SAUSHA9775',
-          name: `${firstName.trim()} ${lastName.trim()}`,
-          age: userData.age || 30,
-          weight: userData.weight || 70.0,
-          height: userData.height || 170,
+          uhid: userData.uhid || '',
+          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          age: userData.age || 0,
+          weight: userData.weight || 0,
+          height: userData.height || 0,
           calorieGoal: userData.calorieGoal || 2000,
           isSetupComplete: false,
           email: userData.email || email.trim(),
           token: authToken,
+          referralCode: userData.referralCode || referralCode.trim() || undefined,
+          promocode: isMass ? 'MASS01' : (userData.promocode || userData.promoCode || undefined),
+          promoCode: isMass ? 'MASS01' : (userData.promocode || userData.promoCode || undefined),
         };
         await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, userProfile);
+
+        if (isMass) {
+          await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
+        } else {
+          await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
+        }
 
         // Navigate to the Setup Profile screen
         navigation.replace(ROUTES.PROFILE_SETUP);

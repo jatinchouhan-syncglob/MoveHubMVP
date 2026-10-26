@@ -317,7 +317,7 @@ const getBioSyncStatus = (score?: number) => {
 };
 
 export const InsightsScreen: React.FC = () => {
-  const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'trends' | 'transformation'>('fitness');
+  const [activeScreenTab, setActiveScreenTab] = useState<'fitness' | 'bio-sync' | 'bari' | 'posi' | 'trends' | 'transformation'>('fitness');
   const [activeTimeframe, setActiveTimeframe] = useState<'7days' | '4weeks' | '3months' | '6months' | '9months' | '12months'>('7days');
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -350,7 +350,7 @@ export const InsightsScreen: React.FC = () => {
   const tabScrollRef = useRef<ScrollView>(null);
   const tabPositions = useRef<{ [key: string]: { x: number; width: number } }>({});
 
-  const scrollToTab = useCallback((tabKey: 'fitness' | 'bio-sync' | 'trends' | 'transformation') => {
+  const scrollToTab = useCallback((tabKey: 'fitness' | 'bio-sync' | 'bari' | 'posi' | 'trends' | 'transformation') => {
     const layout = tabPositions.current[tabKey];
     if (tabScrollRef.current && layout) {
       if (tabKey === 'fitness') {
@@ -369,7 +369,7 @@ export const InsightsScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [activeScreenTab, scrollToTab]);
 
-  const handleTabPress = (tabKey: 'fitness' | 'bio-sync' | 'trends' | 'transformation') => {
+  const handleTabPress = (tabKey: 'fitness' | 'bio-sync' | 'bari' | 'posi' | 'trends' | 'transformation') => {
     setActiveScreenTab(tabKey);
     scrollToTab(tabKey);
   };
@@ -1187,6 +1187,36 @@ export const InsightsScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             onLayout={e => {
+              tabPositions.current['bari'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('bari')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'bari' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'bari' && styles.tabActiveText]}>
+              BARI
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onLayout={e => {
+              tabPositions.current['posi'] = {
+                x: e.nativeEvent.layout.x,
+                width: e.nativeEvent.layout.width,
+              };
+            }}
+            onPress={() => handleTabPress('posi')}
+            activeOpacity={0.8}
+            style={[styles.tabBtn, activeScreenTab === 'posi' && styles.tabActiveBtn]}
+          >
+            <Text style={[styles.tabBtnText, activeScreenTab === 'posi' && styles.tabActiveText]}>
+              POSI
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onLayout={e => {
               tabPositions.current['trends'] = {
                 x: e.nativeEvent.layout.x,
                 width: e.nativeEvent.layout.width,
@@ -1218,7 +1248,7 @@ export const InsightsScreen: React.FC = () => {
         </ScrollView>
       </View>
       
-      {(activeScreenTab === 'fitness' || activeScreenTab === 'bio-sync') && (
+      {(activeScreenTab === 'fitness' || activeScreenTab === 'bio-sync' || activeScreenTab === 'bari' || activeScreenTab === 'posi') && (
         <View style={styles.topInfoBar}>
           <View style={styles.infoBarChip}>
             <Text style={styles.infoBarLabel}>UHID: </Text>
@@ -1310,6 +1340,88 @@ export const InsightsScreen: React.FC = () => {
               dailyInsightText={bioSyncTrend?.dailyInsightText || fitnessTrend?.dailyInsightText}
             />
           )
+        )}
+
+        {activeScreenTab === 'bari' && (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingVertical: 48,
+              paddingHorizontal: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              marginBottom: 16,
+              shadowColor: '#0F172A',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.04,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: '#F1F5F9',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontSize: 28 }}>🧬</Text>
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 12 }}>
+              BARI Analysis
+            </Text>
+            <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 6, textAlign: 'center' }}>
+              No BARI data available yet.
+            </Text>
+          </View>
+        )}
+
+        {activeScreenTab === 'posi' && (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingVertical: 48,
+              paddingHorizontal: 20,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              marginBottom: 16,
+              shadowColor: '#0F172A',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.04,
+              shadowRadius: 8,
+              elevation: 2,
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: '#F1F5F9',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontSize: 28 }}>🛡️</Text>
+            </View>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 12 }}>
+              POSI Analysis
+            </Text>
+            <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 6, textAlign: 'center' }}>
+              No POSI data available yet.
+            </Text>
+          </View>
         )}
 
         {activeScreenTab === 'trends' && (
