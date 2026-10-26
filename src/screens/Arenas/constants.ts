@@ -681,38 +681,59 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
 export const TOURNAMENT_STAGES: ITournamentBracketStage[] = [
   {
     stageNumber: 1,
-    title: 'STAGE 1: QUALIFY',
+    title: '🏢 STAGE 1: QUALIFY-THE BEHAVIORAL FOUNDATION TRACK',
     daysRange: 'DAYS 1–7',
-    cutoffText: 'Survive the 25% Knockout Gate',
+    cutoffText: '25% Knockout Gate (Top 75% Advance)',
     dropPercent: 'Top 75% Advance',
+    survivalGate: '25% Knockout Gate (Top 75% Advance).',
+    whatWeMeasure:
+      'Daily movement volume, exercise intensity, and your defence against physical stagnation [AHA].',
+    howScoreCalculated:
+      'Blends your aerobic quality (Norm_MHP™), baseline steps (Norm_Steps), and active penalty points for continuous immobility (S-DEX™). Crucially, your scores are derived entirely as a percentage of your demographically calibrated, personalized targets.',
+    howToScoreHigh:
+      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes [AHA]. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces) [AHA]. This rapid micro-intervention instantly activates your skeletal muscle pumps, forces pooled blood back to your heart, and resets your S-DEX™ stasis counter to zero—instantly maximizing your percentage of target achievement to secure your rank safely above the Axe Line.',
     survivalRules:
-      'Movement becomes your entry test. Achieve baseline daily step compliance and calibrate resting stasis runs to cross the initial survival threshold.',
+      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes [AHA]. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces) [AHA].',
     bracketResetDetails:
-      'At the stroke of midnight on Day 7, bottom 25% are eliminated. Remaining bracket is seeded for Week 2 1v1 face-offs.',
+      'At the stroke of midnight on Day 7, bottom 25% are eliminated. Remaining 75% advance to Stage 2.',
     accentColor: '#3B82F6',
   },
   {
     stageNumber: 2,
-    title: 'STAGE 2: HEAD-TO-HEAD',
+    title: '🧠 STAGE 2: CONQUER-THE AUTONOMIC COST NEXUS',
     daysRange: 'DAYS 8–14',
-    cutoffText: 'Survive 1v1 Bracket Reset',
-    dropPercent: 'Top 50% Advance',
+    cutoffText: '50% Knockout Gate (Top 25% Advance)',
+    dropPercent: 'Top 25% Advance',
+    survivalGate: '50% Knockout Gate (Top 25% Advance).',
+    whatWeMeasure:
+      'Your cumulative lifestyle alignment, nervous system recovery, and daily biological clock uniformity [AHA].',
+    howScoreCalculated:
+      'Your score is the direct summation of your Stage 1 CMAS™ baseline and your Stage 2 BSE™ (Bio-Sync Efficiency) score. Your standing depends entirely on what percentage you achieve of your personalized sleep uniformity targets and your customized functional physical targets.',
+    howToScoreHigh:
+      'You must try to execute every single customized exercise routine specified for you and hit your personalized circadian sleep windows. Failing to complete your custom routines or experiencing erratic sleep shifts will crash your target achievement percentage and drop your ranking. Actively complete your personalized targets to maximize your cumulative score and qualify for the final week.',
     survivalRules:
-      'Pairs are matched based on biophysical handicap. Direct daily cadence face-offs decide who moves forward to the final week.',
+      'You must try to execute every single customized exercise routine specified for you and hit your personalized circadian sleep windows to protect your cumulative score.',
     bracketResetDetails:
-      'Loser bracket drops out. Winners earn direct multiplier boosts and ingress tokens into the National Podium week.',
+      '50% Knockout Gate cuts the bottom competitors. Only top 25% cumulative achievers advance to the National Podium.',
     accentColor: '#EC4899',
   },
   {
     stageNumber: 3,
-    title: 'STAGE 3: NATIONAL PODIUM',
+    title: '🏋️ STAGE 3: MASTER-THE FUNCTIONAL RESILIENCE WHEEL FOR NATIONAL PODIUM)',
     daysRange: 'DAYS 15–21',
-    cutoffText: 'Final Podium Standover',
+    cutoffText: 'The Final Battle (Remaining 25% Compete)',
     dropPercent: 'Podium 1st / 2nd / 3rd',
+    survivalGate: 'The Final Battle (Only the remaining 25% compete for the crown).',
+    whatWeMeasure:
+      'Your complete body resilience, structural health adoption tracking, and long-term biological longevity.',
+    howScoreCalculated:
+      'Computes your master BARI™ (Bio-Age Resilience Index) Score by blending your Stage 1 cardio, Stage 2 sleep data, and active muscle logs relative to your personal targets. In this final week, your data-driven compliance with both your personalized nutrition and specialized physical plans is woven directly into the scoring core.',
+    howToScoreHigh:
+      'To secure the championship, you must comply as closely as possible with your hyper-personalized exercise prescriptions, customized nutrition choices, and exact meal substrates provided to you. This final gauntlet is strategically designed to help you internalize permanent, lifelong behavioural habits. By seamlessly adopting these protocols, you lock down long-term immunity against chronic lifestyle diseases, dramatically elevate your daily energy, and achieve the ultimate quality of life (QOL).',
     survivalRules:
-      'The remaining contenders fight for the National Podium. Combined cardio-metabolic efficiency and team multipliers decide the champion.',
+      'Comply as closely as possible with your hyper-personalized exercise prescriptions, customized nutrition choices, and exact meal substrates.',
     bracketResetDetails:
-      'Podium ceremony unlocks certified medical wellness credentials, sponsor prize pool, and perpetual leaderboard induction.',
+      'Podium ceremony awards Top 3 National Trophies, certified medical longevity credentials, and perpetual leaderboard induction.',
     accentColor: '#F59E0B',
   },
 ];

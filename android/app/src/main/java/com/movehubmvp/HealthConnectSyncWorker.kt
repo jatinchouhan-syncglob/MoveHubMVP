@@ -42,13 +42,6 @@ class HealthConnectSyncWorker(
     override suspend fun doWork(): Result {
         Log.d(TAG, "Background Health Connect Changes API sync worker started")
 
-        try {
-            setForeground(createForegroundInfo())
-            Log.d(TAG, "Foreground service elevation active for health sync")
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not elevate to foreground service: ${e.message}")
-        }
-
         val attempt = inputData.getInt("attempt", 0)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val baseUrl = prefs.getString("baseUrl", null)
@@ -484,42 +477,6 @@ class HealthConnectSyncWorker(
             putString("lastStatus", "Failure")
             putString("lastReason", reason)
             apply()
-        }
-    }
-
-    private fun createForegroundInfo(): ForegroundInfo {
-        val channelId = "health_sync_channel"
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Health Data Synchronization",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Synchronizing steps and activity data with MoveHub"
-                setShowBadge(false)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle("MoveHub Health Sync")
-            .setContentText("Syncing your health activity in background...")
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val serviceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            }
-            ForegroundInfo(1001, notification, serviceType)
-        } else {
-            ForegroundInfo(1001, notification)
         }
     }
 }

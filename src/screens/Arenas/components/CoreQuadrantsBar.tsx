@@ -35,7 +35,7 @@ export const CoreQuadrantsBar: React.FC<CoreQuadrantsBarProps> = ({
     },
     {
       id: 'referral',
-      label: '3-Way Referral Node',
+      label: '4-Way Referral Node',
       icon: '🔗',
       onPress: onOpenReferral,
     },

@@ -50,7 +50,7 @@ export const ArenasScreen: React.FC = () => {
   const [isPlaybookVisible, setIsPlaybookVisible] = useState<boolean>(false);
   const [isSandboxVisible, setIsSandboxVisible] = useState<boolean>(false);
   const [isReferralVisible, setIsReferralVisible] = useState<boolean>(false);
-  const [referralInitialNode, setReferralInitialNode] = useState<'A' | 'B' | 'C'>('A');
+  const [referralInitialNode, setReferralInitialNode] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [isCalibrationVisible, setIsCalibrationVisible] = useState<boolean>(false);
   const [isDisclaimerVisible, setIsDisclaimerVisible] = useState<boolean>(false);
 
@@ -141,7 +141,7 @@ export const ArenasScreen: React.FC = () => {
   };
 
   // Handlers for action triggers
-  const handleOpenReferralNode = (node: 'A' | 'B' | 'C') => {
+  const handleOpenReferralNode = (node: 'A' | 'B' | 'C' | 'D') => {
     setReferralInitialNode(node);
     setIsReferralVisible(true);
   };
@@ -178,7 +178,7 @@ export const ArenasScreen: React.FC = () => {
             ? 'THE ARENA: War Room'
             : activeViewportTab === 'brackets'
             ? 'THE ARENA: Brackets'
-            : 'THE ARENA: Rewards'
+            : 'The ARENA: 4-Way Referral'
         }
         showDrawerButton={true}
         containerStyle={[

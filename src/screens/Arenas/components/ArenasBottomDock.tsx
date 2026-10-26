@@ -219,7 +219,7 @@ export const ArenasBottomDock: React.FC<ArenasBottomDockProps> = ({
           activeOpacity={0.7}
           onPress={onPressRewards}
         >
-          <Text style={styles.bottomDockIcon}>🎁</Text>
+          <Text style={styles.bottomDockIcon}>👥</Text>
           <Text
             style={[
               styles.bottomDockLabel,
@@ -258,7 +258,7 @@ export const ArenasBottomDock: React.FC<ArenasBottomDockProps> = ({
                 },
               ]}
             >
-              1.4x MULTI
+              4-WAY
             </Text>
           </View>
           {activeTab === 'rewards' && (

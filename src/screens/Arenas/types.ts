@@ -100,11 +100,15 @@ export interface ITournamentBracketStage {
   stageNumber: number;
   title: string;
   daysRange: string;
-  cutoffText: string;
-  dropPercent: string;
-  survivalRules: string;
-  bracketResetDetails: string;
+  cutoffText?: string;
+  dropPercent?: string;
+  survivalRules?: string;
+  bracketResetDetails?: string;
   accentColor: string;
+  survivalGate?: string;
+  whatWeMeasure?: string;
+  howScoreCalculated?: string;
+  howToScoreHigh?: string;
 }
 
 export interface IBiophysicalCalibrationProfile {

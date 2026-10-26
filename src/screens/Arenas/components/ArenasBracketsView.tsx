@@ -1,21 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { styles } from '../styles';
 import { TOURNAMENT_STAGES } from '../constants';
 import { ISegmentConfig } from '../types';
-import { SegmentStandingsCard } from './SegmentStandingsCard';
 
 interface ArenasBracketsViewProps {
   config: ISegmentConfig;
 }
 
 export const ArenasBracketsView: React.FC<ArenasBracketsViewProps> = ({ config }) => {
-  const [selectedStageNumber, setSelectedStageNumber] = useState<number>(1);
   const theme = config.theme;
-
-  const activeStage =
-    TOURNAMENT_STAGES.find(s => s.stageNumber === selectedStageNumber) ||
-    TOURNAMENT_STAGES[0];
 
   return (
     <ScrollView
@@ -37,225 +31,101 @@ export const ArenasBracketsView: React.FC<ArenasBracketsViewProps> = ({ config }
           ECFL™ Tournament Knockout Roadmap
         </Text>
         <Text style={styles.bracketsHeroDesc}>
-          Gamified roadmap showing weekly knockout brackets. Track your progress, compare your pace to the division leader, and survive each knockout stage.
+          Gamified roadmap showing weekly knockout brackets. Visual timeline indicates target thresholds to survive the Week 1 25% Knockout Gate and Week 2 1v1 match resets.
         </Text>
       </View>
 
-      {/* 1. Top Stage Tabs (Stage 1, 2, 3) */}
-      <View style={styles.bracketsStageTabsRow}>
-        {TOURNAMENT_STAGES.map(stage => {
-          const isActive = selectedStageNumber === stage.stageNumber;
-          return (
-            <TouchableOpacity
-              key={`stage-tab-${stage.stageNumber}`}
-              style={[
-                styles.bracketsStageTabBtn,
-                isActive && {
-                  borderColor: stage.accentColor,
-                  backgroundColor: `${stage.accentColor}18`,
-                  borderWidth: 1.5,
-                },
-              ]}
-              activeOpacity={0.8}
-              onPress={() => setSelectedStageNumber(stage.stageNumber)}
-            >
-              <Text
-                style={[
-                  styles.bracketsStageTabTitle,
-                  isActive && { color: stage.accentColor },
-                ]}
-              >
-                Stage {stage.stageNumber}
-              </Text>
-              <Text style={styles.bracketsStageTabSub}>{stage.daysRange}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* 2. Common Comparison Cards: Top Leader vs Your Score */}
-      <View
-        style={[
-          styles.bracketsComparisonSection,
-          { borderColor: theme.mutedBorders },
-        ]}
-      >
-        <View style={styles.bracketsComparisonHeader}>
-          <Text
-            style={[
-              styles.bracketsComparisonTitle,
-              { color: theme.coreAccent },
-            ]}
-          >
-            ⚡ Stage {selectedStageNumber} Comparison
-          </Text>
-          <Text style={styles.bracketsComparisonTag}>LIVE BENCHMARK</Text>
-        </View>
-
-        <View style={styles.bracketsComparisonRow}>
-          {/* Card 1: Top Leader */}
+      {/* 3 Tournament Knockout Stages */}
+      {TOURNAMENT_STAGES.map(stage => {
+        return (
           <View
+            key={`stage-${stage.stageNumber}`}
             style={[
-              styles.bracketsComparisonCard,
-              { borderColor: '#F59E0B' },
+              styles.bracketsStageCard,
+              { borderColor: stage.accentColor },
             ]}
           >
-            <View
-              style={[
-                styles.bracketsComparisonCardBadge,
-                { backgroundColor: 'rgba(245, 158, 11, 0.18)' },
-              ]}
-            >
+            {/* Stage Title and Days Badge */}
+            <View style={styles.bracketsStageTop}>
               <Text
                 style={[
-                  styles.bracketsComparisonCardBadgeText,
-                  { color: '#F59E0B' },
+                  styles.bracketsStageTitle,
+                  { color: stage.accentColor, flex: 1, marginRight: 8 },
                 ]}
               >
-                🏆 #1 LEADER
+                {stage.title}
               </Text>
+              <View style={styles.bracketsDaysBadge}>
+                <Text style={styles.bracketsDaysText}>{stage.daysRange}</Text>
+              </View>
             </View>
-            <Text style={styles.bracketsComparisonCardName} numberOfLines={1}>
-              Rohan V. (Squad Alpha)
-            </Text>
-            <Text
-              style={[
-                styles.bracketsComparisonCardScore,
-                { color: '#F59E0B' },
-              ]}
-            >
-              2,840 PTS
-            </Text>
-            <Text style={styles.bracketsComparisonCardMetric}>
-              Cadence: 124 spm • 0.00
-            </Text>
-            <Text
-              style={[
-                styles.bracketsComparisonCardStatus,
-                { color: '#10B981' },
-              ]}
-            >
-              🟢 Podium Lock
-            </Text>
-          </View>
 
-          {/* Card 2: Your Score */}
-          <View
-            style={[
-              styles.bracketsComparisonCard,
-              { borderColor: theme.coreAccent },
-            ]}
-          >
-            <View
-              style={[
-                styles.bracketsComparisonCardBadge,
-                { backgroundColor: theme.badgeBg },
-              ]}
-            >
-              <Text
+            {/* 1. The Survival Gate */}
+            {stage.survivalGate && (
+              <View style={styles.bracketsSectionBlock}>
+                <Text style={styles.bracketsSectionLabel}>🎯 The Survival Gate:</Text>
+                <Text
+                  style={[
+                    styles.bracketsSectionValue,
+                    { color: stage.accentColor, fontWeight: '800' },
+                  ]}
+                >
+                  {stage.survivalGate}
+                </Text>
+              </View>
+            )}
+
+            {/* 2. What We Measure */}
+            {stage.whatWeMeasure && (
+              <View style={styles.bracketsSectionBlock}>
+                <Text style={styles.bracketsSectionLabel}>📊 What We Measure:</Text>
+                <Text style={styles.bracketsSectionValue}>{stage.whatWeMeasure}</Text>
+              </View>
+            )}
+
+            {/* 3. How the Score is Calculated */}
+            {stage.howScoreCalculated && (
+              <View style={styles.bracketsSectionBlock}>
+                <Text style={styles.bracketsSectionLabel}>
+                  🧮 How the Score is Calculated:
+                </Text>
+                <Text style={styles.bracketsSectionValue}>
+                  {stage.howScoreCalculated}
+                </Text>
+              </View>
+            )}
+
+            {/* 4. How to Score High & Progress / Win */}
+            {stage.howToScoreHigh && (
+              <View
                 style={[
-                  styles.bracketsComparisonCardBadgeText,
-                  { color: theme.coreAccent },
+                  styles.bracketsActionBox,
+                  {
+                    borderColor: `${stage.accentColor}35`,
+                    backgroundColor: `${stage.accentColor}12`,
+                  },
                 ]}
               >
-                👤 YOUR STANDING
-              </Text>
-            </View>
-            <Text style={styles.bracketsComparisonCardName} numberOfLines={1}>
-              You (Rank #14)
-            </Text>
-            <Text
-              style={[
-                styles.bracketsComparisonCardScore,
-                { color: theme.coreAccent },
-              ]}
-            >
-              2,150 PTS
-            </Text>
-            <Text style={styles.bracketsComparisonCardMetric}>
-              Cadence: 118 spm • 0.05
-            </Text>
-            <Text
-              style={[
-                styles.bracketsComparisonCardStatus,
-                { color: theme.coreAccent },
-              ]}
-            >
-              🛡️ Safe Zone (+420 Gate)
-            </Text>
+                <Text
+                  style={[
+                    styles.bracketsActionLabel,
+                    { color: stage.accentColor },
+                  ]}
+                >
+                  {stage.stageNumber === 3
+                    ? '🏆 How to Score High & Win:'
+                    : '⚡ How to Score High & Progress:'}
+                </Text>
+                <Text style={styles.bracketsActionValue}>
+                  {stage.howToScoreHigh}
+                </Text>
+              </View>
+            )}
           </View>
-        </View>
+        );
+      })}
 
-        {/* Comparative Progress Bar */}
-        <View style={styles.bracketsComparisonProgressTrack}>
-          <View
-            style={[
-              styles.bracketsComparisonProgressFill,
-              { width: '76%', backgroundColor: theme.coreAccent },
-            ]}
-          />
-        </View>
-        <Text style={styles.bracketsComparisonDiffText}>
-          ⚡ You are 690 pts behind #1 Leader • 76% Pace of Stage Benchmark
-        </Text>
-      </View>
-
-      {/* 3. Selected Stage Details Card */}
-      <View
-        style={[
-          styles.bracketsStageCard,
-          { borderColor: activeStage.accentColor },
-        ]}
-      >
-        <View style={styles.bracketsStageTop}>
-          <Text style={[styles.bracketsStageTitle, { color: activeStage.accentColor }]}>
-            {activeStage.title}
-          </Text>
-          <View style={styles.bracketsDaysBadge}>
-            <Text style={styles.bracketsDaysText}>{activeStage.daysRange}</Text>
-          </View>
-        </View>
-
-        <View style={styles.bracketsCutoffRow}>
-          <Text style={styles.bracketsCutoffText}>
-            🎯 {activeStage.cutoffText}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.bracketsDropBadge,
-            { backgroundColor: `${activeStage.accentColor}20` },
-          ]}
-        >
-          <Text style={[styles.bracketsDropText, { color: activeStage.accentColor }]}>
-            ⚡ {activeStage.dropPercent}
-          </Text>
-        </View>
-
-        <Text style={styles.bracketsRulesText}>
-          {activeStage.survivalRules}
-        </Text>
-
-        <View
-          style={[
-            styles.bracketsResetBox,
-            { borderColor: `${activeStage.accentColor}40` },
-          ]}
-        >
-          <Text style={styles.bracketsResetText}>
-            🔄 Bracket Reset: {activeStage.bracketResetDetails}
-          </Text>
-        </View>
-      </View>
-
-      {/* Embedded Live Standings / Division Ledger */}
-      <View style={styles.bracketsStandingsSection}>
-        <Text style={styles.bracketsStandingsTitle}>
-          CURRENT BRACKET STANDINGS & DIVISION LEADERS
-        </Text>
-        <SegmentStandingsCard config={config} />
-      </View>
+      {/* Note: Current Bracket Standings & Division Leaders removed as requested (to be reminded later) */}
     </ScrollView>
   );
 };

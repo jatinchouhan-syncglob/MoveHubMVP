@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
 import { ROUTES } from '../../constants/routes';
 import { CustomButton } from '../../components/common/CustomButton';
+import { IMAGES } from '../../assets/images';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
@@ -95,7 +96,7 @@ export const SplashScreen: React.FC = () => {
         >
           <View style={styles.logoCircle}>
             <Image
-              source={require('../../assets/images/app_logo.png')}
+              source={IMAGES.appIcon}
               style={styles.logoImage}
               resizeMode="contain"
             />

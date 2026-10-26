@@ -16,15 +16,17 @@ import { styles } from '../styles';
 interface ThreeWayReferralModalProps {
   visible: boolean;
   onClose: () => void;
-  initialNode?: 'A' | 'B' | 'C';
+  initialNode?: 'A' | 'B' | 'C' | 'D';
+  circleId?: string;
 }
 
 export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
   visible,
   onClose,
   initialNode = 'A',
+  circleId = 'UNCURL-7842',
 }) => {
-  const [activeNode, setActiveNode] = useState<'A' | 'B' | 'C'>(initialNode);
+  const [activeNode, setActiveNode] = useState<'A' | 'B' | 'C' | 'D'>(initialNode);
 
   React.useEffect(() => {
     if (initialNode) {
@@ -32,30 +34,32 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
     }
   }, [initialNode]);
 
-  // Node B state
-  const [deanName, setDeanName] = useState('');
-  const [deanContact, setDeanContact] = useState('');
+  // Node B state (Institutional)
   const [institutionName, setInstitutionName] = useState('');
+  const [deanContact, setDeanContact] = useState('');
 
-  // Node C state
+  // Node C state (Clinical)
+  const [clinicalName, setClinicalName] = useState('');
+  const [clinicalContact, setClinicalContact] = useState('');
+
+  // Node D state (Commercial)
   const [commercialName, setCommercialName] = useState('');
   const [commercialContact, setCommercialContact] = useState('');
-  const [commercialType, setCommercialType] = useState('Gym');
 
   const handleShareNodeA = async () => {
     try {
+      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to download the app and join my Inner Circle instantly:\n👉 https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl\n🔑 Enter my Unique Circle ID during registration: ${circleId}`;
+
       await Share.share(
         Platform.OS === 'ios'
           ? {
-              title: 'MoveHub Arena Squad Invite',
-              message:
-                '🏆 Join my MoveHub Arena squad! Lock in our 1.4x Team Multiplier and compete together:\n👉 https://movehub.app/invite/squad-circle',
-              url: 'https://movehub.app/invite/squad-circle',
+              title: 'Inner Circle National Tournament Invite',
+              message: inviteMessage,
+              url: 'https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl',
             }
           : {
-              title: 'MoveHub Arena Squad Invite',
-              message:
-                '🏆 Join my MoveHub Arena squad! Lock in our 1.4x Team Multiplier and compete together:\n👉 https://movehub.app/invite/squad-circle',
+              title: 'Inner Circle National Tournament Invite',
+              message: inviteMessage,
             },
       );
     } catch (err) {
@@ -73,19 +77,32 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
       `Thank you! Details for ${institutionName} have been recorded. Our campus ambassador team will reach out.`,
     );
     setInstitutionName('');
-    setDeanName('');
     setDeanContact('');
     onClose();
   };
 
   const handleSubmitNodeC = () => {
+    if (!clinicalName.trim()) {
+      Alert.alert('Required', 'Please enter your Hospital, Clinic, or Lab name.');
+      return;
+    }
+    Alert.alert(
+      'Clinical Ingress Submitted',
+      `Thank you! Details for ${clinicalName} have been recorded. We will reach out to them and mention your wish and referral!`,
+    );
+    setClinicalName('');
+    setClinicalContact('');
+    onClose();
+  };
+
+  const handleSubmitNodeD = () => {
     if (!commercialName.trim()) {
       Alert.alert('Required', 'Please enter your local gym or outlet name.');
       return;
     }
     Alert.alert(
       'Commercial Node Submitted',
-      `Thank you! ${commercialName} (${commercialType}) has been nominated. Our ground activation team will contact them to close the partnership.`,
+      `Thank you! ${commercialName} has been nominated. Our ground activation team will contact them to initiate the partnership.`,
     );
     setCommercialName('');
     setCommercialContact('');
@@ -102,7 +119,7 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>3-WAY NETWORK REFERRAL NODE</Text>
+            <Text style={styles.modalTitle}>4-WAY NETWORK REFERRAL NODE</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.modalCloseBtn}
@@ -141,12 +158,12 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                   </Text>
                 </View>
                 <Text style={styles.referralNodeTitle}>
-                  Friends & Family Squad Multiplier
+                  Inner Circle 🔥
                 </Text>
               </View>
 
               <Text style={styles.referralNodeDesc}>
-                Generates a custom tracking code via WhatsApp to lock in your squad's 1.4x team multiplier and 5% commission clip.
+                Form your exclusive 10 to 25-member Inner Circle. Rally your friends and family to combine daily habits and battle in the Inter-"Inner Circle" National Tournament!
               </Text>
 
               <TouchableOpacity
@@ -189,24 +206,24 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                   </Text>
                 </View>
                 <Text style={styles.referralNodeTitle}>
-                  Institutional Ingress (College / HR)
+                  Institutional Ingress (Campuses & Corporates)
                 </Text>
               </View>
 
               <Text style={styles.referralNodeDesc}>
-                Allows students or corporate workers to input their College Dean's or HR Director's contact info for bulk campus onboarding.
+                Bring your university department or company into the national arena to unlock custom-branded corporate leaderboards.
               </Text>
 
               <TextInput
                 style={styles.referralInput}
-                placeholder="College / Company Name"
+                placeholder="College / Company Name *"
                 placeholderTextColor="#64748B"
                 value={institutionName}
                 onChangeText={setInstitutionName}
               />
               <TextInput
                 style={[styles.referralInput, styles.referralInputSpacing]}
-                placeholder="Dean / HR Director Name & Phone (Optional)"
+                placeholder="Dean / HR Contact Name or Info (Optional)"
                 placeholderTextColor="#64748B"
                 value={deanContact}
                 onChangeText={setDeanContact}
@@ -228,11 +245,74 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Node C */}
+            {/* Node C: Clinical */}
             <View
               style={[
                 styles.referralNodeCard,
-                activeNode === 'C' && { borderColor: '#F59E0B' },
+                activeNode === 'C' && { borderColor: '#10B981' },
+              ]}
+            >
+              <View style={styles.referralNodeTopRow}>
+                <View
+                  style={[
+                    styles.referralNodeBadge,
+                    { backgroundColor: 'rgba(16, 185, 129, 0.18)' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.referralNodeBadgeText,
+                      { color: '#34D399' },
+                    ]}
+                  >
+                    NODE C
+                  </Text>
+                </View>
+                <Text style={styles.referralNodeTitle}>
+                  Clinical Ingress (Hospitals, Clinics, & Labs)
+                </Text>
+              </View>
+
+              <Text style={styles.referralNodeDesc}>
+                Nominate your primary care hospital, family clinic, or diagnostic lab to unlock preventative check-up loops and medical subsidies.
+              </Text>
+
+              <TextInput
+                style={styles.referralInput}
+                placeholder="Hospital / Clinic / Lab Name *"
+                placeholderTextColor="#64748B"
+                value={clinicalName}
+                onChangeText={setClinicalName}
+              />
+              <TextInput
+                style={[styles.referralInput, styles.referralInputSpacing]}
+                placeholder="CEO / Director / Doctor Contact (Optional)"
+                placeholderTextColor="#64748B"
+                value={clinicalContact}
+                onChangeText={setClinicalContact}
+              />
+
+              <TouchableOpacity
+                style={styles.referralNodeBtn}
+                activeOpacity={0.85}
+                onPress={handleSubmitNodeC}
+              >
+                <LinearGradient
+                  colors={['#059669', '#047857']}
+                  style={styles.referralNodeBtnGradient}
+                >
+                  <Text style={styles.referralNodeBtnText}>
+                    🏥 NOMINATE CLINICAL PROVIDER (NODE C)
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* Node D: Commercial */}
+            <View
+              style={[
+                styles.referralNodeCard,
+                activeNode === 'D' && { borderColor: '#F59E0B' },
               ]}
             >
               <View style={styles.referralNodeTopRow}>
@@ -248,37 +328,44 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                       { color: '#FBBF24' },
                     ]}
                   >
-                    NODE C
+                    NODE D
                   </Text>
                 </View>
                 <Text style={styles.referralNodeTitle}>
-                  Commercial Node (Gym / Trainer / Store)
+                  Commercial Ingress (Gyms & Nutrition Partners)
                 </Text>
               </View>
 
               <Text style={styles.referralNodeDesc}>
-                Drop details about your local gym, personal trainer, or favorite health food outlet to activate our ground partnership team.
+                Nominate your local fitness center, CrossFit box, or nutrition store to fuel your team's leaderboard climb.
               </Text>
 
               <TextInput
                 style={[styles.referralInput, styles.referralInputSpacing]}
-                placeholder="Gym / Trainer / Health Store Name"
+                placeholder="Gym / Nutrition Outlet Name *"
                 placeholderTextColor="#64748B"
                 value={commercialName}
                 onChangeText={setCommercialName}
+              />
+              <TextInput
+                style={[styles.referralInput, styles.referralInputSpacing]}
+                placeholder="Manager / Owner Info (Optional)"
+                placeholderTextColor="#64748B"
+                value={commercialContact}
+                onChangeText={setCommercialContact}
               />
 
               <TouchableOpacity
                 style={styles.referralNodeBtn}
                 activeOpacity={0.85}
-                onPress={handleSubmitNodeC}
+                onPress={handleSubmitNodeD}
               >
                 <LinearGradient
                   colors={['#D97706', '#B45309']}
                   style={styles.referralNodeBtnGradient}
                 >
                   <Text style={styles.referralNodeBtnText}>
-                    🏪 NOMINATE COMMERCIAL NODE (NODE C)
+                    🏋️ NOMINATE COMMERCIAL PARTNER (NODE D)
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -289,3 +376,5 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
     </Modal>
   );
 };
+
+export default ThreeWayReferralModal;
