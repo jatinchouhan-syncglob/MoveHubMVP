@@ -24,8 +24,10 @@ import { STORAGE_KEYS } from '../storage/storageKeys';
 import { IMAGES } from '../assets/images';
 
 import DashboardScreen from '../screens/Dashboard';
+import AssessmentScreen from '../screens/Assessment';
 import AwardsScreen from '../screens/Awards';
 import FitnessChallengesScreen from '../screens/FitnessChallenges';
+import TelemetryLogScreen from '../screens/TelemetryLog';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
 import NutritionalProfilerScreen from '../screens/NutritionalProfiler';
 import ExercisePrescriptionScreen from '../screens/ExercisePrescription';
@@ -47,9 +49,6 @@ import WeeklyComplianceScreen from '../screens/Nutrition/weekly-compliance-scree
 import { WellnessModal } from '../components/common/WellnessModal';
 import DailyQuestScreen from '../screens/HomeHub/DailyQuest';
 import MyQuestsScreen from '../screens/HomeHub/MyQuests';
-import OngoingQuestScreen from '../screens/HomeHub/OngoingQuest';
-import CommunityFeedScreen from '../screens/HomeHub/CommunityFeed';
-import TrainingScreen from '../screens/HomeHub/Training';
 import {
   UploadReportsScreen,
   DigitalWalletScreen,
@@ -251,9 +250,11 @@ const DrawerNavigatorContent: React.FC = () => {
       'WeeklyCompliance',
     ];
     const moveHubScreens = [
+      'Assessment',
       'Arena',
       'FitnessPrescription',
       'Prescription',
+      'TelemetryLog',
       'ActivityTracking',
       'NutritionalProfiler',
       'ExercisePrescription',
@@ -270,9 +271,6 @@ const DrawerNavigatorContent: React.FC = () => {
       'Arenas',
       'DailyQuest',
       'MyQuests',
-      'CommunityFeed',
-      'OngoingQuest',
-      'Training',
     ];
     const vaultHubScreens = [
       'UploadReports',
@@ -447,6 +445,8 @@ const DrawerNavigatorContent: React.FC = () => {
     }
 
     switch (activeScreen) {
+      case 'Assessment':
+        return <AssessmentScreen />;
       case 'Arena':
         return <ArenaScreen />;
       case 'Arenas':
@@ -469,6 +469,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <WeeklyComplianceScreen />;
       case 'FitnessChallenges':
         return <FitnessChallengesScreen />;
+      case 'TelemetryLog':
+        return <TelemetryLogScreen />;
       case 'ActivityTracking':
         return <ActivityTrackingScreen />;
       case 'NutritionalProfiler':
@@ -491,12 +493,6 @@ const DrawerNavigatorContent: React.FC = () => {
         return <DailyQuestScreen />;
       case 'MyQuests':
         return <MyQuestsScreen />;
-      case 'OngoingQuest':
-        return <OngoingQuestScreen />;
-      case 'CommunityFeed':
-        return <CommunityFeedScreen />;
-      case 'Training':
-        return <TrainingScreen />;
       case 'UploadReports':
         return <UploadReportsScreen />;
       case 'DigitalWallet':
@@ -537,9 +533,6 @@ const DrawerNavigatorContent: React.FC = () => {
       { screen: 'FitnessChallenges', label: 'Fitness Challenge', icon: '🎯' },
       { screen: 'Arenas', label: 'Arenas', icon: '⚡' },
       { screen: 'MyQuests', label: 'My Quests', icon: '🎯' },
-      { screen: 'CommunityFeed', label: 'Community Feed', icon: '💬' },
-      { screen: 'OngoingQuest', label: 'Ongoing Quest', icon: '⚡' },
-      { screen: 'Training', label: 'Training', icon: '🎓' },
     ];
 
   const displayedHomeItems = isMassPromo
@@ -552,6 +545,11 @@ const DrawerNavigatorContent: React.FC = () => {
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
+      {
+        screen: 'Assessment',
+        label: 'Assessment',
+        icon: '📝',
+      },
       {
         screen: 'Arena',
         label: 'Arena',
@@ -567,21 +565,12 @@ const DrawerNavigatorContent: React.FC = () => {
         label: 'Prescription',
         icon: '📑',
       },
+      { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
-      {
-        screen: 'NutritionalProfiler',
-        label: 'Nutritional Profiler',
-        icon: '🥗',
-      },
       {
         screen: 'ExercisePrescription',
         label: 'Exercise Prescription',
         icon: '🏋️‍♂️',
-      },
-      {
-        screen: 'LifestyleProfiler',
-        label: 'Lifestyle Questionnaire',
-        icon: '🧬',
       },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
@@ -637,9 +626,6 @@ const DrawerNavigatorContent: React.FC = () => {
                         'Arenas',
                         'DailyQuest',
                         'MyQuests',
-                        'CommunityFeed',
-                        'OngoingQuest',
-                        'Training',
                       ].includes(pendingScreen)
                     : [
                         'ServiceProviders',
@@ -647,9 +633,6 @@ const DrawerNavigatorContent: React.FC = () => {
                         'Arenas',
                         'DailyQuest',
                         'MyQuests',
-                        'CommunityFeed',
-                        'OngoingQuest',
-                        'Training',
                       ].includes(activeScreen);
                 return (
                   <TouchableOpacity
@@ -723,127 +706,16 @@ const DrawerNavigatorContent: React.FC = () => {
 
               {!isMassPromo && (
               <>
-              {/* Vault Hub Accordion Trigger */}
-              {(() => {
-                const isVaultHubActive =
-                  pendingScreen !== null
-                    ? [
-                        'UploadReports',
-                        'DigitalWallet',
-                        'CaseHistory',
-                        'HealthPassport',
-                      ].includes(pendingScreen)
-                    : [
-                        'UploadReports',
-                        'DigitalWallet',
-                        'CaseHistory',
-                        'HealthPassport',
-                      ].includes(activeScreen);
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.menuItem,
-                      isVaultHubActive && styles.activeMenuItem,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() =>
-                      collapseAllHubsExcept(
-                        isVaultHubExpanded ? 'none' : 'vault',
-                      )
-                    }
-                  >
-                    <Text style={styles.menuIcon}>📁</Text>
-                    <Text
-                      style={[
-                        styles.menuLabel,
-                        isVaultHubActive && styles.activeMenuLabel,
-                        { flex: 1 },
-                      ]}
-                    >
-                      Vault Hub
-                    </Text>
-                    <Text
-                      style={{
-                        color: theme.colors.textSecondary,
-                        fontSize: 10,
-                        marginRight: 4,
-                      }}
-                    >
-                      {isVaultHubExpanded ? '▼' : '▶'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })()}
-
-              {/* Expanded Vault Hub Sub-Menus */}
-              {isVaultHubExpanded && (
-                <View style={styles.subMenuContainer}>
-                  {[
-                    {
-                      screen: 'UploadReports' as const,
-                      label: 'Upload Reports',
-                      icon: '📤',
-                    },
-                    {
-                      screen: 'DigitalWallet' as const,
-                      label: 'MR-Digital Wallet',
-                      icon: '💳',
-                    },
-                    {
-                      screen: 'CaseHistory' as const,
-                      label: 'Case History',
-                      icon: '📜',
-                    },
-                    {
-                      screen: 'HealthPassport' as const,
-                      label: 'Health Passport',
-                      icon: '✈️',
-                    },
-                  ].map(subItem => {
-                    const isSubActive =
-                      pendingScreen !== null
-                        ? pendingScreen === subItem.screen
-                        : activeScreen === subItem.screen;
-                    return (
-                      <TouchableOpacity
-                        key={subItem.screen}
-                        style={[
-                          styles.subMenuItem,
-                          isSubActive && styles.activeSubMenuItem,
-                        ]}
-                        activeOpacity={0.7}
-                        onPress={() => handleDelayedNavigation(subItem.screen)}
-                      >
-                        {isSubActive && (
-                          <View style={styles.subActiveIndicator} />
-                        )}
-                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
-                        <Text
-                          style={[
-                            styles.subMenuLabel,
-                            isSubActive && styles.activeSubMenuLabel,
-                          ]}
-                        >
-                          {subItem.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-              </>
-              )}
-
-              {!isMassPromo && (
-              <>
               {/* Move Hub Accordion Trigger */}
               {(() => {
                 const isMoveHubActive =
                   pendingScreen !== null
                     ? [
+                        'Assessment',
                         'Arena',
                         'FitnessPrescription',
                         'Prescription',
+                        'TelemetryLog',
                         'ActivityTracking',
                         'NutritionalProfiler',
                         'ExercisePrescription',
@@ -855,9 +727,11 @@ const DrawerNavigatorContent: React.FC = () => {
                         'FitnessTraining',
                       ].includes(pendingScreen)
                     : [
+                        'Assessment',
                         'Arena',
                         'FitnessPrescription',
                         'Prescription',
+                        'TelemetryLog',
                         'ActivityTracking',
                         'NutritionalProfiler',
                         'ExercisePrescription',
@@ -1024,6 +898,119 @@ const DrawerNavigatorContent: React.FC = () => {
                       screen: 'WeeklyCompliance' as const,
                       label: 'Weekly Compliance',
                       icon: '📈',
+                    },
+                  ].map(subItem => {
+                    const isSubActive =
+                      pendingScreen !== null
+                        ? pendingScreen === subItem.screen
+                        : activeScreen === subItem.screen;
+                    return (
+                      <TouchableOpacity
+                        key={subItem.screen}
+                        style={[
+                          styles.subMenuItem,
+                          isSubActive && styles.activeSubMenuItem,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => handleDelayedNavigation(subItem.screen)}
+                      >
+                        {isSubActive && (
+                          <View style={styles.subActiveIndicator} />
+                        )}
+                        <Text style={styles.subMenuIcon}>{subItem.icon}</Text>
+                        <Text
+                          style={[
+                            styles.subMenuLabel,
+                            isSubActive && styles.activeSubMenuLabel,
+                          ]}
+                        >
+                          {subItem.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+              </>
+              )}
+
+              {!isMassPromo && (
+              <>
+              {/* Vault Hub Accordion Trigger */}
+              {(() => {
+                const isVaultHubActive =
+                  pendingScreen !== null
+                    ? [
+                        'UploadReports',
+                        'DigitalWallet',
+                        'CaseHistory',
+                        'HealthPassport',
+                      ].includes(pendingScreen)
+                    : [
+                        'UploadReports',
+                        'DigitalWallet',
+                        'CaseHistory',
+                        'HealthPassport',
+                      ].includes(activeScreen);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.menuItem,
+                      isVaultHubActive && styles.activeMenuItem,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      collapseAllHubsExcept(
+                        isVaultHubExpanded ? 'none' : 'vault',
+                      )
+                    }
+                  >
+                    <Text style={styles.menuIcon}>📁</Text>
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        isVaultHubActive && styles.activeMenuLabel,
+                        { flex: 1 },
+                      ]}
+                    >
+                      Vault Hub
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.colors.textSecondary,
+                        fontSize: 10,
+                        marginRight: 4,
+                      }}
+                    >
+                      {isVaultHubExpanded ? '▼' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              {/* Expanded Vault Hub Sub-Menus */}
+              {isVaultHubExpanded && (
+                <View style={styles.subMenuContainer}>
+                  {[
+                    {
+                      screen: 'UploadReports' as const,
+                      label: 'Upload Reports',
+                      icon: '📤',
+                    },
+                    {
+                      screen: 'DigitalWallet' as const,
+                      label: 'MR-Digital Wallet',
+                      icon: '💳',
+                    },
+                    {
+                      screen: 'CaseHistory' as const,
+                      label: 'Case History',
+                      icon: '📜',
+                    },
+                    {
+                      screen: 'HealthPassport' as const,
+                      label: 'Health Passport',
+                      icon: '✈️',
                     },
                   ].map(subItem => {
                     const isSubActive =

@@ -55,6 +55,69 @@ const EmptyStateCard: React.FC<EmptyStateProps> = ({
   </View>
 );
 
+interface SuggestedQuestItem {
+  id: number;
+  name: string;
+  schedule: string;
+  duration: string;
+  ruleDescription: string;
+  icon: string;
+  tagColor: string;
+  tagBg: string;
+  tagBorder: string;
+}
+
+const SUGGESTED_DAILY_QUESTS: SuggestedQuestItem[] = [
+  {
+    id: 1,
+    name: 'Vascular Breakout Walk',
+    schedule: 'EVERY HOUR',
+    duration: '90 Secs continuous',
+    ruleDescription:
+      'Office/Field Rule: Walk with phone in pocket to activate calf venous return pump.',
+    icon: '🚶',
+    tagColor: '#38BDF8',
+    tagBg: 'rgba(56, 189, 248, 0.12)',
+    tagBorder: 'rgba(56, 189, 248, 0.3)',
+  },
+  {
+    id: 2,
+    name: 'Zone-2 Cadence Walk',
+    schedule: 'ONCE DAILY',
+    duration: '21 Mins (Slashed 30%)',
+    ruleDescription:
+      'Adaptive daily volume blocks to accelerate cellular glucose uptake.',
+    icon: '🏃',
+    tagColor: '#34D399',
+    tagBg: 'rgba(52, 211, 153, 0.12)',
+    tagBorder: 'rgba(52, 211, 153, 0.3)',
+  },
+  {
+    id: 3,
+    name: 'Core Prone Planks',
+    schedule: 'ONCE DAILY',
+    duration: '3 Sets x 45 Secs',
+    ruleDescription:
+      'Pre-walk postural alignment to stabilize pelvis and decompress spine.',
+    icon: '🧘',
+    tagColor: '#F59E0B',
+    tagBg: 'rgba(245, 158, 11, 0.12)',
+    tagBorder: 'rgba(245, 158, 11, 0.3)',
+  },
+  {
+    id: 4,
+    name: 'Evening Hatha Yoga',
+    schedule: 'EVERY NIGHT',
+    duration: '15 Mins',
+    ruleDescription:
+      'Rest-window autonomic wind-down to lower bedtime cortisol and improve deep sleep.',
+    icon: '🌙',
+    tagColor: '#A78BFA',
+    tagBg: 'rgba(167, 139, 250, 0.12)',
+    tagBorder: 'rgba(167, 139, 250, 0.3)',
+  },
+];
+
 export const MyQuestsScreen: React.FC = () => {
   const { openDrawer } = useDrawer();
   const [activeTab, setActiveTab] = useState<QuestTabType>('daily');
@@ -157,22 +220,96 @@ export const MyQuestsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* ========================================================================= */}
-        {/* TAB 1: DAILY QUEST (EMPTY STATE)                                          */}
+        {/* TAB 1: DAILY QUEST (EMPTY STATE + SUGGESTED FOR YOU)                      */}
         {/* ========================================================================= */}
         {activeTab === 'daily' && (
-          <EmptyStateCard
-            icon="🎯"
-            badge="DATA NOT AVAILABLE"
-            title="No Daily Quests Available"
-            description="There are currently no active daily directives or habit protocols assigned for today. Check back during the next synchronization cycle."
-            actionText="🔄 Check for Updates"
-            onActionPress={() =>
-              Alert.alert(
-                'Sync Status',
-                'Your daily quest protocol is up to date. No new directives found for your profile at this time.',
-              )
-            }
-          />
+          <View>
+            <EmptyStateCard
+              icon="🎯"
+              badge="DATA NOT AVAILABLE"
+              title="No Daily Quests Available"
+              description="There are currently no active daily directives or habit protocols assigned for today. Check back during the next synchronization cycle."
+              actionText="🔄 Check for Updates"
+              onActionPress={() =>
+                Alert.alert(
+                  'Sync Status',
+                  'Your daily quest protocol is up to date. No new directives found for your profile at this time.',
+                )
+              }
+            />
+
+            {/* Suggested For You Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionHeaderLeft}>
+                <Text style={styles.sectionHeaderIcon}>✨</Text>
+                <Text style={styles.sectionHeaderTitle}>SUGGESTED FOR YOU</Text>
+              </View>
+              <Text style={styles.sectionHeaderSubtext}>Weekly Foundational</Text>
+            </View>
+
+            {/* Suggested Cards Carousel */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.suggestionsHorizontalWrapper}
+              contentContainerStyle={styles.suggestionsRow}
+            >
+              {SUGGESTED_DAILY_QUESTS.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.85}
+                  style={styles.suggestionCard}
+                  onPress={() =>
+                    Alert.alert(
+                      item.name,
+                      `⏱️ Duration: ${item.duration}\n📅 Schedule: ${item.schedule}\n\n📋 Protocol Rule:\n${item.ruleDescription}`,
+                    )
+                  }
+                >
+                  <View>
+                    <View style={styles.suggestionTop}>
+                      <View style={styles.suggestionIconBox}>
+                        <Text style={styles.suggestionIcon}>{item.icon}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.suggestionTagWrap,
+                          {
+                            backgroundColor: item.tagBg,
+                            borderColor: item.tagBorder,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.suggestionTag,
+                            { color: item.tagColor },
+                          ]}
+                        >
+                          {item.schedule}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.suggestionTitle} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+
+                    <View style={styles.suggestionDurationRow}>
+                      <Text style={styles.suggestionDurationIcon}>⏱️</Text>
+                      <Text style={styles.suggestionDurationText}>
+                        {item.duration}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.suggestionDesc} numberOfLines={3}>
+                      {item.ruleDescription}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         )}
 
         {/* ========================================================================= */}

@@ -32,7 +32,15 @@ const DEFAULT_FORM: INBDPSketchPayload = {
   satiety_volume_envelope: '',
 };
 
-export const NutritionalProfilerScreen: React.FC = () => {
+export interface NutritionalProfilerProps {
+  isEmbedded?: boolean;
+  onComplete?: () => void;
+}
+
+export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
+  isEmbedded = false,
+  onComplete,
+}) => {
   const { openDrawer } = useDrawer();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
@@ -191,6 +199,7 @@ export const NutritionalProfilerScreen: React.FC = () => {
               setForm(DEFAULT_FORM);
               setCurrentStepIndex(0);
               scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+              onComplete?.();
             },
           },
         ],
@@ -373,25 +382,39 @@ export const NutritionalProfilerScreen: React.FC = () => {
     );
   };
 
+  const Container = isEmbedded ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />
+    <Container style={styles.container}>
+      {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
 
       {/* Screen Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
-            <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Nutritional Profiler</Text>
-            <Text style={styles.headerSubtitle}>Layer 5.5 Dietary &amp; Fueling Profiler</Text>
+      {!isEmbedded ? (
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
+              <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Nutritional Profiler</Text>
+              <Text style={styles.headerSubtitle}>Layer 5.5 Dietary &amp; Fueling Profiler</Text>
+            </View>
           </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-          <Text style={styles.resetButtonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1E293B' }}>
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Nutritional Profiler</Text>
+            <Text style={{ fontSize: 11, color: '#94A3B8' }}>Layer 5.5 Dietary &amp; Fueling Profiler</Text>
+          </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
@@ -455,7 +478,7 @@ export const NutritionalProfilerScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </Container>
   );
 };
 

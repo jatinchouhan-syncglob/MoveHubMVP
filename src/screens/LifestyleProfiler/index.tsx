@@ -46,7 +46,15 @@ const DEFAULT_FORM: ILifestyleSketchPayload = {
   chronic_caloric_mismatch: '',
 };
 
-export const LifestyleProfilerScreen: React.FC = () => {
+export interface LifestyleProfilerProps {
+  isEmbedded?: boolean;
+  onComplete?: () => void;
+}
+
+export const LifestyleProfilerScreen: React.FC<LifestyleProfilerProps> = ({
+  isEmbedded = false,
+  onComplete,
+}) => {
   const { openDrawer } = useDrawer();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
@@ -317,25 +325,39 @@ export const LifestyleProfilerScreen: React.FC = () => {
     );
   };
 
+  const Container = isEmbedded ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />
+    <Container style={styles.container}>
+      {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
 
       {/* Screen Top Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
-            <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Lifestyle Questionnaire</Text>
-            <Text style={styles.headerSubtitle}>16-Point Personal, Family &amp; Habit Profiler</Text>
+      {!isEmbedded ? (
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
+              <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Lifestyle Questionnaire</Text>
+              <Text style={styles.headerSubtitle}>16-Point Personal, Family &amp; Habit Profiler</Text>
+            </View>
           </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-          <Text style={styles.resetButtonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1E293B' }}>
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Lifestyle Questionnaire</Text>
+            <Text style={{ fontSize: 11, color: '#94A3B8' }}>16-Point Personal, Family &amp; Habit Profiler</Text>
+          </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
@@ -415,10 +437,15 @@ export const LifestyleProfilerScreen: React.FC = () => {
         title={alertTitle}
         message={alertMessage}
         type={alertType}
-        buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
-        onClose={() => setAlertModalVisible(false)}
+        buttonText={alertType === 'success' ? (isEmbedded ? 'Next: Exercise Prescription ➡️' : 'Great!') : 'Dismiss'}
+        onClose={() => {
+          setAlertModalVisible(false);
+          if (isEmbedded && alertType === 'success') {
+            onComplete?.();
+          }
+        }}
       />
-    </SafeAreaView>
+    </Container>
   );
 };
 

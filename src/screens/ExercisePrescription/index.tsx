@@ -67,7 +67,15 @@ const CORE_TARGETS_LIST = [
   },
 ];
 
-export const ExercisePrescriptionScreen: React.FC = () => {
+export interface ExercisePrescriptionProps {
+  isEmbedded?: boolean;
+  onNext?: () => void;
+}
+
+export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = ({
+  isEmbedded = false,
+  onNext,
+}) => {
   const { openDrawer } = useDrawer();
   const [activeTab, setActiveTab] = useState<'intake' | 'biometric'>('intake');
 
@@ -144,52 +152,68 @@ export const ExercisePrescriptionScreen: React.FC = () => {
     );
   };
 
+  const Container = isEmbedded ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />
+    <Container style={styles.container}>
+      {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
 
       {/* Screen Top Header (Matching Nutritional & Lifestyle Profiler) */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
-            <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Exercise Prescription</Text>
-            <Text style={styles.headerSubtitle}>Phase-2 C-MELA™ Clinical Intake</Text>
+      {!isEmbedded ? (
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.menuButton} onPress={openDrawer}>
+              <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Exercise Prescription</Text>
+              <Text style={styles.headerSubtitle}>Phase-2 C-MELA™ Clinical Intake</Text>
+            </View>
           </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleResetIntake}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.resetButton} onPress={handleResetIntake}>
-          <Text style={styles.resetButtonText}>Reset</Text>
-        </TouchableOpacity>
-      </View>
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1E293B' }}>
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Exercise Intake Matrix</Text>
+            <Text style={{ fontSize: 11, color: '#94A3B8' }}>Phase-2 C-MELA™ Clinical Intake</Text>
+          </View>
+          <TouchableOpacity style={styles.resetButton} onPress={handleResetIntake}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Top 3-Way Mode Switcher Tabs */}
-      <View style={styles.modeTabBar}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[styles.modeTabBtn, activeTab === 'intake' && styles.modeTabBtnActive]}
-          onPress={() => setActiveTab('intake')}
-        >
-          <Text
-            style={[styles.modeTabBtnText, activeTab === 'intake' && styles.modeTabBtnTextActive]}
+      {!isEmbedded && (
+        <View style={styles.modeTabBar}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.modeTabBtn, activeTab === 'intake' && styles.modeTabBtnActive]}
+            onPress={() => setActiveTab('intake')}
           >
-            📋 9-Q Intake ({answeredCount}/9)
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[styles.modeTabBtnText, activeTab === 'intake' && styles.modeTabBtnTextActive]}
+            >
+              📋 9-Q Intake ({answeredCount}/9)
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[styles.modeTabBtn, activeTab === 'biometric' && styles.modeTabBtnActive]}
-          onPress={() => setActiveTab('biometric')}
-        >
-          <Text
-            style={[styles.modeTabBtnText, activeTab === 'biometric' && styles.modeTabBtnTextActive]}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.modeTabBtn, activeTab === 'biometric' && styles.modeTabBtnActive]}
+            onPress={() => setActiveTab('biometric')}
           >
-            🧬 Biometric Reset
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={[styles.modeTabBtnText, activeTab === 'biometric' && styles.modeTabBtnTextActive]}
+            >
+              🧬 Biometric Reset
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -321,10 +345,10 @@ export const ExercisePrescriptionScreen: React.FC = () => {
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={styles.generateBtn}
-                onPress={handleSaveAndGenerate}
+                onPress={isEmbedded ? onNext : handleSaveAndGenerate}
               >
                 <Text style={styles.generateBtnText}>
-                  Generate Prescriptions ⚡
+                  {isEmbedded ? 'Next: Nutritional Profiler ➡️' : 'Generate Prescriptions ⚡'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -334,7 +358,7 @@ export const ExercisePrescriptionScreen: React.FC = () => {
         {/* ========================================================================= */}
         {/* TAB 2: VIEWPORT 1 - BIOMETRIC RESET CARD (7-Day Rolling Profile Track)    */}
         {/* ========================================================================= */}
-        {activeTab === 'biometric' && (
+        {!isEmbedded && activeTab === 'biometric' && (
           <View>
             <View style={styles.biometricMainCard}>
               {/* Header Badge & Title */}
@@ -530,7 +554,7 @@ export const ExercisePrescriptionScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Container>
   );
 };
 

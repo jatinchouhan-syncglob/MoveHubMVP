@@ -34,7 +34,6 @@ import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { getDynamicDeviceId } from '../../utils/device';
 import { WELLNESS_ACTIVITIES_REGISTRY } from '../../constants/activityTypes';
-import { StepsLogsTab } from './components/StepsLogsTab';
 import Svg, { Circle, G } from 'react-native-svg';
 import { useDrawer } from '../../navigation/DrawerContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -111,13 +110,6 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [activeTab, setActiveTab] = useState<'Steps' | 'Workout'>('Workout');
-
-  useEffect(() => {
-    if (route.params?.initialTab) {
-      setActiveTab(route.params.initialTab);
-    }
-  }, [route.params?.initialTab]);
 
   // Modal & Form States
   const [modalVisible, setModalVisible] = useState(false);
@@ -755,7 +747,6 @@ export const ActivityTrackingScreen: React.FC = () => {
 
   const handleAlertClose = () => {
     setAlertModalVisible(false);
-    setActiveTab('Workout');
     fetchActivities();
   };
 
@@ -1657,84 +1648,42 @@ export const ActivityTrackingScreen: React.FC = () => {
         iconStyle={styles.headerIcon}
       />
 
-      {/* Tabs Selector */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'Workout' && styles.tabButtonActive,
-          ]}
-          onPress={() => setActiveTab('Workout')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              activeTab === 'Workout' && styles.tabButtonTextActive,
-            ]}
-          >
-            🏋️ Workout Logs
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'Steps' && styles.tabButtonActive,
-          ]}
-          onPress={() => setActiveTab('Steps')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={[
-              styles.tabButtonText,
-              activeTab === 'Steps' && styles.tabButtonTextActive,
-            ]}
-          >
-            👣 Steps Logs
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'Workout' ? (
-        loading && activities.length === 0 ? (
-          <Loader fullScreen message="Loading activities list..." />
-        ) : (
-          <FlatList
-            data={activities}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <ActivityCard activity={item} isDark={true} />
-            )}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                colors={[theme.colors.primary]}
-              />
-            }
-            ListHeaderComponent={
-              <View style={styles.headerComponent}>
-                <CustomButton
-                  title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
-                  onPress={handleOpenModal}
-                  variant="primary"
-                  style={styles.addButton}
-                />
-              </View>
-            }
-            ListEmptyComponent={
-              <EmptyState
-                title="No Activities Yet"
-                description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
-                actionTitle="Log Your First Activity"
-                onActionPress={handleOpenModal}
-              />
-            }
-          />
-        )
+      {loading && activities.length === 0 ? (
+        <Loader fullScreen message="Loading activities list..." />
       ) : (
-        <StepsLogsTab />
+        <FlatList
+          data={activities}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <ActivityCard activity={item} isDark={true} />
+          )}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+            />
+          }
+          ListHeaderComponent={
+            <View style={styles.headerComponent}>
+              <CustomButton
+                title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
+                onPress={handleOpenModal}
+                variant="primary"
+                style={styles.addButton}
+              />
+            </View>
+          }
+          ListEmptyComponent={
+            <EmptyState
+              title="No Activities Yet"
+              description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
+              actionTitle="Log Your First Activity"
+              onActionPress={handleOpenModal}
+            />
+          }
+        />
       )}
 
       {/* Interactive Activity Logging Form Modal */}

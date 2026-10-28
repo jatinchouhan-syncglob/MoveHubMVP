@@ -732,4 +732,108 @@ export const styles = ScaledSheet.create({
     fontWeight: '700',
     color: '#10B981',
   },
+
+  // Suggested For You Styles
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '28@ms',
+    marginBottom: '14@ms',
+    paddingHorizontal: '4@ms',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@ms',
+  },
+  sectionHeaderIcon: {
+    fontSize: '16@ms',
+  },
+  sectionHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: '13.5@ms',
+    fontWeight: '800',
+    letterSpacing: '0.6@ms',
+    textTransform: 'uppercase',
+  },
+  sectionHeaderSubtext: {
+    color: '#64748B',
+    fontSize: '11@ms',
+    fontWeight: '600',
+  },
+  suggestionsHorizontalWrapper: {
+    marginHorizontal: '-16@ms',
+  },
+  suggestionsRow: {
+    paddingHorizontal: '16@ms',
+    gap: '12@ms',
+    paddingBottom: '16@ms',
+  },
+  suggestionCard: {
+    width: '240@ms',
+    backgroundColor: '#0F172A',
+    borderRadius: '14@ms',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: '14@ms',
+    justifyContent: 'space-between',
+  },
+  suggestionTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '10@ms',
+  },
+  suggestionIconBox: {
+    width: '36@ms',
+    height: '36@ms',
+    borderRadius: '10@ms',
+    backgroundColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  suggestionIcon: {
+    fontSize: '18@ms',
+  },
+  suggestionTagWrap: {
+    paddingHorizontal: '8@ms',
+    paddingVertical: '3@ms',
+    borderRadius: '6@ms',
+    borderWidth: 1,
+  },
+  suggestionTag: {
+    fontSize: '9.5@ms',
+    fontWeight: '800',
+    letterSpacing: '0.4@ms',
+  },
+  suggestionTitle: {
+    color: '#FFFFFF',
+    fontSize: '13.5@ms',
+    fontWeight: '800',
+    lineHeight: '18@ms',
+    marginBottom: '6@ms',
+  },
+  suggestionDurationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: '8@ms',
+    gap: '4@ms',
+  },
+  suggestionDurationIcon: {
+    fontSize: '11@ms',
+  },
+  suggestionDurationText: {
+    fontSize: '11@ms',
+    color: '#10B981',
+    fontWeight: '700',
+  },
+  suggestionDesc: {
+    color: '#94A3B8',
+    fontSize: '11@ms',
+    fontWeight: '500',
+    lineHeight: '16@ms',
+  },
 });
