@@ -46,17 +46,17 @@ export const ServiceProvidersScreen: React.FC = () => {
   // Phase 1: General Information States
   const [profileLoading, setProfileLoading] = useState<boolean>(true);
   const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
-  const [uhid, setUhid] = useState<string>('LIVSCO4573');
-  const [name, setName] = useState<string>('Living Scope');
-  const [age, setAge] = useState<string>('30');
-  const [weight, setWeight] = useState<string>('70');
-  const [height, setHeight] = useState<string>('170');
+  const [uhid, setUhid] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [age, setAge] = useState<string>('');
+  const [weight, setWeight] = useState<string>('');
+  const [height, setHeight] = useState<string>('');
   const [occupation, setOccupation] = useState<OccupationOptionType>('Working Professional');
-  const [universityName, setUniversityName] = useState<string>('Delhi University');
-  const [department, setDepartment] = useState<string>('Computer Science');
-  const [companyName, setCompanyName] = useState<string>('Google');
-  const [location, setLocation] = useState<string>('Indiranagar');
-  const [city, setCity] = useState<string>('Bengaluru');
+  const [universityName, setUniversityName] = useState<string>('');
+  const [department, setDepartment] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [city, setCity] = useState<string>('');
 
   // Dynamic API Directory State
   const [directory, setDirectory] = useState<Record<ProviderCategory, IServiceProvider[]>>({
@@ -118,22 +118,45 @@ export const ServiceProvidersScreen: React.FC = () => {
     try {
       setProfileLoading(true);
       const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const targetUhid = cached?.uhid || 'LIVSCO4573';
+      const targetUhid = cached?.uhid || '';
+
+      if (cached?.uhid) setUhid(cached.uhid);
+      if (cached?.name) setName(cached.name);
+      if (cached?.age && Number(cached.age) > 0) setAge(String(cached.age));
+      if (cached?.weight && Number(cached.weight) > 0) setWeight(String(cached.weight));
+      if (cached?.height && Number(cached.height) > 0) setHeight(String(cached.height));
+      if (cached?.occupation) setOccupation(cached.occupation as OccupationOptionType);
+      if (cached?.universityName) setUniversityName(cached.universityName);
+      if (cached?.department) setDepartment(cached.department);
+      if (cached?.companyName) setCompanyName(cached.companyName);
+      if (cached?.location) setLocation(cached.location);
+      if (cached?.city) setCity(cached.city);
+
+      if (!targetUhid) {
+        return;
+      }
+
       const data = await apiService.getUserProfile(targetUhid);
       if (data) {
-        setUhid(data.uhid || targetUhid);
-        setName(data.name || 'Living Scope');
-        setAge(data.age !== undefined && data.age !== null ? String(data.age) : '30');
-        setWeight(data.weight !== undefined && data.weight !== null ? String(data.weight) : '70');
-        setHeight(data.height !== undefined && data.height !== null ? String(data.height) : '170');
+        if (data.uhid) setUhid(data.uhid);
+        if (data.name) setName(data.name);
+        if (data.age && Number(data.age) > 0) {
+          setAge(String(data.age));
+        }
+        if (data.weight && Number(data.weight) > 0) {
+          setWeight(String(data.weight));
+        }
+        if (data.height && Number(data.height) > 0) {
+          setHeight(String(data.height));
+        }
         if (data.occupation) {
           setOccupation(data.occupation as OccupationOptionType);
         }
-        setUniversityName(data.universityName || '');
-        setDepartment(data.department || '');
-        setCompanyName(data.companyName || '');
-        setLocation(data.location || '');
-        setCity(data.city || '');
+        if (data.universityName) setUniversityName(data.universityName);
+        if (data.department) setDepartment(data.department);
+        if (data.companyName) setCompanyName(data.companyName);
+        if (data.location) setLocation(data.location);
+        if (data.city) setCity(data.city);
       }
     } catch (err) {
       console.warn('[ServiceProviders] Failed to load user profile:', err);

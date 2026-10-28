@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import RNLinearGradient from 'react-native-linear-gradient';
 import { ScrollView, Text, View, Animated } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -11,7 +11,6 @@ import {
   DonutChart,
 } from '../../components/charts/CustomSvgCharts';
 import {
-  healthVitalityColors as C,
   dashboardColors as DC,
   speedometerColor,
 } from '../../theme/dashboardColors';
@@ -131,6 +130,8 @@ const FitnessTab = ({
     }).start();
   }, [totalHeartPoint]);
 
+  const innerChartWidth = chartWidth - 24;
+
   const stepsMax = getDynamicMax(dailyStepsBreakdown?.values || []);
 
   const heartPointsMax = getDynamicMax(dailyHeartPoints?.values || []);
@@ -182,7 +183,7 @@ const FitnessTab = ({
 
   return (
     <>
-      {/* Cardio Metabolic Score (CMAS) Card */}
+      {/* 1. Cardio Metabolic Score (CMAS) Card */}
       <RNLinearGradient
         colors={['#ECFDF5', '#D1FAE5']}
         start={{ x: 0, y: 0 }}
@@ -197,12 +198,13 @@ const FitnessTab = ({
             shadowOpacity: 0.1,
             shadowRadius: 10,
             elevation: 3,
-            padding: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
           },
         ]}
       >
         <View style={[styles.cardTitleRow, { justifyContent: 'space-between', marginBottom: 14 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
             <View
               style={[
                 styles.cardIconContainer,
@@ -277,22 +279,52 @@ const FitnessTab = ({
         </View>
       </RNLinearGradient>
 
-      <View style={[styles.card, styles.performanceCard, { gap: 5 }]}>
+      {/* 2. Daily Performance Card */}
+      <RNLinearGradient
+        colors={['#F5F3FF', '#EDE9FE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#DDD6FE',
+            shadowColor: '#7C3AED',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: DC.purpleLight },
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#DDD6FE',
+                shadowColor: '#7C3AED',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}
           >
             <Text style={styles.emptyChartIcon}>📊</Text>
           </View>
-          <Text style={styles.cardTitle}>Daily Performance</Text>
+          <Text style={[styles.cardTitle, { color: '#4C1D95', fontSize: 15, fontWeight: '800' }]}>
+            Daily Performance
+          </Text>
         </View>
 
         <View style={styles.hpCardRow}>
           <View style={styles.hpCard}>
-            <Text style={styles.speedometerLabel}>
+            <Text style={[styles.speedometerLabel, { color: '#4C1D95', fontWeight: '800' }]}>
               Heart Points (HP){`\n`}(Daily Target: 21.4)
             </Text>
 
@@ -376,34 +408,64 @@ const FitnessTab = ({
             </View>
 
             {/* Recommendation footer */}
-            <View style={styles.recommendationFooter}>
-              <Text style={styles.recommendationFooterText}>
+            <View style={[styles.recommendationFooter, { backgroundColor: 'rgba(124, 58, 237, 0.06)', borderRadius: 8, padding: 8, marginTop: 10 }]}>
+              <Text style={[styles.recommendationFooterText, { color: '#5B21B6' }]}>
                 Daily target: 21.4 HP (equivalent to WHO recommendation of 150 weekly Heart Points to improve cardiovascular health).
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </RNLinearGradient>
 
-      <View style={[styles.card, styles.stepsCard]}>
+      {/* 3. Daily Steps Breakdown Card */}
+      <RNLinearGradient
+        colors={['#F0FDF4', '#DCFCE7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#A7F3D0',
+            shadowColor: '#059669',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: METRIC_COLORS.steps.light },
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#A7F3D0',
+                shadowColor: '#059669',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}
           >
             <Text style={styles.emptyChartIcon}>👣</Text>
           </View>
-          <Text style={styles.cardTitle}>Daily Steps Breakdown</Text>
+          <Text style={[styles.cardTitle, { color: '#064E3B', fontSize: 15, fontWeight: '800' }]}>
+            Daily Steps Breakdown
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(5, 150, 105, 0.15)', shadowColor: '#059669' }]}>
           {dailyStepsBreakdown?.values &&
           dailyStepsBreakdown.values.length > 0 ? (
             <ScrollableChart
               dataLength={dailyStepsBreakdown?.values?.length || 0}
-              visibleWidth={chartWidth}
+              visibleWidth={innerChartWidth}
             >
               {computedWidth => (
                 <BarChart
@@ -422,53 +484,87 @@ const FitnessTab = ({
           )}
         </View>
 
-        <Text style={styles.caption}>Total daily steps across the week.</Text>
+        <Text style={[styles.caption, { color: '#065F46' }]}>Total daily steps across the week.</Text>
 
         {dailyStepsBreakdownCharts &&
           (dailyStepsBreakdownCharts.target !== undefined ||
             dailyStepsBreakdownCharts.actual !== undefined ||
             dailyStepsBreakdownCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#A7F3D0' }]}>
               {dailyStepsBreakdownCharts.target !== undefined &&
                 dailyStepsBreakdownCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {dailyStepsBreakdownCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{dailyStepsBreakdownCharts.target}</Text>
+                  </View>
                 )}
               {dailyStepsBreakdownCharts.actual !== undefined &&
                 dailyStepsBreakdownCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {dailyStepsBreakdownCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{dailyStepsBreakdownCharts.actual}</Text>
+                  </View>
                 )}
               {dailyStepsBreakdownCharts.performance !== undefined &&
                 dailyStepsBreakdownCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {dailyStepsBreakdownCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {dailyStepsBreakdownCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
+      </RNLinearGradient>
 
-      <View style={[styles.card, styles.heartPointsCard]}>
+      {/* 4. Daily Heart Points (HP) Breakdown Card */}
+      <RNLinearGradient
+        colors={['#FFF1F2', '#FFE4E6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#FECDD3',
+            shadowColor: '#E11D48',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: METRIC_COLORS.heartPoints.light },
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#FECDD3',
+                shadowColor: '#E11D48',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}
           >
             <Text style={styles.emptyChartIcon}>❤️</Text>
           </View>
-          <Text style={styles.cardTitle}>Daily Heart Points (HP) Breakdown</Text>
+          <Text style={[styles.cardTitle, { color: '#881337', fontSize: 15, fontWeight: '800' }]}>
+            Daily Heart Points (HP) Breakdown
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(225, 29, 72, 0.15)', shadowColor: '#E11D48' }]}>
           {dailyHeartPoints?.values && dailyHeartPoints.values.length > 0 ? (
             <ScrollableChart
               dataLength={dailyHeartPoints?.values?.length || 0}
-              visibleWidth={chartWidth}
+              visibleWidth={innerChartWidth}
             >
               {computedWidth => (
                 <BarChart
@@ -487,53 +583,86 @@ const FitnessTab = ({
           )}
         </View>
 
-        <Text style={styles.caption}>Heart Points (HP) progress for each day.</Text>
+        <Text style={[styles.caption, { color: '#9F1239' }]}>Heart Points (HP) progress for each day.</Text>
 
         {dailyHeartPointsCharts &&
           (dailyHeartPointsCharts.target !== undefined ||
             dailyHeartPointsCharts.actual !== undefined ||
             dailyHeartPointsCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#FECDD3' }]}>
               {dailyHeartPointsCharts.target !== undefined &&
                 dailyHeartPointsCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {dailyHeartPointsCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{dailyHeartPointsCharts.target}</Text>
+                  </View>
                 )}
               {dailyHeartPointsCharts.actual !== undefined &&
                 dailyHeartPointsCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {dailyHeartPointsCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{dailyHeartPointsCharts.actual}</Text>
+                  </View>
                 )}
               {dailyHeartPointsCharts.performance !== undefined &&
                 dailyHeartPointsCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {dailyHeartPointsCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {dailyHeartPointsCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
+      </RNLinearGradient>
 
-      {/* Modified Heart Point (MHP) Card */}
-      <View style={[styles.card, styles.heartPointsCard]}>
+      {/* 5. Modified Heart Point (MHP) Card */}
+      <RNLinearGradient
+        colors={['#FFF7ED', '#FFEDD5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#FED7AA',
+            shadowColor: '#EA580C',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              { backgroundColor: '#FEE2E2' },
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#FED7AA',
+                shadowColor: '#EA580C',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}
           >
             <Text style={styles.emptyChartIcon}>💓</Text>
           </View>
-          <Text style={styles.cardTitle}>Modified Heart Point (MHP)</Text>
+          <Text style={[styles.cardTitle, { color: '#7C2D12', fontSize: 15, fontWeight: '800' }]}>
+            Modified Heart Point (MHP)
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(234, 88, 12, 0.15)', shadowColor: '#EA580C' }]}>
           <ScrollableChart
             dataLength={staticMhpData.values.length}
-            visibleWidth={chartWidth}
+            visibleWidth={innerChartWidth}
           >
             {computedWidth => (
               <BarChart
@@ -549,28 +678,61 @@ const FitnessTab = ({
           </ScrollableChart>
         </View>
 
-        <Text style={styles.caption}>Modified Heart Point (MHP) progress across active recovery days.</Text>
-      </View>
+        <Text style={[styles.caption, { color: '#9A3412' }]}>
+          Modified Heart Point (MHP) progress across active recovery days.
+        </Text>
+      </RNLinearGradient>
+
       {!isINOXuser && (
         <>
-          <View style={styles.card}>
+          {/* 6. Daily Energy Expended Breakdown Card */}
+          <RNLinearGradient
+            colors={['#FEF2F2', '#FEE2E2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.card,
+              {
+                borderWidth: 1.5,
+                borderColor: '#FECACA',
+                shadowColor: '#DC2626',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.09,
+                shadowRadius: 10,
+                elevation: 3,
+                paddingHorizontal: 12,
+                paddingVertical: 14,
+              },
+            ]}
+          >
             <View style={styles.cardTitleRow}>
               <View
                 style={[
                   styles.cardIconContainer,
-                  { backgroundColor: METRIC_COLORS.calories.light },
+                  {
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: '#FECACA',
+                    shadowColor: '#DC2626',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
                 ]}
               >
                 <Text style={styles.emptyChartIcon}>🔥</Text>
               </View>
-              <Text style={styles.cardTitle}>Daily Energy Expended Breakdown</Text>
+              <Text style={[styles.cardTitle, { color: '#7F1D1D', fontSize: 15, fontWeight: '800' }]}>
+                Daily Energy Expended Breakdown
+              </Text>
             </View>
 
-            <View style={styles.chartWrapper}>
+            <View style={[styles.chartCanvasBox, { borderColor: 'rgba(220, 38, 38, 0.15)', shadowColor: '#DC2626' }]}>
               {energyExpended?.values && energyExpended.values.length > 0 ? (
                 <ScrollableChart
                   dataLength={energyExpended?.values?.length || 0}
-                  visibleWidth={chartWidth}
+                  visibleWidth={innerChartWidth}
                 >
                   {computedWidth =>
                     (energyExpended.values?.length || 0) >= 5 ? (
@@ -618,7 +780,7 @@ const FitnessTab = ({
                 <EmptyChart title="energy expended" />
               )}
             </View>
-            <Text style={styles.caption}>
+            <Text style={[styles.caption, { color: '#991B1B' }]}>
               Energy expended performance across the week.
             </Text>
 
@@ -626,48 +788,81 @@ const FitnessTab = ({
               (energyExpandedCharts.target !== undefined ||
                 energyExpandedCharts.actual !== undefined ||
                 energyExpandedCharts.performance !== undefined) && (
-                <View style={styles.summaryMetricsRow}>
+                <View style={[styles.modernSummaryRow, { borderColor: '#FECACA' }]}>
                   {energyExpandedCharts.target !== undefined &&
                     energyExpandedCharts.target !== null && (
-                      <Text style={styles.summaryMetricTarget}>
-                        Target: {energyExpandedCharts.target}
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Target: </Text>
+                        <Text style={styles.modernSummaryValue}>{energyExpandedCharts.target}</Text>
+                      </View>
                     )}
                   {energyExpandedCharts.actual !== undefined &&
                     energyExpandedCharts.actual !== null && (
-                      <Text style={styles.summaryMetricActual}>
-                        Actual: {energyExpandedCharts.actual}
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                        <Text style={styles.modernSummaryValue}>{energyExpandedCharts.actual}</Text>
+                      </View>
                     )}
                   {energyExpandedCharts.performance !== undefined &&
                     energyExpandedCharts.performance !== null && (
-                      <Text style={styles.summaryMetricPerformance}>
-                        Performance: {energyExpandedCharts.performance}%
-                      </Text>
+                      <View style={styles.modernPerformanceBadge}>
+                        <Text style={styles.modernPerformanceText}>
+                          Performance: {energyExpandedCharts.performance}%
+                        </Text>
+                      </View>
                     )}
                 </View>
               )}
-          </View>
-          <View style={[styles.card, styles.sdexCard]}>
+          </RNLinearGradient>
+
+          {/* 7. Daily S-DEX Activity Breakdown Card */}
+          <RNLinearGradient
+            colors={['#F0FDFA', '#CCFBF1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.card,
+              {
+                borderWidth: 1.5,
+                borderColor: '#99F6E4',
+                shadowColor: '#0D9488',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.09,
+                shadowRadius: 10,
+                elevation: 3,
+                paddingHorizontal: 12,
+                paddingVertical: 14,
+              },
+            ]}
+          >
             <View style={styles.cardTitleRow}>
               <View
                 style={[
                   styles.cardIconContainer,
-                  { backgroundColor: DC.tealLight },
+                  {
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: '#99F6E4',
+                    shadowColor: '#0D9488',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
                 ]}
               >
                 <Text style={styles.emptyChartIcon}>⚡</Text>
               </View>
-              <Text style={styles.cardTitle}>
+              <Text style={[styles.cardTitle, { color: '#134E4A', fontSize: 15, fontWeight: '800' }]}>
                 Daily S-DEX Activity Breakdown
               </Text>
             </View>
 
-            <View style={styles.chartWrapper}>
+            <View style={[styles.chartCanvasBox, { borderColor: 'rgba(13, 148, 136, 0.15)', shadowColor: '#0D9488' }]}>
               {sdexActivity?.values && sdexActivity.values.length > 0 ? (
                 <ScrollableChart
                   dataLength={sdexActivity?.values?.length || 0}
-                  visibleWidth={chartWidth}
+                  visibleWidth={innerChartWidth}
                 >
                   {computedWidth => (
                     <BarChart
@@ -679,6 +874,7 @@ const FitnessTab = ({
                       height={180}
                       maxY={sdexMax}
                       yTicks={getDynamicTicks(sdexMax)}
+                      color={DC.tealDark}
                     />
                   )}
                 </ScrollableChart>
@@ -686,7 +882,7 @@ const FitnessTab = ({
                 <EmptyChart title="S-DEX" />
               )}
             </View>
-            <Text style={styles.caption}>
+            <Text style={[styles.caption, { color: '#115E59' }]}>
               S-DEX activity trend across the week.
             </Text>
 
@@ -694,48 +890,81 @@ const FitnessTab = ({
               (dailySdexCharts.target !== undefined ||
                 dailySdexCharts.actual !== undefined ||
                 dailySdexCharts.performance !== undefined) && (
-                <View style={styles.summaryMetricsRow}>
+                <View style={[styles.modernSummaryRow, { borderColor: '#99F6E4' }]}>
                   {dailySdexCharts.target !== undefined &&
                     dailySdexCharts.target !== null && (
-                      <Text style={styles.summaryMetricTarget}>
-                        Target: {dailySdexCharts.target}
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Target: </Text>
+                        <Text style={styles.modernSummaryValue}>{dailySdexCharts.target}</Text>
+                      </View>
                     )}
                   {dailySdexCharts.actual !== undefined &&
                     dailySdexCharts.actual !== null && (
-                      <Text style={styles.summaryMetricActual}>
-                        Actual: {dailySdexCharts.actual}
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                        <Text style={styles.modernSummaryValue}>{dailySdexCharts.actual}</Text>
+                      </View>
                     )}
                   {dailySdexCharts.performance !== undefined &&
                     dailySdexCharts.performance !== null && (
-                      <Text style={styles.summaryMetricPerformance}>
-                        Performance: {dailySdexCharts.performance}%
-                      </Text>
+                      <View style={styles.modernPerformanceBadge}>
+                        <Text style={styles.modernPerformanceText}>
+                          Performance: {dailySdexCharts.performance}%
+                        </Text>
+                      </View>
                     )}
                 </View>
               )}
-          </View>
-          <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: METRIC_COLORS.minutes.main }]}>
+          </RNLinearGradient>
+
+          {/* 8. Daily Active Minutes Breakdown Card */}
+          <RNLinearGradient
+            colors={['#FDF4FF', '#FAE8FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.card,
+              {
+                borderWidth: 1.5,
+                borderColor: '#F5D0FE',
+                shadowColor: '#C026D3',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.09,
+                shadowRadius: 10,
+                elevation: 3,
+                paddingHorizontal: 12,
+                paddingVertical: 14,
+              },
+            ]}
+          >
             <View style={styles.cardTitleRow}>
               <View
                 style={[
                   styles.cardIconContainer,
-                  { backgroundColor: METRIC_COLORS.minutes.light },
+                  {
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: '#F5D0FE',
+                    shadowColor: '#C026D3',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
                 ]}
               >
                 <Text style={styles.emptyChartIcon}>⏱️</Text>
               </View>
-              <Text style={styles.cardTitle}>
+              <Text style={[styles.cardTitle, { color: '#701A75', fontSize: 15, fontWeight: '800' }]}>
                 Daily Active Minutes Breakdown
               </Text>
             </View>
 
-            <View style={styles.chartWrapper}>
+            <View style={[styles.chartCanvasBox, { borderColor: 'rgba(192, 38, 211, 0.15)', shadowColor: '#C026D3' }]}>
               {dailyActiveMinutes?.values && dailyActiveMinutes.values.length > 0 ? (
                 <ScrollableChart
                   dataLength={dailyActiveMinutes?.values?.length || 0}
-                  visibleWidth={chartWidth}
+                  visibleWidth={innerChartWidth}
                 >
                   {computedWidth => (
                     <BarChart
@@ -755,7 +984,7 @@ const FitnessTab = ({
                 <EmptyChart title="active minutes" />
               )}
             </View>
-            <Text style={styles.caption}>
+            <Text style={[styles.caption, { color: '#86198F' }]}>
               Active minutes recorded across the week.
             </Text>
 
@@ -763,38 +992,84 @@ const FitnessTab = ({
               (dailyActiveMinutesCharts.target !== undefined ||
                 dailyActiveMinutesCharts.actual !== undefined ||
                 dailyActiveMinutesCharts.performance !== undefined) && (
-                <View style={styles.summaryMetricsRow}>
+                <View style={[styles.modernSummaryRow, { borderColor: '#F5D0FE' }]}>
                   {dailyActiveMinutesCharts.target !== undefined &&
                     dailyActiveMinutesCharts.target !== null && (
-                      <Text style={styles.summaryMetricTarget}>
-                        Target: {dailyActiveMinutesCharts.target}
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Target: </Text>
+                        <Text style={styles.modernSummaryValue}>{dailyActiveMinutesCharts.target}</Text>
+                      </View>
                     )}
                   {dailyActiveMinutesCharts.actual !== undefined &&
                     dailyActiveMinutesCharts.actual !== null && (
-                      <Text style={styles.summaryMetricActual}>
-                        Actual: {dailyActiveMinutesCharts.actual} min
-                      </Text>
+                      <View style={styles.modernSummaryItem}>
+                        <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                        <Text style={styles.modernSummaryValue}>{dailyActiveMinutesCharts.actual} min</Text>
+                      </View>
                     )}
                   {dailyActiveMinutesCharts.performance !== undefined &&
                     dailyActiveMinutesCharts.performance !== null && (
-                      <Text style={styles.summaryMetricPerformance}>
-                        Performance: {dailyActiveMinutesCharts.performance}%
-                      </Text>
+                      <View style={styles.modernPerformanceBadge}>
+                        <Text style={styles.modernPerformanceText}>
+                          Performance: {dailyActiveMinutesCharts.performance}%
+                        </Text>
+                      </View>
                     )}
                 </View>
               )}
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Insights & Alerts</Text>
-            <View style={styles.insightContainer}>
+          </RNLinearGradient>
+
+          {/* 9. Insights & Alerts Card */}
+          <RNLinearGradient
+            colors={['#EFF6FF', '#DBEAFE']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.card,
+              {
+                borderWidth: 1.5,
+                borderColor: '#BFDBFE',
+                shadowColor: '#2563EB',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.09,
+                shadowRadius: 10,
+                elevation: 3,
+                paddingHorizontal: 12,
+                paddingVertical: 14,
+              },
+            ]}
+          >
+            <View style={styles.cardTitleRow}>
+              <View
+                style={[
+                  styles.cardIconContainer,
+                  {
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: '#BFDBFE',
+                    shadowColor: '#2563EB',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
+                ]}
+              >
+                <Text style={styles.emptyChartIcon}>💡</Text>
+              </View>
+              <Text style={[styles.cardTitle, { color: '#1E3A8A', fontSize: 15, fontWeight: '800' }]}>
+                Insights & Alerts
+              </Text>
+            </View>
+
+            <View style={[styles.insightContainer, { backgroundColor: '#FFFFFF', borderColor: 'rgba(37, 99, 235, 0.12)', borderRadius: 12, padding: 14, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }]}>
               <View style={styles.insightItem}>
-                <Text style={[styles.insightText, { color: DC.skyBrand }]}>
+                <Text style={[styles.insightText, { color: '#1E40AF', fontSize: 12.5, lineHeight: 19, fontWeight: '500' }]}>
                   {dailyInsightText || "Your activity insights and personalized health alerts will appear here based on your trends."}
                 </Text>
               </View>
             </View>
-          </View>
+          </RNLinearGradient>
         </>
       )}
     </>

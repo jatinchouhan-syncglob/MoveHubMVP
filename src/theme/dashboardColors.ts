@@ -12,6 +12,7 @@ export const dashboardColors = {
   roseLight: '#FFE4E6',
   roseSoft: '#FFF1F2',
   tealLight: '#CCFBF1',
+  tealDark: '#0D9488',
   indigoLight: '#E0E7FF',
   indigoBrand: '#4F46E5',
   emeraldLight: '#D1FAE5',

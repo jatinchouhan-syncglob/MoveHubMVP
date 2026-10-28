@@ -945,7 +945,7 @@ const FitnessActivityCard: React.FC<{
 // 6. Main StepsLogsTab Wrapper Component
 export const StepsLogsTab: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
-  const [activeUhid, setActiveUhid] = useState('SAUSHA9775');
+  const [activeUhid, setActiveUhid] = useState('');
   const [workoutLogs, setWorkoutLogs] = useState<any[]>([]);
   const [pullStepsLogs, setPullStepsLogs] = useState<any>(null);
   const [loadingLogs, setLoadingLogs] = useState(true);
@@ -992,7 +992,7 @@ export const StepsLogsTab: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
       setActiveUhid(targetUhid);
 
       try {

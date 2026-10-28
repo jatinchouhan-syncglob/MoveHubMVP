@@ -161,7 +161,7 @@ export const ProfileSetupScreen: React.FC = () => {
         age: profileData.age,
         weight: profileData.weight,
         height: profileData.height,
-        calorieGoal: profileData.calorieGoal,
+        calorieGoal: profileData.calorieGoal || 2400,
         occupation: profileData.occupation,
         universityName: profileData.universityName,
         department: profileData.department,

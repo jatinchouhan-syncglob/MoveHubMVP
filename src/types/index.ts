@@ -3,10 +3,10 @@ import { ActivityType } from '../constants/activityTypes';
 export interface UserProfile {
   name: string;
   age: number;
-  weight: number; // in kg
-  height: number; // in cm
-  calorieGoal: number; // in kcal
+  weight: number;
+  height: number; 
   isSetupComplete: boolean;
+  calorieGoal?: number;
   uhid?: string;
   email?: string;
   userId?: number;

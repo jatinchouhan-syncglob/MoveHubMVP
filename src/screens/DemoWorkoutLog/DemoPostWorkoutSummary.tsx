@@ -113,7 +113,7 @@ export const DemoPostWorkoutSummaryScreen: React.FC = () => {
           const cachedProfile = await storageHelper.getItem<UserProfile>(
             STORAGE_KEYS.USER_PROFILE,
           );
-          uhid = cachedProfile?.uhid || 'SAUSHA9775';
+          uhid = cachedProfile?.uhid;
         }
         console.log('[DemoPostWorkoutSummary] Fetching latest workout log for UHID:', uhid);
         const res = await apiService.getLatestWorkoutLog(uhid);

@@ -18,7 +18,7 @@ import { theme } from '../../theme';
 import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
-import { apiService } from '../../services/api';
+import { apiService, prefetchStepsLogsData } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
@@ -165,11 +165,10 @@ export const SignupScreen: React.FC = () => {
         const userProfile: UserProfile = {
           uhid: userData.uhid || '',
           name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          age: userData.age || 0,
-          weight: userData.weight || 0,
-          height: userData.height || 0,
-          calorieGoal: userData.calorieGoal || 2000,
-          isSetupComplete: false,
+          age: userData?.age || 0,
+          weight: userData?.weight || 0,
+          height: userData?.height || 0,
+          isSetupComplete: true,
           email: userData.email || email.trim(),
           token: authToken,
           referralCode: userData.referralCode || referralCode.trim() || undefined,
@@ -185,7 +184,10 @@ export const SignupScreen: React.FC = () => {
         }
 
         // Navigate to the Setup Profile screen
-        navigation.replace(ROUTES.PROFILE_SETUP);
+        prefetchStepsLogsData(userProfile.uhid).catch(() => {});
+
+        // Navigate directly to the main app (Drawer), bypassing General Information
+        navigation.replace(ROUTES.DRAWER);
       } else {
         setAlertTitle('Registration Failed');
         setAlertMessage(response?.message || 'Failed to create account. Please try again.');
@@ -519,3 +521,4 @@ export const SignupScreen: React.FC = () => {
 };
 
 export default SignupScreen;
+

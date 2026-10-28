@@ -46,6 +46,7 @@ import DailyComplianceScreen from '../screens/Nutrition/daily-compliance-screen'
 import WeeklyComplianceScreen from '../screens/Nutrition/weekly-compliance-screen';
 import { WellnessModal } from '../components/common/WellnessModal';
 import DailyQuestScreen from '../screens/HomeHub/DailyQuest';
+import MyQuestsScreen from '../screens/HomeHub/MyQuests';
 import OngoingQuestScreen from '../screens/HomeHub/OngoingQuest';
 import CommunityFeedScreen from '../screens/HomeHub/CommunityFeed';
 import TrainingScreen from '../screens/HomeHub/Training';
@@ -101,6 +102,7 @@ const DrawerNavigatorContent: React.FC = () => {
   const [wellnessModalVisible, setWellnessModalVisible] = React.useState(false);
   const [pendingScreen, setPendingScreen] =
     React.useState<DrawerScreenType | null>(null);
+  const initialPromoScreenSetRef = React.useRef(false);
   const navTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -140,13 +142,16 @@ const DrawerNavigatorContent: React.FC = () => {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setWellnessModalVisible(false);
-          setIsMoveHubExpanded(true);
-          if (
+          setIsHomeHubExpanded(true);
+          if (!route.params?.screen && !initialPromoScreenSetRef.current) {
+            setActiveScreen('ServiceProviders');
+            initialPromoScreenSetRef.current = true;
+          } else if (
             activeScreen !== 'Arenas' &&
             activeScreen !== 'ServiceProviders' &&
             activeScreen !== 'FitnessChallenges'
           ) {
-            setActiveScreen('Arenas');
+            setActiveScreen('ServiceProviders');
           }
         } else {
           setPromoCode(null);
@@ -247,24 +252,26 @@ const DrawerNavigatorContent: React.FC = () => {
     ];
     const moveHubScreens = [
       'Arena',
-      'Arenas',
       'FitnessPrescription',
+      'Prescription',
       'ActivityTracking',
       'NutritionalProfiler',
       'ExercisePrescription',
       'LifestyleProfiler',
-      'FitnessChallenges',
       'Leaderboard',
       'Dashboard',
       'Insights',
       'Awards',
       'FitnessTraining',
-      'ServiceProviders',
     ];
     const homeHubScreens = [
+      'ServiceProviders',
+      'FitnessChallenges',
+      'Arenas',
       'DailyQuest',
-      'OngoingQuest',
+      'MyQuests',
       'CommunityFeed',
+      'OngoingQuest',
       'Training',
     ];
     const vaultHubScreens = [
@@ -382,13 +389,16 @@ const DrawerNavigatorContent: React.FC = () => {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setWellnessModalVisible(false);
-          setIsMoveHubExpanded(true);
-          if (
+          setIsHomeHubExpanded(true);
+          if (!route.params?.screen && !initialPromoScreenSetRef.current) {
+            setActiveScreen('ServiceProviders');
+            initialPromoScreenSetRef.current = true;
+          } else if (
             activeScreen !== 'Arenas' &&
             activeScreen !== 'ServiceProviders' &&
             activeScreen !== 'FitnessChallenges'
           ) {
-            setActiveScreen('Arenas');
+            setActiveScreen('ServiceProviders');
           }
         } else {
           setPromoCode(null);
@@ -427,6 +437,15 @@ const DrawerNavigatorContent: React.FC = () => {
   });
 
   const renderActiveScreen = () => {
+    if (
+      isMassPromo &&
+      activeScreen !== 'ServiceProviders' &&
+      activeScreen !== 'FitnessChallenges' &&
+      activeScreen !== 'Arenas'
+    ) {
+      return <ServiceProvidersScreen />;
+    }
+
     switch (activeScreen) {
       case 'Arena':
         return <ArenaScreen />;
@@ -470,6 +489,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <ServiceProvidersScreen />;
       case 'DailyQuest':
         return <DailyQuestScreen />;
+      case 'MyQuests':
+        return <MyQuestsScreen />;
       case 'OngoingQuest':
         return <OngoingQuestScreen />;
       case 'CommunityFeed':
@@ -510,17 +531,31 @@ const DrawerNavigatorContent: React.FC = () => {
     }
   };
 
+  const homeMenuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
+    [
+      { screen: 'ServiceProviders', label: 'Profile', icon: '👤' },
+      { screen: 'FitnessChallenges', label: 'Fitness Challenge', icon: '🎯' },
+      { screen: 'Arenas', label: 'Arenas', icon: '⚡' },
+      { screen: 'MyQuests', label: 'My Quests', icon: '🎯' },
+      { screen: 'CommunityFeed', label: 'Community Feed', icon: '💬' },
+      { screen: 'OngoingQuest', label: 'Ongoing Quest', icon: '⚡' },
+      { screen: 'Training', label: 'Training', icon: '🎓' },
+    ];
+
+  const displayedHomeItems = isMassPromo
+    ? [
+        { screen: 'ServiceProviders' as DrawerScreenType, label: 'Profile', icon: '👤' },
+        { screen: 'FitnessChallenges' as DrawerScreenType, label: 'Fitness Challenge', icon: '🎯' },
+        { screen: 'Arenas' as DrawerScreenType, label: 'Arenas', icon: '⚡' },
+      ]
+    : homeMenuItems;
+
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
       {
         screen: 'Arena',
         label: 'Arena',
         icon: '🏟️',
-      },
-      {
-        screen: 'Arenas',
-        label: 'Arenas',
-        icon: '⚡',
       },
       {
         screen: 'FitnessPrescription',
@@ -548,22 +583,14 @@ const DrawerNavigatorContent: React.FC = () => {
         label: 'Lifestyle Questionnaire',
         icon: '🧬',
       },
-      { screen: 'FitnessChallenges', label: 'Fitness Challenges', icon: '🎯' },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
-      { screen: 'ServiceProviders', label: 'Profile', icon: '👤' },
       { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
     ];
 
-  const displayedMoveItems = isMassPromo
-    ? [
-        { screen: 'Arenas' as DrawerScreenType, label: 'Arenas', icon: '⚡' },
-        { screen: 'FitnessChallenges' as DrawerScreenType, label: 'Fitness Challenges', icon: '🎯' },
-        { screen: 'ServiceProviders' as DrawerScreenType, label: 'Profile', icon: '👤' },
-      ]
-    : menuItems;
+  const displayedMoveItems = menuItems;
 
 
   return (
@@ -600,22 +627,28 @@ const DrawerNavigatorContent: React.FC = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.menuContainer}>
-              {!isMassPromo && (
-              <>
               {/* Home Hub Accordion Trigger */}
               {(() => {
                 const isHomeHubActive =
                   pendingScreen !== null
                     ? [
+                        'ServiceProviders',
+                        'FitnessChallenges',
+                        'Arenas',
                         'DailyQuest',
-                        'OngoingQuest',
+                        'MyQuests',
                         'CommunityFeed',
+                        'OngoingQuest',
                         'Training',
                       ].includes(pendingScreen)
                     : [
+                        'ServiceProviders',
+                        'FitnessChallenges',
+                        'Arenas',
                         'DailyQuest',
-                        'OngoingQuest',
+                        'MyQuests',
                         'CommunityFeed',
+                        'OngoingQuest',
                         'Training',
                       ].includes(activeScreen);
                 return (
@@ -655,28 +688,7 @@ const DrawerNavigatorContent: React.FC = () => {
               {/* Expanded Home Hub Sub-Menus */}
               {isHomeHubExpanded && (
                 <View style={styles.subMenuContainer}>
-                  {[
-                    {
-                      screen: 'DailyQuest' as const,
-                      label: 'My Quest',
-                      icon: '📅',
-                    },
-                    {
-                      screen: 'CommunityFeed' as const,
-                      label: 'Community Feed',
-                      icon: '💬',
-                    },
-                    {
-                      screen: 'OngoingQuest' as const,
-                      label: 'Ongoing Quest',
-                      icon: '⚡',
-                    },
-                    {
-                      screen: 'Training' as const,
-                      label: 'Training',
-                      icon: '🎓',
-                    },
-                  ].map(subItem => {
+                  {displayedHomeItems.map(subItem => {
                     const isSubActive =
                       pendingScreen !== null
                         ? pendingScreen === subItem.screen
@@ -707,8 +719,6 @@ const DrawerNavigatorContent: React.FC = () => {
                     );
                   })}
                 </View>
-              )}
-              </>
               )}
 
               {!isMassPromo && (
@@ -824,19 +834,20 @@ const DrawerNavigatorContent: React.FC = () => {
               </>
               )}
 
+              {!isMassPromo && (
+              <>
               {/* Move Hub Accordion Trigger */}
               {(() => {
                 const isMoveHubActive =
                   pendingScreen !== null
                     ? [
                         'Arena',
-                        'Arenas',
                         'FitnessPrescription',
+                        'Prescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
                         'ExercisePrescription',
                         'LifestyleProfiler',
-                        'FitnessChallenges',
                         'Leaderboard',
                         'Dashboard',
                         'Insights',
@@ -845,13 +856,12 @@ const DrawerNavigatorContent: React.FC = () => {
                       ].includes(pendingScreen)
                     : [
                         'Arena',
-                        'Arenas',
                         'FitnessPrescription',
+                        'Prescription',
                         'ActivityTracking',
                         'NutritionalProfiler',
                         'ExercisePrescription',
                         'LifestyleProfiler',
-                        'FitnessChallenges',
                         'Leaderboard',
                         'Dashboard',
                         'Insights',
@@ -877,7 +887,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         { flex: 1 },
                       ]}
                     >
-                    Home
+                    Move Hub
                     </Text>
                     <Text
                       style={{
@@ -926,6 +936,8 @@ const DrawerNavigatorContent: React.FC = () => {
                     );
                   })}
                 </View>
+              )}
+              </>
               )}
 
               {!isMassPromo && (

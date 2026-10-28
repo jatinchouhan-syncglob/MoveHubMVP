@@ -106,7 +106,7 @@ export const WellnessPrescriptionScreen: React.FC<
         STORAGE_KEYS.USER_PROFILE,
       );
 
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
       const name = cachedProfile?.name || 'Robert D.';
       const rawUserId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const userId = `usr_${rawUserId || 'rob_55'}`;

@@ -1254,10 +1254,6 @@ export const InsightsScreen: React.FC = () => {
             <Text style={styles.infoBarLabel}>UHID: </Text>
             <Text style={styles.infoBarValue}>{targetUhid}</Text>
           </View>
-          <View style={styles.infoBarChip}>
-            <Text style={styles.infoBarLabel}>Target Date: </Text>
-            <Text style={styles.infoBarDateValue}>{targetDate || 'Today'}</Text>
-          </View>
         </View>
       )}
 

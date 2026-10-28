@@ -169,12 +169,11 @@ export const LoginScreen: React.FC = () => {
             }
 
             const userProfile: UserProfile = {
-              uhid: userData.uhid || 'SAUSHA9775',
+              uhid: userData.uhid,
               name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
-              age: userData.age || 30,
-              weight: userData.weight || 70,
-              height: userData.height || 170,
-              calorieGoal: userData.calorieGoal || 2400,
+              age: userData.age,
+              weight: userData.weight,
+              height: userData.height,
               isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
               email: userData.email || savedCredentials.email,
               token: authToken,
@@ -188,7 +187,7 @@ export const LoginScreen: React.FC = () => {
             if (userProfile.isSetupComplete) {
               navigation.replace(ROUTES.DRAWER);
             } else {
-              navigation.replace(ROUTES.PROFILE_SETUP);
+              navigation.replace(ROUTES.DRAWER);
             }
           } else {
             setAlertType('error');
@@ -300,7 +299,7 @@ export const LoginScreen: React.FC = () => {
           if (userProfile.isSetupComplete) {
             navigation.replace(ROUTES.DRAWER);
           } else {
-            navigation.replace(ROUTES.PROFILE_SETUP);
+            navigation.replace(ROUTES.DRAWER);
           }
         }
       } else {
@@ -442,7 +441,7 @@ export const LoginScreen: React.FC = () => {
         if (userProfile.isSetupComplete) {
           navigation.replace(ROUTES.DRAWER);
         } else {
-          navigation.replace(ROUTES.PROFILE_SETUP);
+          navigation.replace(ROUTES.DRAWER);
         }
       } else {
         setAlertType('error');
@@ -473,7 +472,7 @@ export const LoginScreen: React.FC = () => {
       if (tempProfileData.isSetupComplete) {
         navigation.replace(ROUTES.DRAWER);
       } else {
-        navigation.replace(ROUTES.PROFILE_SETUP);
+        navigation.replace(ROUTES.DRAWER);
       }
     }
   };
@@ -484,7 +483,7 @@ export const LoginScreen: React.FC = () => {
       if (tempProfileData.isSetupComplete) {
         navigation.replace(ROUTES.DRAWER);
       } else {
-        navigation.replace(ROUTES.PROFILE_SETUP);
+        navigation.replace(ROUTES.DRAWER);
       }
     }
   };

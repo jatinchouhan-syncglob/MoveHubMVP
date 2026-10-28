@@ -102,8 +102,8 @@ export const BarChart: React.FC<BarChartProps> = ({
   peakIndex,
   color,
 }) => {
-  const pL = scale(28);
-  const pR = scale(8);
+  const pL = scale(30);
+  const pR = scale(12);
   const pT = verticalScale(12);
   const pB = verticalScale(28);
   const cW = width - pL - pR;
@@ -161,7 +161,7 @@ export const BarChart: React.FC<BarChartProps> = ({
               opacity={tier ? 0.8 : 0.4}
             />
             <SvgText
-              x={pL - scale(3)}
+              x={pL - scale(4)}
               y={y + moderateScale(3.5)}
               textAnchor="end"
               fontSize={moderateScale(7.5)}

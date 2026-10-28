@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useDrawer } from '../../navigation/DrawerContext';
-import { INBDPSketchPayload, INBDPFinalPayload, IQuestion } from './types';
+import { INBDPSketchPayload} from './types';
 import { NBDP_STEPS, NBDP_QUESTIONS } from './questions';
 import { styles } from './styles';
 
@@ -178,14 +178,7 @@ export const NutritionalProfilerScreen: React.FC = () => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const finalPayload: INBDPFinalPayload = {
-      uhid: 'SAUSHA5546', // Dynamically linked or profile default
-      timestamp_epoch: Math.floor(Date.now() / 1000),
-      nutrition_sketch_payload: form,
-    };
-
     try {
-      // Simulate network dispatch / storage
       await new Promise<void>(resolve => setTimeout(() => resolve(), 600));
 
       Alert.alert(

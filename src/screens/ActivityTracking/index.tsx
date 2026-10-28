@@ -1135,7 +1135,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
 
       const deviceId = await getDynamicDeviceId();
       const savePayload = {

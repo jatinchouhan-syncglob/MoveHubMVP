@@ -7,29 +7,12 @@ import {
   DonutChart,
   DualLineChart,
   LegendItem,
-  moveHubColor,
 } from '../../components/charts/CustomSvgCharts';
 import {
-  speedometerColor,
   dashboardColors as DC,
 } from '../../theme/dashboardColors';
 import {styles} from './styles';
 import {IBioSyncTabProps, PillarHealthItem} from '../../types';
-
-const colors = {
-  ...moveHubColor,
-  amber: '#f59e0b',
-  purple: '#a855f7',
-};
-
-// Simple self-contained layout components
-const Card = ({ children }: { children: React.ReactNode }) => (
-  <View style={styles.card}>{children}</View>
-);
-
-const Spacing = ({ top = 0, left = 0 }: { top?: number; left?: number }) => (
-  <View style={{ height: top, width: left }} />
-);
 
 const getDynamicMax = (values: number[]) => {
   const max = Math.max(...values, 0);
@@ -208,6 +191,8 @@ const BioSyncTab = ({
   status,
   dailyInsightText,
 }: IBioSyncTabProps) => {
+  const innerChartWidth = chartWidth - 24;
+
   const energyEfficiencyMax = getDynamicMax(energyEfficiency?.values || []);
   const integratedStaminaMax = getDynamicMax(integratedStamina?.values || []);
 
@@ -226,6 +211,7 @@ const BioSyncTab = ({
 
   return (
     <>
+      {/* 1. Bio Sync Efficiency (BSE) Card */}
       <LinearGradient
         colors={['#EEF2FF', '#E0E7FF']}
         start={{ x: 0, y: 0 }}
@@ -240,12 +226,13 @@ const BioSyncTab = ({
             shadowOpacity: 0.1,
             shadowRadius: 10,
             elevation: 3,
-            padding: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
           },
         ]}
       >
         <View style={[styles.cardTitleRow, { justifyContent: 'space-between', marginBottom: 14 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
             <View
               style={[
                 styles.cardIconContainer,
@@ -320,27 +307,61 @@ const BioSyncTab = ({
         </View>
       </LinearGradient>
 
-      <View style={[styles.card, {backgroundColor: DC.roseSoft}]}>
+      {/* 2. Pillar Health Analysis Card */}
+      <LinearGradient
+        colors={['#F8FAFC', '#F1F5F9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#CBD5E1',
+            shadowColor: '#64748B',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
-            style={[styles.cardIconContainer, {backgroundColor: DC.roseLight}]}>
+            style={[
+              styles.cardIconContainer,
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#CBD5E1',
+                shadowColor: '#64748B',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
+            ]}>
             <Text style={styles.emptyChartIcon}>🏛️</Text>
           </View>
-          <Text style={styles.cardTitle}>Pillar Health Analysis</Text>
+          <Text style={[styles.cardTitle, { color: '#1E293B', fontSize: 15, fontWeight: '800' }]}>
+            Pillar Health Analysis
+          </Text>
         </View>
 
-        <Card>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 }}>
           <View style={styles.pillarCardContent}>
             {pillarHealthData.map((item, idx) => (
               <View key={`pillar-${item.label}-${idx}`}>
                 <View style={styles.pillarRowHeader}>
-                  <Text style={styles.pillarLabel}>{item.label}</Text>
+                  <Text style={[styles.pillarLabel, { fontWeight: '700', color: '#1E293B' }]}>{item.label}</Text>
 
                   <Text
                     style={[
                       styles.pillarValue,
                       {
                         color: item.color,
+                        fontWeight: '800',
                       },
                     ]}>
                     {item.value}%
@@ -350,7 +371,7 @@ const BioSyncTab = ({
                 <View
                   style={[
                     styles.pillarProgressBackground,
-                    {height: 12, backgroundColor: DC.slateBackground},
+                    { height: 10, backgroundColor: '#F1F5F9', borderRadius: 6 },
                   ]}>
                   <View
                     style={[
@@ -359,6 +380,7 @@ const BioSyncTab = ({
                         width: `${item.value}%`,
                         backgroundColor: item.color,
                         height: '100%',
+                        borderRadius: 6,
                       },
                     ]}
                   />
@@ -366,35 +388,56 @@ const BioSyncTab = ({
               </View>
             ))}
           </View>
+        </View>
+      </LinearGradient>
 
-          {/* <Text style={styles.pillarHealthText}>
-            Pillar Health{' '}
-            {Number(
-              ((pillarHealthData.reduce((acc, curr) => acc + curr.value, 0) ||
-                0) / (pillarHealthData.length || 1)).toFixed(2),
-            )}
-            %
-          </Text> */}
-        </Card>
-      </View>
-
-      <View style={[styles.card, {backgroundColor: DC.emeraldLight}]}>
+      {/* 3. Energy Expenditure Economy (EE/KM) - E3 Card */}
+      <LinearGradient
+        colors={['#ECFDF5', '#D1FAE5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#A7F3D0',
+            shadowColor: '#059669',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              {backgroundColor: DC.emeraldDark},
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#A7F3D0',
+                shadowColor: '#059669',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}>
             <Text style={styles.emptyChartIcon}>⚡</Text>
           </View>
-          <Text style={styles.cardTitle}>Energy Expenditure Economy (EE/KM) - E3</Text>
+          <Text style={[styles.cardTitle, { color: '#064E3B', fontSize: 15, fontWeight: '800' }]}>
+            Energy Expenditure Economy (EE/KM) - E3
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(5, 150, 105, 0.15)', shadowColor: '#059669' }]}>
           {energyEfficiency?.values && energyEfficiency.values.length > 0 ? (
             <ScrollableChart
               dataLength={energyEfficiency?.values?.length || 0}
-              visibleWidth={chartWidth}>
+              visibleWidth={innerChartWidth}>
               {computedWidth => (
                 <BarChart
                   values={energyEfficiency.values}
@@ -403,6 +446,7 @@ const BioSyncTab = ({
                   height={170}
                   maxY={energyEfficiencyMax}
                   yTicks={getDynamicTicks(energyEfficiencyMax)}
+                  color="#10B981"
                 />
               )}
             </ScrollableChart>
@@ -410,7 +454,7 @@ const BioSyncTab = ({
             <EmptyChart title="Energy Expenditure Economy (EE/KM)" />
           )}
         </View>
-        <Text style={styles.caption}>
+        <Text style={[styles.caption, { color: '#065F46' }]}>
           Lower energy per km (EE/KM - E3) indicates higher metabolic economy.
         </Text>
 
@@ -418,42 +462,80 @@ const BioSyncTab = ({
           (eePerKmCharts.target !== undefined ||
             eePerKmCharts.actual !== undefined ||
             eePerKmCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#A7F3D0' }]}>
               {eePerKmCharts.target !== undefined &&
                 eePerKmCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {eePerKmCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{eePerKmCharts.target}</Text>
+                  </View>
                 )}
               {eePerKmCharts.actual !== undefined &&
                 eePerKmCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {eePerKmCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{eePerKmCharts.actual}</Text>
+                  </View>
                 )}
               {eePerKmCharts.performance !== undefined &&
                 eePerKmCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {eePerKmCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {eePerKmCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
-      <View style={[styles.card, {backgroundColor: DC.skyLight}]}>
+      </LinearGradient>
+
+      {/* 4. Pulse Pace Index (PPI) - Intensity Card */}
+      <LinearGradient
+        colors={['#EFF6FF', '#DBEAFE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#BFDBFE',
+            shadowColor: '#2563EB',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
-            style={[styles.cardIconContainer, {backgroundColor: DC.blueLight}]}>
+            style={[
+              styles.cardIconContainer,
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+                shadowColor: '#2563EB',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
+            ]}>
             <Text style={styles.emptyChartIcon}>🏃</Text>
           </View>
-          <Text style={styles.cardTitle}>Pulse Pace Index (PPI) - Intensity</Text>
+          <Text style={[styles.cardTitle, { color: '#1E3A8A', fontSize: 15, fontWeight: '800' }]}>
+            Pulse Pace Index (PPI) - Intensity
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(37, 99, 235, 0.15)', shadowColor: '#2563EB' }]}>
           {ppiData?.values && ppiData.values.length > 0 ? (
             <ScrollableChart
               dataLength={ppiData.values.length}
-              visibleWidth={chartWidth}>
+              visibleWidth={innerChartWidth}>
               {computedWidth => (
                 <BarChart
                   values={ppiData.values}
@@ -462,6 +544,7 @@ const BioSyncTab = ({
                   height={170}
                   maxY={pulsePaceIndexMax}
                   yTicks={getDynamicTicks(pulsePaceIndexMax)}
+                  color="#3B82F6"
                 />
               )}
             </ScrollableChart>
@@ -469,7 +552,7 @@ const BioSyncTab = ({
             <EmptyChart title="Pulse Pace Index (PPI)" />
           )}
         </View>
-        <Text style={styles.caption}>
+        <Text style={[styles.caption, { color: '#1E40AF' }]}>
           Pulse Pace Index (PPI) measures cardiovascular workout intensity over time.
         </Text>
 
@@ -477,42 +560,80 @@ const BioSyncTab = ({
           (cardioYieldPerStepCharts.target !== undefined ||
             cardioYieldPerStepCharts.actual !== undefined ||
             cardioYieldPerStepCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#BFDBFE' }]}>
               {cardioYieldPerStepCharts.target !== undefined &&
                 cardioYieldPerStepCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {cardioYieldPerStepCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{cardioYieldPerStepCharts.target}</Text>
+                  </View>
                 )}
               {cardioYieldPerStepCharts.actual !== undefined &&
                 cardioYieldPerStepCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {cardioYieldPerStepCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{cardioYieldPerStepCharts.actual}</Text>
+                  </View>
                 )}
               {cardioYieldPerStepCharts.performance !== undefined &&
                 cardioYieldPerStepCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {cardioYieldPerStepCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {cardioYieldPerStepCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
-      <View style={[styles.card, {backgroundColor: DC.amberLight}]}>
+      </LinearGradient>
+
+      {/* 5. Interdaily Stamina (IS) Card */}
+      <LinearGradient
+        colors={['#FFFBEB', '#FEF3C7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#FDE68A',
+            shadowColor: '#D97706',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
-            style={[styles.cardIconContainer, {backgroundColor: DC.amberDark}]}>
-            <Text style={styles.emptyChartIcon}>🔋</Text>
-          </View>
-          <Text style={styles.cardTitle}>Interdaily Stamina (IS)</Text>
+            style={[
+              styles.cardIconContainer,
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#FDE68A',
+                shadowColor: '#D97706',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
+            ]}>
+              <Text style={styles.emptyChartIcon}>🔋</Text>
+            </View>
+          <Text style={[styles.cardTitle, { color: '#78350F', fontSize: 15, fontWeight: '800' }]}>
+            Interdaily Stamina (IS)
+          </Text>
         </View>
 
-        <View style={styles.chartWrapper}>
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(217, 119, 6, 0.15)', shadowColor: '#D97706' }]}>
           {integratedStamina?.values && integratedStamina.values.length > 0 ? (
             <ScrollableChart
               dataLength={integratedStamina?.values?.length || 0}
-              visibleWidth={chartWidth}>
+              visibleWidth={innerChartWidth}>
               {computedWidth => (
                 <BarChart
                   values={integratedStamina.values}
@@ -521,6 +642,7 @@ const BioSyncTab = ({
                   height={170}
                   maxY={integratedStaminaMax}
                   yTicks={getDynamicTicks(integratedStaminaMax)}
+                  color="#F59E0B"
                 />
               )}
             </ScrollableChart>
@@ -528,72 +650,76 @@ const BioSyncTab = ({
             <EmptyChart title="Interdaily Stamina (IS)" />
           )}
         </View>
-        <Text style={styles.caption}>Interdaily Stamina (IS) is tracked across the week.</Text>
-
-        <Text style={styles.consistencyGuideTitle}>
-          CONSISTENCY RATING GUIDE
+        <Text style={[styles.caption, { color: '#92400E' }]}>
+          Interdaily Stamina (IS) is tracked across the week.
         </Text>
 
-        <View style={styles.consistencyItem}>
-          <View
-            style={[
-              styles.consistencyIconBox,
-              {
-                backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                borderColor: DC.greenBright,
-              },
-            ]}>
-            <Text style={[styles.consistencyIconText, {color: DC.greenDeep}]}>
-              A
-            </Text>
-          </View>
-          <View style={styles.consistencyInfo}>
-            <Text style={styles.consistencyLabel}>Daily Commuter</Text>
-            <Text style={styles.consistencyDescription}>
-              ~22+ points every day
-            </Text>
-          </View>
-        </View>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FDE68A', marginTop: 12, shadowColor: '#D97706', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+          <Text style={[styles.consistencyGuideTitle, { marginTop: 0, color: '#78350F' }]}>
+            CONSISTENCY RATING GUIDE
+          </Text>
 
-        <View style={styles.consistencyItem}>
-          <View
-            style={[
-              styles.consistencyIconBox,
-              {
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                borderColor: DC.skyDark,
-              },
-            ]}>
-            <Text style={[styles.consistencyIconText, {color: DC.skyBrand}]}>
-              A-
-            </Text>
+          <View style={styles.consistencyItem}>
+            <View
+              style={[
+                styles.consistencyIconBox,
+                {
+                  backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                  borderColor: '#10B981',
+                },
+              ]}>
+              <Text style={[styles.consistencyIconText, { color: '#047857' }]}>
+                A
+              </Text>
+            </View>
+            <View style={styles.consistencyInfo}>
+              <Text style={[styles.consistencyLabel, { color: '#1E293B' }]}>Daily Commuter</Text>
+              <Text style={styles.consistencyDescription}>
+                ~22+ points every day
+              </Text>
+            </View>
           </View>
-          <View style={styles.consistencyInfo}>
-            <Text style={styles.consistencyLabel}>Power Streak</Text>
-            <Text style={styles.consistencyDescription}>
-              50+ points on 3+ days
-            </Text>
-          </View>
-        </View>
 
-        <View style={[styles.consistencyItem, {marginBottom: 0}]}>
-          <View
-            style={[
-              styles.consistencyIconBox,
-              {
-                backgroundColor: 'rgba(180, 83, 9, 0.2)',
-                borderColor: DC.goldDark,
-              },
-            ]}>
-            <Text style={[styles.consistencyIconText, {color: DC.amberDeep}]}>
-              B-
-            </Text>
+          <View style={styles.consistencyItem}>
+            <View
+              style={[
+                styles.consistencyIconBox,
+                {
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  borderColor: '#3B82F6',
+                },
+              ]}>
+              <Text style={[styles.consistencyIconText, { color: '#1D4ED8' }]}>
+                A-
+              </Text>
+            </View>
+            <View style={styles.consistencyInfo}>
+              <Text style={[styles.consistencyLabel, { color: '#1E293B' }]}>Power Streak</Text>
+              <Text style={styles.consistencyDescription}>
+                50+ points on 3+ days
+              </Text>
+            </View>
           </View>
-          <View style={styles.consistencyInfo}>
-            <Text style={styles.consistencyLabel}>Weekend Warrior</Text>
-            <Text style={styles.consistencyDescription}>
-              75+ pts Sat & Sun, low weekdays
-            </Text>
+
+          <View style={[styles.consistencyItem, { marginBottom: 0 }]}>
+            <View
+              style={[
+                styles.consistencyIconBox,
+                {
+                  backgroundColor: 'rgba(217, 119, 6, 0.15)',
+                  borderColor: '#F59E0B',
+                },
+              ]}>
+              <Text style={[styles.consistencyIconText, { color: '#B45309' }]}>
+                B-
+              </Text>
+            </View>
+            <View style={styles.consistencyInfo}>
+              <Text style={[styles.consistencyLabel, { color: '#1E293B' }]}>Weekend Warrior</Text>
+              <Text style={styles.consistencyDescription}>
+                75+ pts Sat & Sun, low weekdays
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -601,38 +727,73 @@ const BioSyncTab = ({
           (integratedStaminaCharts.target !== undefined ||
             integratedStaminaCharts.actual !== undefined ||
             integratedStaminaCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#FDE68A' }]}>
               {integratedStaminaCharts.target !== undefined &&
                 integratedStaminaCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {integratedStaminaCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{integratedStaminaCharts.target}</Text>
+                  </View>
                 )}
               {integratedStaminaCharts.actual !== undefined &&
                 integratedStaminaCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {integratedStaminaCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{integratedStaminaCharts.actual}</Text>
+                  </View>
                 )}
               {integratedStaminaCharts.performance !== undefined &&
                 integratedStaminaCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {integratedStaminaCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {integratedStaminaCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
-      <View style={[styles.card, {backgroundColor: DC.slateLight}]}>
+      </LinearGradient>
+
+      {/* 6. Weekly Performance Metrics Card */}
+      <LinearGradient
+        colors={['#F8FAFC', '#EEF2FF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#C7D2FE',
+            shadowColor: '#4F46E5',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
         <View style={styles.cardTitleRow}>
           <View
             style={[
               styles.cardIconContainer,
-              {backgroundColor: DC.slateMedium},
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#C7D2FE',
+                shadowColor: '#4F46E5',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
             ]}>
             <Text style={styles.emptyChartIcon}>📈</Text>
           </View>
-          <Text style={styles.cardTitle}>Weekly Performance Metrics</Text>
+          <Text style={[styles.cardTitle, { color: '#312E81', fontSize: 15, fontWeight: '800' }]}>
+            Weekly Performance Metrics
+          </Text>
         </View>
 
         <View style={styles.metricRow}>
@@ -658,11 +819,12 @@ const BioSyncTab = ({
             <Text style={styles.metricLabel}>PPI (Intensity) Total</Text>
           </View>
         </View>
-        <View style={styles.chartWrapper}>
+
+        <View style={[styles.chartCanvasBox, { borderColor: 'rgba(79, 70, 229, 0.15)', shadowColor: '#4F46E5' }]}>
           {weeklyPerformance?.labels && weeklyPerformance.labels.length > 0 ? (
             <ScrollableChart
               dataLength={weeklyPerformance.labels.length}
-              visibleWidth={chartWidth}>
+              visibleWidth={innerChartWidth}>
               {computedWidth => (
                 <DualLineChart
                   series={[
@@ -697,15 +859,13 @@ const BioSyncTab = ({
           )}
         </View>
 
-        <View style={styles.legendRow}>
+        <View style={[styles.legendRow, { backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 }]}>
           <LegendItem color="#F97316" label="EE/KM (E3)" dashed />
-
           <LegendItem color="#10B981" label="IS (Stamina)" />
-
           <LegendItem color="#3B82F6" label="PPI (Intensity)" />
         </View>
 
-        <Text style={styles.caption}>
+        <Text style={[styles.caption, { color: '#4338CA', marginTop: 8 }]}>
           Weekly trend for EE/KM (E3), IS (Stamina) and PPI (Intensity) performance.
         </Text>
 
@@ -713,38 +873,82 @@ const BioSyncTab = ({
           (weeklyTrendCharts.target !== undefined ||
             weeklyTrendCharts.actual !== undefined ||
             weeklyTrendCharts.performance !== undefined) && (
-            <View style={styles.summaryMetricsRow}>
+            <View style={[styles.modernSummaryRow, { borderColor: '#C7D2FE' }]}>
               {weeklyTrendCharts.target !== undefined &&
                 weeklyTrendCharts.target !== null && (
-                  <Text style={styles.summaryMetricTarget}>
-                    Target: {weeklyTrendCharts.target}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryValue}>{weeklyTrendCharts.target}</Text>
+                  </View>
                 )}
               {weeklyTrendCharts.actual !== undefined &&
                 weeklyTrendCharts.actual !== null && (
-                  <Text style={styles.summaryMetricActual}>
-                    Actual: {weeklyTrendCharts.actual}
-                  </Text>
+                  <View style={styles.modernSummaryItem}>
+                    <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                    <Text style={styles.modernSummaryValue}>{weeklyTrendCharts.actual}</Text>
+                  </View>
                 )}
               {weeklyTrendCharts.performance !== undefined &&
                 weeklyTrendCharts.performance !== null && (
-                  <Text style={styles.summaryMetricPerformance}>
-                    Performance: {weeklyTrendCharts.performance}%
-                  </Text>
+                  <View style={styles.modernPerformanceBadge}>
+                    <Text style={styles.modernPerformanceText}>
+                      Performance: {weeklyTrendCharts.performance}%
+                    </Text>
+                  </View>
                 )}
             </View>
           )}
-      </View>
+      </LinearGradient>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Future Insights & Recommendations</Text>
-        <View style={styles.recommendationContainer}>
-          <Text style={[styles.cardSub, styles.recommendationText, { color: DC.skyBrand, fontWeight: '500' }]}>
+      {/* 7. Future Insights & Recommendations Card */}
+      <LinearGradient
+        colors={['#EFF6FF', '#DBEAFE']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.card,
+          {
+            borderWidth: 1.5,
+            borderColor: '#BFDBFE',
+            shadowColor: '#2563EB',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.09,
+            shadowRadius: 10,
+            elevation: 3,
+            paddingHorizontal: 12,
+            paddingVertical: 14,
+          },
+        ]}
+      >
+        <View style={styles.cardTitleRow}>
+          <View
+            style={[
+              styles.cardIconContainer,
+              {
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+                shadowColor: '#2563EB',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 2,
+              },
+            ]}>
+            <Text style={styles.emptyChartIcon}>🔮</Text>
+          </View>
+          <Text style={[styles.cardTitle, { color: '#1E3A8A', fontSize: 15, fontWeight: '800' }]}>
+            Future Insights & Recommendations
+          </Text>
+        </View>
+
+        <View style={[styles.recommendationContainer, { backgroundColor: '#FFFFFF', borderColor: 'rgba(37, 99, 235, 0.12)', borderRadius: 12, padding: 14, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }]}>
+          <Text style={[styles.cardSub, styles.recommendationText, { color: '#1E40AF', fontSize: 12.5, lineHeight: 19, fontWeight: '500' }]}>
             {dailyInsightText ||
               'Personalized sleep, recovery and nutrition recommendations will appear here based on your Bio-Sync trends.'}
           </Text>
         </View>
-      </View>
+      </LinearGradient>
     </>
   );
 };

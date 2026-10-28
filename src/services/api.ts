@@ -196,7 +196,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid;
       const response = await axios.get(
         `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${targetUhid}`,
       );
@@ -528,7 +528,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid;
       const url = `${BACKEND_8081_URL}/backend/health-connect/getWeeklyTrends?uhid=${targetUhid}`;
 
       const response = await axios.get(url);
@@ -858,7 +858,7 @@ export const apiService = {
         STORAGE_KEYS.USER_PROFILE,
       );
       const targetUhid =
-        profileData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
+        profileData.uhid || cachedProfile?.uhid;
 
       const devId = profileData.deviceId || (await getDynamicDeviceId());
       const payload = {
@@ -900,7 +900,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = pacingData.uhid || cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = pacingData.uhid || cachedProfile?.uhid;
 
       const devId = pacingData.deviceId || (await getDynamicDeviceId());
       const payload = {
@@ -1065,7 +1065,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = uhid || cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = uhid || cachedProfile?.uhid;
       const targetMonth = month || 'July 2026';
 
       const url = `${BACKEND_8081_URL}/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(
@@ -1705,7 +1705,7 @@ export const prefetchStepsLogsData = async (
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const uhid = targetUhid || cachedProfile?.uhid || 'SAUSHA9775';
+    const uhid = targetUhid || cachedProfile?.uhid || 'JATCHO5525';
 
     const sysDate = new Date();
     const sysY = sysDate.getFullYear();

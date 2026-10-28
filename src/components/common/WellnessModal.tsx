@@ -120,7 +120,7 @@ export const WellnessModal: React.FC<WellnessModalProps> = ({
       const cachedProfile = await storageHelper.getItem<any>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'SAUSHA9775';
+      const targetUhid = cachedProfile?.uhid;
 
       const deviceId = await getDynamicDeviceId();
       

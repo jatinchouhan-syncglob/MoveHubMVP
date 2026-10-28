@@ -1,7 +1,6 @@
 import { Linking, NativeModules, Platform } from 'react-native';
 import dayjs from 'dayjs';
 import axios from 'axios';
-import DeviceInfo from 'react-native-device-info';
 import { getDynamicDeviceId } from '../utils/device';
 import {
   aggregateRecord,
@@ -39,15 +38,6 @@ const HEALTH_CONNECT_MARKET_URI =
 const HEALTH_CONNECT_WEB_URI =
   'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata';
 const RECORDS_PAGE_SIZE = 1000;
-const MODERATE_HEART_POINT_EXERCISE_TYPES = new Set([
-  1, 2, 9, 10, 11, 14, 15, 16, 18, 19, 21, 23, 24, 30, 31, 32, 35, 37, 38, 41,
-  48, 49, 50, 51, 56, 61, 63, 64, 65, 66, 67, 68, 70, 72, 73, 74, 75, 77, 78,
-  100, 101,
-]);
-const VIGOROUS_HEART_POINT_EXERCISE_TYPES = new Set([
-  8, 12, 17, 20, 22, 25, 27, 28, 29, 34, 36, 39, 40, 42, 43, 44, 45, 47, 52, 53,
-  54, 55, 57, 58, 59, 60, 62, 76,
-]);
 
 type IHealthConnectWorkManagerStartOptions = {
   baseUrl: string;
@@ -289,70 +279,6 @@ const mapExerciseSessions = (
     source:
       record.metadata?.dataOrigin?.packageName ?? record.metadata?.dataOrigin,
   }));
-
-// Health Connect does not expose a Heart Points record, so derive it
-// from today's exercise intensity using Google Fit's moderate/vigorous rules.
-const getHeartPointsForExerciseSession = (
-  record: IHealthConnectExerciseSession,
-) => {
-  const durationMinutes = Math.max(0, Math.round(record.durationHours * 60));
-
-  if (!durationMinutes) {
-    return 0;
-  }
-
-  if (VIGOROUS_HEART_POINT_EXERCISE_TYPES.has(record.type)) {
-    return durationMinutes * 2;
-  }
-
-  if (MODERATE_HEART_POINT_EXERCISE_TYPES.has(record.type)) {
-    return durationMinutes;
-  }
-
-  return durationMinutes;
-};
-
-const getDerivedHeartPoints = (records: IHealthConnectExerciseSession[]) =>
-  records.reduce(
-    (sum, record) => sum + getHeartPointsForExerciseSession(record),
-    0,
-  );
-
-const getHeartPointsFromSteps = (
-  stepsRecords: ReadRecordsResult<'Steps'>['records'],
-  exerciseRecords: IHealthConnectExerciseSession[],
-) => {
-  return stepsRecords.reduce((sum, stepRecord) => {
-    const stepStart = dayjs(stepRecord.startTime);
-    const stepEnd = dayjs(stepRecord.endTime);
-
-    const isOverlapping = exerciseRecords.some(exercise => {
-      const exStart = dayjs(exercise.startTime);
-      const exEnd = dayjs(exercise.endTime);
-      return stepStart.isBefore(exEnd) && stepEnd.isAfter(exStart);
-    });
-
-    if (isOverlapping) {
-      return sum;
-    }
-
-    const durationMinutes = stepEnd.diff(stepStart, 'minute', true);
-
-    if (durationMinutes > 0) {
-      const stepsPerMinute = stepRecord.count / durationMinutes;
-
-      if (stepsPerMinute >= 130) {
-        return sum + Math.round(durationMinutes * 2);
-      }
-
-      if (stepsPerMinute >= 100) {
-        return sum + Math.round(durationMinutes);
-      }
-    }
-
-    return sum;
-  }, 0);
-};
 
 const getHeartRateSummary = (
   records: ReadRecordsResult<'HeartRate'>['records'],
@@ -998,11 +924,6 @@ export const loadHealthConnectSnapshot = async (
   const mappedTodayExerciseRecords = mapExerciseSessions(
     exerciseRecordsFiltered,
   );
-  const exerciseHeartPoints = getDerivedHeartPoints(mappedTodayExerciseRecords);
-  const stepsHeartPoints = getHeartPointsFromSteps(
-    stepsRecordsFiltered,
-    mappedTodayExerciseRecords,
-  );
   const detailedRecords = createDetailedMetricRecords({
     stepsRecords: stepsRecordsFiltered,
     distanceRecords: distanceRecordsFiltered,
@@ -1220,7 +1141,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const uhid = cachedProfile?.uhid || 'SAUSHA9775';
+    const uhid = cachedProfile?.uhid;
     const deviceId = await getDynamicDeviceId();
 
     const API_BASE_URL =

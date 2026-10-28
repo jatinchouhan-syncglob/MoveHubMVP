@@ -82,7 +82,7 @@ android {
         applicationId "com.livingscopehealth.uncurl"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 147
+        versionCode 148
         versionName "1.8"
     }
     signingConfigs {
