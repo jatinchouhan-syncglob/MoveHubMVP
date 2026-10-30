@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,16 @@ import {
   Platform,
   Alert,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
+import { storageHelper } from '../../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../../storage/storageKeys';
+import { UserProfile } from '../../../types';
+import { apiService } from '../../../services/api';
+import { INominateEntityPayload } from '../../Arena/types';
+import { CustomAlertModal } from '../../../components/common/CustomAlertModal';
 
 interface ThreeWayReferralModalProps {
   visible: boolean;
@@ -27,6 +34,45 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
   circleId = 'UNCURL-7842',
 }) => {
   const [activeNode, setActiveNode] = useState<'A' | 'B' | 'C' | 'D'>(initialNode);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [submittingNodeB, setSubmittingNodeB] = useState(false);
+  const [submittingNodeC, setSubmittingNodeC] = useState(false);
+  const [submittingNodeD, setSubmittingNodeD] = useState(false);
+
+  // Custom Alert Modal State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertVisible(true);
+  };
+
+  const handleAlertClose = () => {
+    const wasSuccess = alertType === 'success';
+    setAlertVisible(false);
+    if (wasSuccess) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        if (cached) {
+          setUserProfile(cached);
+        }
+      } catch (err) {
+        console.warn('[ThreeWayReferralModal] Error loading profile:', err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   React.useEffect(() => {
     if (initialNode) {
@@ -67,46 +113,166 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
     }
   };
 
-  const handleSubmitNodeB = () => {
+  const handleSubmitNodeB = async () => {
     if (!institutionName.trim()) {
-      Alert.alert('Required', 'Please enter your College or Company name.');
+      showAlert('Required', 'Please enter your College or Company name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Institutional Ingress Submitted',
-      `Thank you! Details for ${institutionName} have been recorded. Our campus ambassador team will reach out.`,
-    );
-    setInstitutionName('');
-    setDeanContact('');
-    onClose();
+    setSubmittingNodeB(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'CORPORATE',
+        entityName: institutionName.trim(),
+        contactPersonName: deanContact.trim() || 'Head / Dean / HR Contact',
+        email: userProfile?.email || 'contact@institution.com',
+        phoneNumber: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: 'Campus / Office',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ThreeWayReferralModal] Node B nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: institutionName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ThreeWayReferralModal] Auto-associate notice:', assocErr);
+        }
+      }
+
+      setInstitutionName('');
+      setDeanContact('');
+      showAlert(
+        'Institutional Ingress Submitted! 🎉',
+        res?.message || `Thank you! Details for ${institutionName} have been recorded. Our campus ambassador team will reach out.`,
+        'success',
+      );
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit institutional ingress. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeB(false);
+    }
   };
 
-  const handleSubmitNodeC = () => {
+  const handleSubmitNodeC = async () => {
     if (!clinicalName.trim()) {
-      Alert.alert('Required', 'Please enter your Hospital, Clinic, or Lab name.');
+      showAlert('Required', 'Please enter your Hospital, Clinic, or Lab name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Clinical Ingress Submitted',
-      `Thank you! Details for ${clinicalName} have been recorded. We will reach out to them and mention your wish and referral!`,
-    );
-    setClinicalName('');
-    setClinicalContact('');
-    onClose();
+    setSubmittingNodeC(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'CLINIC',
+        entityName: clinicalName.trim(),
+        contactPersonName: clinicalContact.trim() || 'Medical Director / Facility Head',
+        email: userProfile?.email || 'contact@clinic.com',
+        phoneNumber: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: 'Clinical Facility',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ThreeWayReferralModal] Node C nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: clinicalName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ThreeWayReferralModal] Auto-associate notice:', assocErr);
+        }
+      }
+
+      setClinicalName('');
+      setClinicalContact('');
+      showAlert(
+        'Clinical Ingress Submitted! 🏥',
+        res?.message || `Thank you! Details for ${clinicalName} have been recorded. We will reach out to them and mention your referral!`,
+        'success',
+      );
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit clinical nomination. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeC(false);
+    }
   };
 
-  const handleSubmitNodeD = () => {
+  const handleSubmitNodeD = async () => {
     if (!commercialName.trim()) {
-      Alert.alert('Required', 'Please enter your local gym or outlet name.');
+      showAlert('Required', 'Please enter your local gym or outlet name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Commercial Node Submitted',
-      `Thank you! ${commercialName} has been nominated. Our ground activation team will contact them to initiate the partnership.`,
-    );
-    setCommercialName('');
-    setCommercialContact('');
-    onClose();
+    setSubmittingNodeD(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'GYM',
+        entityName: commercialName.trim(),
+        contactPersonName: commercialContact.trim() || 'Manager / Facility Head',
+        email: userProfile?.email || 'contact@gym.com',
+        phoneNumber: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: 'Fitness / Nutrition Hub',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ThreeWayReferralModal] Node D nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: commercialName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ThreeWayReferralModal] Auto-associate notice:', assocErr);
+        }
+      }
+
+      setCommercialName('');
+      setCommercialContact('');
+      showAlert(
+        'Commercial Node Submitted! 🏋️',
+        res?.message || `Thank you! ${commercialName} has been nominated. Our ground activation team will contact them to initiate the partnership.`,
+        'success',
+      );
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit commercial nomination. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeD(false);
+    }
   };
 
   return (
@@ -233,14 +399,19 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                 style={styles.referralNodeBtn}
                 activeOpacity={0.85}
                 onPress={handleSubmitNodeB}
+                disabled={submittingNodeB}
               >
                 <LinearGradient
                   colors={['#DB2777', '#BE185D']}
                   style={styles.referralNodeBtnGradient}
                 >
-                  <Text style={styles.referralNodeBtnText}>
-                    🏛️ SUBMIT INSTITUTIONAL INGRESS (NODE B)
-                  </Text>
+                  {submittingNodeB ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.referralNodeBtnText}>
+                      🏛️ SUBMIT INSTITUTIONAL INGRESS (NODE B)
+                    </Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -296,14 +467,19 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                 style={styles.referralNodeBtn}
                 activeOpacity={0.85}
                 onPress={handleSubmitNodeC}
+                disabled={submittingNodeC}
               >
                 <LinearGradient
                   colors={['#059669', '#047857']}
                   style={styles.referralNodeBtnGradient}
                 >
-                  <Text style={styles.referralNodeBtnText}>
-                    🏥 NOMINATE CLINICAL PROVIDER (NODE C)
-                  </Text>
+                  {submittingNodeC ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.referralNodeBtnText}>
+                      🏥 NOMINATE CLINICAL PROVIDER (NODE C)
+                    </Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -359,20 +535,35 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
                 style={styles.referralNodeBtn}
                 activeOpacity={0.85}
                 onPress={handleSubmitNodeD}
+                disabled={submittingNodeD}
               >
                 <LinearGradient
                   colors={['#D97706', '#B45309']}
                   style={styles.referralNodeBtnGradient}
                 >
-                  <Text style={styles.referralNodeBtnText}>
-                    🏋️ NOMINATE COMMERCIAL PARTNER (NODE D)
-                  </Text>
+                  {submittingNodeD ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.referralNodeBtnText}>
+                      🏋️ NOMINATE COMMERCIAL PARTNER (NODE D)
+                    </Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
       </View>
+
+      {/* Custom Success & Error Feedback Modal */}
+      <CustomAlertModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
+        onClose={handleAlertClose}
+      />
     </Modal>
   );
 };

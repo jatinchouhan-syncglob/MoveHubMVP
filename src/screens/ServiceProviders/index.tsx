@@ -102,6 +102,10 @@ export const ServiceProvidersScreen: React.FC = () => {
   const [formName, setFormName] = useState<string>('');
   const [formSubtext, setFormSubtext] = useState<string>('');
   const [formAddress, setFormAddress] = useState<string>('');
+  const [formState, setFormState] = useState<string>('');
+  const [formCity, setFormCity] = useState<string>('');
+  const [formPincode, setFormPincode] = useState<string>('');
+  const [formArea, setFormArea] = useState<string>('');
   const [formPhone, setFormPhone] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
 
@@ -272,6 +276,10 @@ export const ServiceProvidersScreen: React.FC = () => {
     setFormName('');
     setFormSubtext('');
     setFormAddress('');
+    setFormState('');
+    setFormCity('');
+    setFormPincode('');
+    setFormArea('');
     setFormPhone('');
     setFormNotes('');
     setIsAddModalVisible(true);
@@ -294,6 +302,10 @@ export const ServiceProvidersScreen: React.FC = () => {
       name: formName.trim(),
       subtext: formSubtext.trim() || undefined,
       address: formAddress.trim() || undefined,
+      state: formState.trim() || undefined,
+      city: formCity.trim() || undefined,
+      pincode: formPincode.trim() || undefined,
+      area: formArea.trim() || undefined,
       phone: formPhone.trim() || undefined,
       notes: formNotes.trim() || undefined,
       tags: [CATEGORIES_CONFIG[formCategory].title, 'Custom Added'],
@@ -393,23 +405,35 @@ export const ServiceProvidersScreen: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Ensure dynamic UHID is present
+      const activeUhid =
+        uhid.trim() ||
+        (await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE))?.uhid?.trim() ||
+        '';
+
       // Extract selected IDs from the fetched directory
       const selectedProviderIds = selectedProviders
         .filter(p => !p.id.startsWith('custom_'))
         .map(p => p.id);
 
-      // Extract custom providers formatted as required by backend
+      // Extract custom providers formatted as required by backend (small case keys and values)
       const customPayloadList: ICustomProviderPayload[] = selectedProviders
         .filter(p => p.id.startsWith('custom_'))
         .map(p => ({
-          category: p.category,
+          category: p.category.toLowerCase(),
           name: p.name,
           specialty: p.subtext || '',
           address: p.address || '',
+          state: (p.state || '').trim().toLowerCase(),
+          city: (p.city || '').trim().toLowerCase(),
+          pincode: (p.pincode || '').trim().toLowerCase(),
+          area: (p.area || '').trim().toLowerCase(),
+          uhid: activeUhid.toLowerCase(),
           phone: p.phone || '',
         }));
 
       const payload: IRegisterProvidersPayload = {
+        uhid: activeUhid,
         selectedProviderIds,
         customProviders: customPayloadList,
       };
@@ -1313,10 +1337,59 @@ export const ServiceProvidersScreen: React.FC = () => {
                 <Text style={styles.inputLabel}>Location / Address</Text>
                 <TextInput
                   style={styles.inputField}
-                  placeholder="e.g. Indiranagar 100ft Road, Bengaluru"
+                  placeholder="e.g. 100ft Road, Near Metro"
                   placeholderTextColor="#64748B"
                   value={formAddress}
                   onChangeText={setFormAddress}
+                />
+              </View>
+
+              {/* Form Input: State */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>State</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="e.g. Karnataka"
+                  placeholderTextColor="#64748B"
+                  value={formState}
+                  onChangeText={setFormState}
+                />
+              </View>
+
+              {/* Form Input: City */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>City</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="e.g. Bengaluru"
+                  placeholderTextColor="#64748B"
+                  value={formCity}
+                  onChangeText={setFormCity}
+                />
+              </View>
+
+              {/* Form Input: Pincode */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Pincode</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="e.g. 560038"
+                  placeholderTextColor="#64748B"
+                  keyboardType="numeric"
+                  value={formPincode}
+                  onChangeText={setFormPincode}
+                />
+              </View>
+
+              {/* Form Input: Area */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Area</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="e.g. Indiranagar"
+                  placeholderTextColor="#64748B"
+                  value={formArea}
+                  onChangeText={setFormArea}
                 />
               </View>
 

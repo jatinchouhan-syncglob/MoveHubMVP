@@ -8,6 +8,7 @@ import {
   Share,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
@@ -15,6 +16,9 @@ import { ISegmentConfig } from '../types';
 import { storageHelper } from '../../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../../storage/storageKeys';
 import { UserProfile } from '../../../types';
+import { apiService } from '../../../services/api';
+import { INominateEntityPayload } from '../../Arena/types';
+import { CustomAlertModal } from '../../../components/common/CustomAlertModal';
 
 interface ArenasRewardsViewProps {
   config: ISegmentConfig;
@@ -24,13 +28,33 @@ type ReferralNode = 'A' | 'B' | 'C' | 'D';
 
 export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) => {
   const [activeNode, setActiveNode] = useState<ReferralNode>('A');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [submittingNodeB, setSubmittingNodeB] = useState(false);
+  const [submittingNodeC, setSubmittingNodeC] = useState(false);
+  const [submittingNodeD, setSubmittingNodeD] = useState(false);
   const [circleId, setCircleId] = useState('UNCURL-7842');
   const theme = config.theme;
+
+  // Custom Alert Modal State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertVisible(true);
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        if (cachedProfile) {
+          setUserProfile(cachedProfile);
+        }
         if (cachedProfile?.uhid) {
           setCircleId(cachedProfile.uhid);
         } else if (cachedProfile?.userId) {
@@ -98,51 +122,174 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
     );
   };
 
-  const handleSubmitNodeB = () => {
+  const handleSubmitNodeB = async () => {
     if (!institutionName.trim()) {
-      Alert.alert('Required', 'Please enter your College, University, or Company name.');
+      showAlert('Required', 'Please enter your College, University, or Company name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Institutional Ingress Submitted',
-      `Thank you! Details for ${institutionName} have been recorded. Our campus ambassador team will reach out.`,
-    );
-    setInstitutionName('');
-    setDeanName('');
-    setInstitutionEmail('');
-    setInstitutionPhone('');
+    setSubmittingNodeB(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'CORPORATE',
+        entityName: institutionName.trim(),
+        contactPersonName: deanName.trim() || 'Head / Dean / HR Contact',
+        email: institutionEmail.trim() || userProfile?.email || 'contact@institution.com',
+        phoneNumber: institutionPhone.trim() || (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: 'Campus / Workspace',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ArenasRewardsView] Node B nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: institutionName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ArenasRewardsView] Auto-associate notice:', assocErr);
+        }
+      }
+
+      showAlert(
+        'Institutional Ingress Submitted! 🎉',
+        res?.message || `Thank you! Details for ${institutionName} have been recorded. Our campus ambassador team will reach out.`,
+        'success',
+      );
+      setInstitutionName('');
+      setDeanName('');
+      setInstitutionEmail('');
+      setInstitutionPhone('');
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit institutional ingress. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeB(false);
+    }
   };
 
-  const handleSubmitNodeC = () => {
+  const handleSubmitNodeC = async () => {
     if (!clinicalName.trim()) {
-      Alert.alert('Required', 'Please enter your primary Hospital, Clinic, or Lab name.');
+      showAlert('Required', 'Please enter your primary Hospital, Clinic, or Lab name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Clinical Ingress Submitted',
-      `Thank you! Details for ${clinicalName} have been recorded. We will reach out to them and mention your wish and referral!`,
-    );
-    setClinicalName('');
-    setClinicalCategory('');
-    setClinicalContact('');
-    setClinicalEmail('');
-    setClinicalPhone('');
+    setSubmittingNodeC(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'CLINIC',
+        entityName: clinicalName.trim(),
+        contactPersonName: clinicalContact.trim() || 'Medical Director / Facility Head',
+        email: clinicalEmail.trim() || userProfile?.email || 'contact@clinic.com',
+        phoneNumber: clinicalPhone.trim() || (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: clinicalCategory.trim() || 'Clinical Facility',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ArenasRewardsView] Node C nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: clinicalName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ArenasRewardsView] Auto-associate notice:', assocErr);
+        }
+      }
+
+      showAlert(
+        'Clinical Ingress Submitted! 🏥',
+        res?.message || `Thank you! Details for ${clinicalName} have been recorded. We will reach out to them and mention your referral!`,
+        'success',
+      );
+      setClinicalName('');
+      setClinicalCategory('');
+      setClinicalContact('');
+      setClinicalEmail('');
+      setClinicalPhone('');
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit clinical nomination. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeC(false);
+    }
   };
 
-  const handleSubmitNodeD = () => {
+  const handleSubmitNodeD = async () => {
     if (!commercialName.trim()) {
-      Alert.alert('Required', 'Please enter your fitness center, CrossFit box, or nutrition outlet name.');
+      showAlert('Required', 'Please enter your fitness center, CrossFit box, or nutrition outlet name.', 'warning');
       return;
     }
-    Alert.alert(
-      'Commercial Partner Nominated',
-      `Thank you! ${commercialName} has been nominated. Our ground activation team will initiate the partnership.`,
-    );
-    setCommercialName('');
-    setCommercialCategory('');
-    setCommercialContact('');
-    setCommercialEmail('');
-    setCommercialPhone('');
+    setSubmittingNodeD(true);
+    try {
+      const payload: INominateEntityPayload = {
+        entityType: 'GYM',
+        entityName: commercialName.trim(),
+        contactPersonName: commercialContact.trim() || 'Manager / Facility Head',
+        email: commercialEmail.trim() || userProfile?.email || 'contact@gym.com',
+        phoneNumber: commercialPhone.trim() || (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        city: (userProfile as any)?.city || 'Indore',
+        location: commercialCategory.trim() || 'Fitness / Nutrition Hub',
+        nominatedByName: userProfile?.name || 'MoveHub Member',
+        nominatedByPhone: (userProfile as any)?.phoneNumber || (userProfile as any)?.mobile || '9999999999',
+        nominatedByEmail: userProfile?.email || 'user@movehub.com',
+      };
+
+      const res = await apiService.nominateReferralEntity(payload);
+      console.log('[ArenasRewardsView] Node D nominate response:', res);
+
+      if (res?.data?.referralCode && userProfile?.uhid) {
+        try {
+          await apiService.associateReferralEntity({
+            uhid: userProfile.uhid,
+            referralCode: res.data.referralCode,
+            entityName: commercialName.trim(),
+          });
+        } catch (assocErr) {
+          console.warn('[ArenasRewardsView] Auto-associate notice:', assocErr);
+        }
+      }
+
+      showAlert(
+        'Commercial Partner Nominated! 🏋️',
+        res?.message || `Thank you! ${commercialName} has been nominated. Our ground activation team will initiate the partnership.`,
+        'success',
+      );
+      setCommercialName('');
+      setCommercialCategory('');
+      setCommercialContact('');
+      setCommercialEmail('');
+      setCommercialPhone('');
+    } catch (err: any) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unable to submit commercial nomination. Please try again.';
+      showAlert('Submission Error', errMsg, 'error');
+    } finally {
+      setSubmittingNodeD(false);
+    }
   };
 
   return (
@@ -411,10 +558,15 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
             style={[styles.rewardsSubmitBtn, { backgroundColor: theme.coreAccent }]}
             activeOpacity={0.8}
             onPress={handleSubmitNodeB}
+            disabled={submittingNodeB}
           >
-            <Text style={styles.rewardsSubmitBtnText}>
-              SUBMIT INSTITUTIONAL INGRESS
-            </Text>
+            {submittingNodeB ? (
+              <ActivityIndicator color="#0A0E17" size="small" />
+            ) : (
+              <Text style={styles.rewardsSubmitBtnText}>
+                SUBMIT INSTITUTIONAL INGRESS
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -499,10 +651,15 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
             style={[styles.rewardsSubmitBtn, { backgroundColor: theme.coreAccent }]}
             activeOpacity={0.8}
             onPress={handleSubmitNodeC}
+            disabled={submittingNodeC}
           >
-            <Text style={styles.rewardsSubmitBtnText}>
-              NOMINATE HEALTHCARE PROVIDER
-            </Text>
+            {submittingNodeC ? (
+              <ActivityIndicator color="#0A0E17" size="small" />
+            ) : (
+              <Text style={styles.rewardsSubmitBtnText}>
+                NOMINATE HEALTHCARE PROVIDER
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -587,13 +744,28 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
             style={[styles.rewardsSubmitBtn, { backgroundColor: theme.coreAccent }]}
             activeOpacity={0.8}
             onPress={handleSubmitNodeD}
+            disabled={submittingNodeD}
           >
-            <Text style={styles.rewardsSubmitBtnText}>
-              NOMINATE COMMERCIAL PARTNER
-            </Text>
+            {submittingNodeD ? (
+              <ActivityIndicator color="#0A0E17" size="small" />
+            ) : (
+              <Text style={styles.rewardsSubmitBtnText}>
+                NOMINATE COMMERCIAL PARTNER
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Custom Success & Error Feedback Modal */}
+      <CustomAlertModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
+        onClose={() => setAlertVisible(false)}
+      />
     </ScrollView>
   );
 };

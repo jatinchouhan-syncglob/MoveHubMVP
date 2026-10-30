@@ -201,7 +201,13 @@ export const AwardsScreen: React.FC = () => {
               <View style={styles.numberContainerCenter}>
                 <Svg height="60" width="80" viewBox="0 0 80 60">
                   <Defs>
-                    <SvgGradient id="championNumGrad" x1="0" y1="0" x2="1" y2="1">
+                    <SvgGradient
+                      id="championNumGrad"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="1"
+                    >
                       <Stop offset="0%" stopColor="#EC4899" />
                       <Stop offset="100%" stopColor="#F59E0B" />
                     </SvgGradient>
@@ -248,7 +254,10 @@ export const AwardsScreen: React.FC = () => {
 
               <View style={styles.podiumBlockCenter}>
                 <LinearGradient
-                  colors={['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.01)']}
+                  colors={[
+                    'rgba(245, 158, 11, 0.15)',
+                    'rgba(245, 158, 11, 0.01)',
+                  ]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                   style={styles.podiumCenterGlowOverlay}
@@ -284,6 +293,7 @@ export const AwardsScreen: React.FC = () => {
         </View>
 
         {/* ================= BOTTOM HERO CALLOUT / QUOTE ================= */}
+        <Text style={styles.footerWhiteQuote}>MANY OTHER CATEGORY AWARDS.</Text>
         <View style={styles.footerHeroContainer}>
           <Text style={styles.footerWhiteQuote}>
             YOUR ARENA GETS YOU INTO THE GAME.

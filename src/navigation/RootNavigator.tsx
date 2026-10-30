@@ -9,7 +9,6 @@ import LoginScreen from '../screens/Login';
 import SignupScreen from '../screens/Signup';
 import ProfileSetupScreen from '../screens/ProfileSetup';
 import { WellnessPacingProfileScreen } from '../screens/WellnessPacingProfile';
-import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import { DemoWorkoutLogScreen } from '../screens/DemoWorkoutLog';
 import { DemoSearchHubScreen } from '../screens/DemoWorkoutLog/DemoSearchHub';
 import { DemoWearableSyncScreen } from '../screens/DemoWorkoutLog/DemoWearableSync';
@@ -55,10 +54,6 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen 
         name={ROUTES.WELLNESS_PACING_PROFILE as 'WellnessPacingProfile'} 
         component={WellnessPacingProfileScreen} 
-      />
-      <Stack.Screen 
-        name={ROUTES.WELLNESS_PRESCRIPTION as 'WellnessPrescription'} 
-        component={WellnessPrescriptionScreen} 
       />
       <Stack.Screen 
         name={ROUTES.DRAWER as 'DrawerNavigator'} 

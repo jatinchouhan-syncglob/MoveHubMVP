@@ -11,4 +11,5 @@ export const IMAGES = {
   yoga: require('./yoga.png'),
   gym: require('./gym.png'),
   winnerPrize: require('./winner-prize.png'),
+  corporateChallenge: require('./corporate-challenge.png'),
 } as const;

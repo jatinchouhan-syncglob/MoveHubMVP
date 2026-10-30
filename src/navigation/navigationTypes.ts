@@ -18,7 +18,6 @@ export type RootStackParamList = {
   Signup: undefined;
   ProfileSetup: undefined;
   WellnessPacingProfile: undefined;
-  WellnessPrescription: undefined;
   DrawerNavigator: NavigatorScreenParams<DrawerParamList>;
   LeaderboardDetails: {
     player: any;

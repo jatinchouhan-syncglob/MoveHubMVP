@@ -1,26 +1,127 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../theme';
+import LinearGradient from 'react-native-linear-gradient';
 import { CustomHeader } from '../../components/common/CustomHeader';
-import { CustomButton } from '../../components/common/CustomButton';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
 import DrawerContext from '../../navigation/DrawerContext';
-import { apiService } from '../../services/api';
 
 interface PrescriptionScreenProps {
   showDrawer?: boolean;
 }
+
+// Static Biometric Reset Blueprint Data (matching Exercise Prescription Biometric Reset tab)
+const STATIC_BIOMETRIC_DATA = {
+  uhid: 'JATCHO5525',
+  age: 28,
+  sex: 'Male',
+  profileMode: 'STAGE 2 REVERSAL (PRE-DIABETIC)',
+  rangeStart: '21 Apr 2026',
+  rangeEnd: '28 Apr 2026',
+  resetsInDays: 7,
+  bseAdaptiveTarget: 75.0,
+  coreTargets: [
+    {
+      key: 'bse',
+      icon: '📊',
+      name: 'BSE Efficiency',
+      target: '75.0',
+      base: '64.2',
+      unit: '',
+    },
+    {
+      key: 'sdex',
+      icon: '🛋️',
+      name: 'Sedentary Index',
+      target: '35.0',
+      base: '68.5',
+      unit: '%',
+    },
+    {
+      key: 'ppi',
+      icon: '💓',
+      name: 'Pulse Pace (PPI)',
+      target: '2.80',
+      base: '3.60',
+      unit: '',
+    },
+    {
+      key: 'e3',
+      icon: '⚡',
+      name: 'Move Economy (E3)',
+      target: '92.0',
+      base: '108.4',
+      unit: 'kcal/km',
+    },
+    {
+      key: 'is',
+      icon: '🛡️',
+      name: 'Stamina (IS)',
+      target: '80.0',
+      base: '68.0',
+      unit: '%',
+    },
+    {
+      key: 'aha',
+      icon: '🏆',
+      name: 'AHA Heart Volume',
+      target: '150',
+      base: '110',
+      unit: 'pts',
+    },
+  ],
+  checklist: [
+    {
+      id: 1,
+      name: 'Vascular Breakout Walk',
+      schedule: 'EVERY HOUR',
+      duration: '90 Secs continuous',
+      ruleDescription:
+        'Office/Field Rule: Walk with phone in pocket to activate calf venous return pump.',
+    },
+    {
+      id: 2,
+      name: 'Zone-2 Cadence Walk',
+      schedule: 'ONCE DAILY',
+      duration: '21 Mins (Slashed 30%)',
+      ruleDescription:
+        'Adaptive daily volume blocks to accelerate cellular glucose uptake.',
+    },
+    {
+      id: 3,
+      name: 'Core Prone Planks',
+      schedule: 'ONCE DAILY',
+      duration: '3 Sets x 45 Secs',
+      ruleDescription:
+        'Pre-walk postural alignment to stabilize pelvis and decompress spine.',
+    },
+    {
+      id: 4,
+      name: 'Evening Hatha Yoga',
+      schedule: 'EVERY NIGHT',
+      duration: '15 Mins',
+      ruleDescription:
+        'Rest-window autonomic wind-down to lower bedtime cortisol and improve deep sleep.',
+    },
+  ],
+  safetyCeilings: [
+    { label: 'Heart Rate Limit Ceiling', value: '140 BPM' },
+    { label: 'Continuous Sitting Max', value: '60 Mins' },
+    { label: 'Desk Stasis Break Rule', value: '90-Sec Pocket Walk' },
+  ],
+  clinicalRationale:
+    'Rhythmic moderate aerobic muscle activation increases cellular glucose transport pathways, while short, unbroken functional stretching sets remove localized pooling fluids to protect vascular endothelial walls [AHA].',
+};
 
 export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
   showDrawer = true,
@@ -28,163 +129,38 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
   const navigation = useNavigation<any>();
   const drawer = useContext(DrawerContext);
 
-  const [activeTab, setActiveTab] = useState<
-    'BASELINE' | 'CURRENT' | 'ARCHIVE'
-  >('BASELINE');
-  const [loading, setLoading] = useState(true);
-  const [accepting, setAccepting] = useState(false);
-  const [apiData, setApiData] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'BASELINE' | 'CURRENT' | 'ARCHIVE'>('BASELINE');
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [selectedArchiveDate, setSelectedArchiveDate] = useState<string>('');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      setProfile(cachedProfile);
-
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
-      console.log(
-        `[PrescriptionScreen] Fetching live assessment API for UHID: ${targetUhid}...`,
-      );
-
-      const res = await apiService.submitAssessment(targetUhid);
-      console.log(
-        '[PrescriptionScreen] Live API Response Received:',
-        JSON.stringify(res, null, 2),
-      );
-      if (res) {
-        setApiData(res);
-        const dates = res.baseline_source?.available_dates;
-        if (Array.isArray(dates) && dates.length > 0) {
-          setSelectedArchiveDate(dates[0]);
-        }
-      }
-    } catch (err) {
-      console.error(
-        '[PrescriptionScreen] Error loading live assessment data:',
-        err,
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const loadProfile = async () => {
+      try {
+        const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+        }
+      } catch (err) {
+        console.warn('[PrescriptionScreen] Error loading cached user profile:', err);
+      }
+    };
+    loadProfile();
+  }, []);
 
   const handleGoToWorkoutLogs = () => {
-    setAccepting(true);
-    setTimeout(() => {
-      setAccepting(false);
-      if (drawer?.setActiveScreen) {
-        drawer.setActiveScreen('ActivityTracking');
-      } else {
-        navigation.navigate('DrawerNavigator', {
-          screen: 'ActivityTracking',
-          params: { initialTab: 'Workout' },
-        });
-      }
-    }, 400);
-  };
-
-  // Helper formatting for dates
-  const formatDateStr = (dStr?: string | null) => {
-    if (!dStr) return 'Not Available';
-    try {
-      const parts = dStr.split('-');
-      if (parts.length === 3) {
-        return `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-      return dStr;
-    } catch {
-      return dStr;
+    if (drawer?.setActiveScreen) {
+      drawer.setActiveScreen('ActivityTracking');
+    } else {
+      navigation.navigate('DrawerNavigator', {
+        screen: 'ActivityTracking',
+      });
     }
   };
 
-  // Pure dynamic values from API
-  const status = apiData?.status || null;
-  const uhid = apiData?.uhid || profile?.uhid || 'Not Available';
-  const submissionId = apiData?.submission_id || null;
-  const message = apiData?.message || null;
-  const resultUrl = apiData?.result_url || null;
-
-  const baselineSource = apiData?.baseline_source || null;
-  const metrics = baselineSource?.metrics || null;
-  const mappedKeys = baselineSource?.mapped_keys || null;
-  const dayCounts = baselineSource?.metric_day_counts || null;
-  const periodKind = baselineSource?.period_kind || null;
-  const windowStart = baselineSource?.window_start || null;
-  const windowEnd = baselineSource?.window_end || null;
-  const sourceDate = baselineSource?.source_date || null;
-  const sourceId = baselineSource?.source_id || null;
-  const sourceTable = baselineSource?.source_table || null;
-  const availableDates: string[] = Array.isArray(
-    baselineSource?.available_dates,
-  )
-    ? baselineSource.available_dates
-    : [];
-
-  // Dynamic Metrics values from API (null if missing)
-  const bseScore =
-    metrics?.rolling_7d_bse_score !== undefined
-      ? Number(metrics.rolling_7d_bse_score).toFixed(2)
-      : null;
-  const sdexScore =
-    metrics?.rolling_7d_sdex_score !== undefined
-      ? Number(metrics.rolling_7d_sdex_score).toFixed(2)
-      : null;
-  const ppiScore =
-    metrics?.rolling_7d_ppi !== undefined
-      ? Number(metrics.rolling_7d_ppi).toFixed(4)
-      : null;
-  const e3Score =
-    metrics?.rolling_7d_e3 !== undefined
-      ? Number(metrics.rolling_7d_e3).toFixed(2)
-      : null;
-  const isScore =
-    metrics?.rolling_7d_is !== undefined
-      ? Number(metrics.rolling_7d_is).toFixed(2)
-      : null;
-  const ahaScore =
-    metrics?.rolling_7d_aha_points !== undefined
-      ? Number(metrics.rolling_7d_aha_points).toFixed(2)
-      : null;
-
-  // Day counts per metric
-  const bseDays = dayCounts?.rolling_7d_bse_score ?? null;
-  const sdexDays = dayCounts?.rolling_7d_sdex_score ?? null;
-  const ppiDays = dayCounts?.rolling_7d_ppi ?? null;
-  const e3Days = dayCounts?.rolling_7d_e3 ?? null;
-  const isDays = dayCounts?.rolling_7d_is ?? null;
-  const ahaDays = dayCounts?.rolling_7d_aha_points ?? null;
-
-  // Optional dynamic prescription objects (if returned by backend when generation completes)
-  const dynamicChecklist =
-    apiData?.checklist ||
-    apiData?.prescription?.foundationalChecklist ||
-    apiData?.foundational_actions ||
-    null;
-  const dynamicSafetyCeilings =
-    apiData?.safety_ceilings || apiData?.prescription?.safetyCeilings || null;
-  const dynamicRationale =
-    apiData?.physiological_rationale ||
-    apiData?.prescription?.physiologicalRationale ||
-    apiData?.rationale ||
-    null;
-  const dynamicAdaptiveTargets =
-    apiData?.adaptive_targets || apiData?.prescription?.adaptiveTargets || null;
-
-  const isBaseline = activeTab === 'BASELINE';
-  const isCurrent = activeTab === 'CURRENT';
-  const isArchive = activeTab === 'ARCHIVE';
+  const displayUhid = profile?.uhid || STATIC_BIOMETRIC_DATA.uhid;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070B14" />
       <CustomHeader
         title="PRESCRIPTION"
         showDrawerButton={showDrawer}
@@ -194,11 +170,11 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
         iconStyle={styles.headerIcon}
       />
 
-      {/* Background Soft Glow Spots */}
-      <View style={styles.glowSpot1} />
-      <View style={styles.glowSpot2} />
+      {/* Atmospheric Soft Glow Blobs */}
+      <View style={styles.glowSpot1} pointerEvents="none" />
+      <View style={styles.glowSpot2} pointerEvents="none" />
 
-      {/* Top 3 Tabs Toggle: BASELINE | CURRENT | ARCHIVE */}
+      {/* Top 3-Tab Navigator: BASELINE | CURRENT | ARCHIVE */}
       <View style={styles.headerToggleWrapper}>
         <View style={styles.toggleSelectorContainer}>
           <TouchableOpacity
@@ -206,10 +182,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
               styles.toggleBtn,
               activeTab === 'BASELINE' && styles.toggleBtnActive,
             ]}
-            onPress={() => {
-              setActiveTab('BASELINE');
-              setDropdownOpen(false);
-            }}
+            onPress={() => setActiveTab('BASELINE')}
             activeOpacity={0.8}
           >
             <Text
@@ -227,10 +200,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
               styles.toggleBtn,
               activeTab === 'CURRENT' && styles.toggleBtnActive,
             ]}
-            onPress={() => {
-              setActiveTab('CURRENT');
-              setDropdownOpen(false);
-            }}
+            onPress={() => setActiveTab('CURRENT')}
             activeOpacity={0.8}
           >
             <Text
@@ -248,9 +218,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
               styles.toggleBtn,
               activeTab === 'ARCHIVE' && styles.toggleBtnActive,
             ]}
-            onPress={() => {
-              setActiveTab('ARCHIVE');
-            }}
+            onPress={() => setActiveTab('ARCHIVE')}
             activeOpacity={0.8}
           >
             <Text
@@ -265,506 +233,235 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
         </View>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>
-            Fetching Live Prescription Data...
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ARCHIVE DATE DROPDOWN SELECTOR */}
-          {isArchive && (
-            <View style={styles.archiveDropdownContainer}>
-              <Text style={styles.dropdownLabel}>
-                AVAILABLE ARCHIVED DATES (FROM API)
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* =========================================================================
+            TAB 1: BASELINE TAB (Biometric Reset Card UI with Static Data)
+            ========================================================================= */}
+        {activeTab === 'BASELINE' && (
+          <View style={styles.biometricMainCard}>
+            {/* Header Badge & Title */}
+            <View style={styles.bioTopHeader}>
+              <View style={styles.bioBadgePill}>
+                <Text style={styles.bioBadgeIcon}>🧬</Text>
+                <Text style={styles.bioBadgeText}>
+                  7-DAY ROLLING PRESCRIPTION
+                </Text>
+              </View>
+              <Text style={styles.bioCardMainTitle}>
+                Biometric Lifestyle Prescription
               </Text>
-              {availableDates.length > 0 ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => setDropdownOpen(prev => !prev)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.dropdownButtonText}>
-                      🗓️{' '}
-                      {formatDateStr(selectedArchiveDate || availableDates[0])}{' '}
-                      Formulation
-                    </Text>
-                    <Text style={styles.dropdownArrow}>
-                      {dropdownOpen ? '▲' : '▼'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {dropdownOpen && (
-                    <View style={styles.dropdownList}>
-                      {availableDates.map((d, idx) => (
-                        <React.Fragment key={d}>
-                          <TouchableOpacity
-                            style={[
-                              styles.dropdownItem,
-                              selectedArchiveDate === d &&
-                                styles.dropdownItemActive,
-                            ]}
-                            onPress={() => {
-                              setSelectedArchiveDate(d);
-                              setDropdownOpen(false);
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.dropdownItemText,
-                                selectedArchiveDate === d &&
-                                  styles.dropdownItemTextActive,
-                              ]}
-                            >
-                              📅 Available Date: {formatDateStr(d)}
-                            </Text>
-                          </TouchableOpacity>
-                          {idx < availableDates.length - 1 && (
-                            <View style={styles.dropdownDivider} />
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </View>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.notAvailableText}>Not Available</Text>
-              )}
             </View>
-          )}
 
-          {/* =====================================================
-              👑 MAIN PRESCRIPTION CARD (PURE LIVE API DATA)
-              ===================================================== */}
-          <View style={styles.card}>
-            {/* Header Status Banner from API */}
-            <View style={styles.prescriptionHeaderBadge}>
-              <Text style={styles.prescriptionHeaderEmoji}>💉</Text>
-              <Text style={styles.prescriptionHeaderTitle}>
-                {isBaseline
-                  ? 'BASELINE CONVERGENCE FORMULATION'
-                  : isArchive
-                  ? `ARCHIVED FORMULATION (${formatDateStr(
-                      selectedArchiveDate,
-                    )})`
-                  : 'CURRENT PRESCRIPTION FORMULATION'}
+            {/* Patient Meta Strip */}
+            <View style={styles.bioPatientMetaBox}>
+              <View style={styles.bioMetaChipsRow}>
+                <View style={styles.bioMetaChip}>
+                  <Text style={styles.bioMetaChipLabel}>
+                    UHID: <Text style={styles.bioMetaChipValue}>{displayUhid}</Text>
+                  </Text>
+                </View>
+                <View style={styles.bioMetaChip}>
+                  <Text style={styles.bioMetaChipLabel}>
+                    Age: <Text style={styles.bioMetaChipValue}>{STATIC_BIOMETRIC_DATA.age} yrs</Text>
+                  </Text>
+                </View>
+                <View style={styles.bioMetaChip}>
+                  <Text style={styles.bioMetaChipLabel}>
+                    Sex: <Text style={styles.bioMetaChipValue}>{STATIC_BIOMETRIC_DATA.sex}</Text>
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.bioProfileModeRow}>
+                <View style={styles.bioProfileDot} />
+                <Text style={styles.bioProfileModeText}>
+                  Profile: {STATIC_BIOMETRIC_DATA.profileMode}
+                </Text>
+              </View>
+            </View>
+
+            {/* Weekly Tracking Window */}
+            <View style={styles.bioWindowBox}>
+              <View style={styles.bioWindowLeft}>
+                <Text style={styles.bioWindowLabel}>WEEKLY TRACKING WINDOW</Text>
+                <Text style={styles.bioWindowRange}>
+                  📅 {STATIC_BIOMETRIC_DATA.rangeStart} — {STATIC_BIOMETRIC_DATA.rangeEnd}
+                </Text>
+              </View>
+              <View style={styles.bioResetBadge}>
+                <Text style={styles.bioResetText}>
+                  ⏳ Resets in {STATIC_BIOMETRIC_DATA.resetsInDays}d
+                </Text>
+              </View>
+            </View>
+
+            {/* Central Adaptive Target Ring */}
+            <View style={styles.bioTargetSection}>
+              <View style={styles.bioTargetRingOuter}>
+                <View style={styles.bioTargetRingInner}>
+                  <Text style={styles.bioTargetBigScore}>
+                    {STATIC_BIOMETRIC_DATA.bseAdaptiveTarget.toFixed(1)}
+                  </Text>
+                  <Text style={styles.bioTargetSublabel}>ADAPTIVE TARGET</Text>
+                  <Text style={styles.bioTargetMetricTitle}>BSE EFFICIENCY</Text>
+                  <View style={styles.bioTargetStatusPill}>
+                    <View style={styles.bioTargetGreenDot} />
+                    <Text style={styles.bioTargetStatusText}>Optimal Pacing</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Core Targets & Lifestyle Pacing Balance */}
+            <View style={styles.bioSectionTitleRow}>
+              <Text style={styles.bioSectionHeaderIcon}>📋</Text>
+              <Text style={styles.bioSectionHeader}>
+                Core Targets & Lifestyle Pacing
               </Text>
-              {status && (
-                <View
-                  style={[
-                    styles.statusPill,
-                    status === 'PROCESSING'
-                      ? styles.statusPillProcessing
-                      : styles.statusPillSuccess,
-                  ]}
-                >
-                  <Text style={styles.statusPillText}>{status}</Text>
-                </View>
-              )}
             </View>
 
-            {/* Horizon Validity Window (from baseline_source) */}
-            <View style={styles.validityWindowBox}>
-              <View style={styles.validityTitleRow}>
-                <Text style={styles.validityTitleEmoji}>🗓️</Text>
-                <Text style={styles.validityTitleText}>
-                  HORIZON VALIDITY WINDOW
-                </Text>
-              </View>
-              <View style={styles.validityRow}>
-                <Text style={styles.validityLabel}>Window Range:</Text>
-                <Text style={styles.validityValue}>
-                  {windowStart ? formatDateStr(windowStart) : 'Not Available'}{' '}
-                  to {windowEnd ? formatDateStr(windowEnd) : 'Not Available'}
-                </Text>
-              </View>
-              <View style={styles.validityRow}>
-                <Text style={styles.validityLabel}>Source Date:</Text>
-                <Text style={styles.validityValue}>
-                  {sourceDate ? formatDateStr(sourceDate) : 'Not Available'}
-                </Text>
-              </View>
-              <View style={styles.validityRow}>
-                <Text style={styles.validityLabel}>Period Kind:</Text>
-                <Text style={styles.validityValue}>
-                  {periodKind || 'Not Available'}
-                </Text>
-              </View>
-              {sourceTable ? (
-                <View style={styles.validityRow}>
-                  <Text style={styles.validityLabel}>Source Table:</Text>
-                  <Text style={styles.validityValueMono}>{sourceTable}</Text>
+            <View style={styles.bioTargetsList}>
+              {STATIC_BIOMETRIC_DATA.coreTargets.map(item => (
+                <View key={item.key} style={styles.bioTargetRow}>
+                  <View style={styles.bioTargetRowLeft}>
+                    <Text style={styles.bioTargetRowIcon}>{item.icon}</Text>
+                    <Text style={styles.bioTargetName}>{item.name}</Text>
+                  </View>
+                  <View style={styles.bioTargetRowRight}>
+                    <Text style={styles.bioTargetValues}>
+                      {item.target}{item.unit ? ` ${item.unit}` : ''}
+                    </Text>
+                    <View style={styles.bioTargetBaseChip}>
+                      <Text style={styles.bioTargetBase}>Base: {item.base}</Text>
+                    </View>
+                  </View>
                 </View>
-              ) : null}
-              {sourceId !== null ? (
-                <View style={styles.validityRow}>
-                  <Text style={styles.validityLabel}>Source ID:</Text>
-                  <Text style={styles.validityValue}>{sourceId}</Text>
-                </View>
-              ) : null}
+              ))}
             </View>
 
-            {/* Central Score / Target Hexagon */}
-            <View style={styles.adaptiveTargetContainer}>
-              <View style={styles.targetHexagon}>
-                <View style={styles.targetHexInner}>
-                  <Text style={styles.targetHexValue}>
-                    {isBaseline || isArchive
-                      ? bseScore ?? 'Not Available'
-                      : dynamicAdaptiveTargets?.bse ??
-                        bseScore ??
-                        'Not Available'}
-                  </Text>
-                  <Text style={styles.targetHexLabel}>
-                    {isBaseline
-                      ? '7-DAY MEAN BSE SCORE'
-                      : isArchive
-                      ? 'ARCHIVE BSE SCORE'
-                      : 'ADAPTIVE TARGET'}
-                  </Text>
-                  <Text style={styles.targetHexSub}>BIOSYNC EFFICIENCY</Text>
-                </View>
-              </View>
+            {/* Weekly Foundational Checklist (Static guidelines without pending/verified toggle) */}
+            <View style={styles.bioSectionTitleRow}>
+              <Text style={styles.bioSectionHeaderIcon}>🚀</Text>
+              <Text style={styles.bioSectionHeader}>
+                Weekly Foundational Checklist
+              </Text>
             </View>
 
-            {/* ==========================================
-                📋 CORE BASELINE METRICS (API DATA)
-                ========================================== */}
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionHeaderTitle}>
-              📋 CORE BASELINE METRICS (7-DAY CONVERGENCE):
-            </Text>
-
-            {metrics ? (
-              <View style={styles.metricsContainer}>
-                {/* 1. BSE Score */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      BioSync Efficiency (
-                      {mappedKeys?.rolling_7d_bse_score || 'BSE'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {bseScore ?? 'Not Available'}
-                    </Text>
-                  </View>
-                  {bseDays !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {bseDays} Days
-                    </Text>
-                  )}
-                  {bseScore !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(bseScore) / 100) * 100,
-                            )}%`,
-                            backgroundColor: '#3b82f6',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* 2. Sedentary Index */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      Sedentary Index (
-                      {mappedKeys?.rolling_7d_sdex_score || 'S-DEX'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {sdexScore ?? 'Not Available'}
-                    </Text>
-                  </View>
-                  {sdexDays !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {sdexDays} Days
-                    </Text>
-                  )}
-                  {sdexScore !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(sdexScore) / 50) * 100,
-                            )}%`,
-                            backgroundColor: '#f59e0b',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* 3. Pulse-Pace (PPI) */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      Pulse-Pace Index ({mappedKeys?.rolling_7d_ppi || 'PPI'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {ppiScore ?? 'Not Available'}
-                    </Text>
-                  </View>
-                  {ppiDays !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {ppiDays} Days
-                    </Text>
-                  )}
-                  {ppiScore !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(ppiScore) / 0.01) * 100,
-                            )}%`,
-                            backgroundColor: '#06b6d4',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* 4. Move Economy (E3 / EEKm) */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      Move Economy ({mappedKeys?.rolling_7d_e3 || 'EEKM'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {e3Score !== null ? `${e3Score} kcal` : 'Not Available'}
-                    </Text>
-                  </View>
-                  {e3Days !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {e3Days} Days
-                    </Text>
-                  )}
-                  {e3Score !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(e3Score) / 5000) * 100,
-                            )}%`,
-                            backgroundColor: '#10b981',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* 5. Stamina (IS) */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      Interdaily Stamina ({mappedKeys?.rolling_7d_is || 'IS'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {isScore !== null ? `${isScore}%` : 'Not Available'}
-                    </Text>
-                  </View>
-                  {isDays !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {isDays} Days
-                    </Text>
-                  )}
-                  {isScore !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(isScore) / 100) * 100,
-                            )}%`,
-                            backgroundColor: '#8b5cf6',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-
-                {/* 6. AHA Heart Points */}
-                <View style={styles.metricRow}>
-                  <View style={styles.metricRowTop}>
-                    <Text style={styles.metricBullet}>•</Text>
-                    <Text style={styles.metricName}>
-                      AHA Heart Points (
-                      {mappedKeys?.rolling_7d_aha_points || 'AHA'})
-                    </Text>
-                    <Text style={styles.metricTarget}>
-                      {ahaScore !== null ? `${ahaScore} pts` : 'Not Available'}
-                    </Text>
-                  </View>
-                  {ahaDays !== null && (
-                    <Text style={styles.metricSubInfo}>
-                      Data Points Converged: {ahaDays} Days
-                    </Text>
-                  )}
-                  {ahaScore !== null && (
-                    <View style={styles.meterTrack}>
-                      <View
-                        style={[
-                          styles.meterFill,
-                          {
-                            width: `${Math.min(
-                              100,
-                              (Number(ahaScore) / 30) * 100,
-                            )}%`,
-                            backgroundColor: '#ef4444',
-                          },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.notAvailableText}>Not Available</Text>
-            )}
-
-            {/* ==========================================
-                🚀 FOUNDATIONAL CHECKLIST ACTIONS
-                ========================================== */}
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionHeaderTitle}>
-              🚀 FOUNDATIONAL CHECKLIST ACTIONS:
-            </Text>
-
-            {dynamicChecklist &&
-            Array.isArray(dynamicChecklist) &&
-            dynamicChecklist.length > 0 ? (
-              <View style={styles.checklistContainer}>
-                {dynamicChecklist.map((item: any, index: number) => (
-                  <View key={item.id || index} style={styles.checklistItem}>
-                    <Text style={styles.checklistTitle}>
-                      {index + 1}. {item.title || item.name || 'Action Item'}
-                    </Text>
-                    {item.subtitle ? (
-                      <Text style={styles.checklistSubtitle}>
-                        {item.subtitle}
+            <View style={styles.bioChecklistContainer}>
+              {STATIC_BIOMETRIC_DATA.checklist.map(item => (
+                <View key={item.id} style={styles.bioChecklistItem}>
+                  <View style={styles.bioChecklistHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.bioChecklistTitle}>
+                        {item.id}. {item.name}
                       </Text>
-                    ) : null}
-                    {item.deepDive ? (
-                      <Text style={styles.expandedRationaleText}>
-                        {item.deepDive}
+                      <Text style={styles.bioChecklistSchedule}>
+                        ⏱️ {item.duration} • {item.schedule}
                       </Text>
-                    ) : null}
+                    </View>
+                    <View style={styles.protocolBadgePill}>
+                      <Text style={styles.protocolBadgeText}>Active Guideline</Text>
+                    </View>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyStateBox}>
-                <Text style={styles.notAvailableText}>Not Available</Text>
-              </View>
-            )}
+                  <Text style={styles.bioChecklistRuleDesc}>
+                    {item.ruleDescription}
+                  </Text>
+                </View>
+              ))}
+            </View>
 
-            {/* ==========================================
-                🛑 BOUNDING SAFETY CEILINGS
-                ========================================== */}
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionHeaderTitle}>
-              🛑 BOUNDING SAFETY CEILINGS:
-            </Text>
-
-            {dynamicSafetyCeilings ? (
-              <View style={styles.safetyBox}>
-                {dynamicSafetyCeilings.heartRateLimit ? (
-                  <View style={styles.safetyRow}>
-                    <Text style={styles.safetyBullet}>•</Text>
-                    <Text style={styles.safetyLabel}>
-                      Heart Rate Limit Ceiling:
-                    </Text>
-                    <Text style={styles.safetyValue}>
-                      {dynamicSafetyCeilings.heartRateLimit} BPM
-                    </Text>
+            {/* Bounding Safety Ceilings */}
+            <View style={styles.bioSafetyBox}>
+              <View style={styles.bioSafetyHeaderRow}>
+                <Text style={styles.bioSafetyIcon}>🛑</Text>
+                <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
+              </View>
+              {STATIC_BIOMETRIC_DATA.safetyCeilings.map((ceiling, idx) => (
+                <React.Fragment key={ceiling.label}>
+                  <View style={styles.bioSafetyItem}>
+                    <Text style={styles.bioSafetyLabel}>{ceiling.label}</Text>
+                    <Text style={styles.bioSafetyValue}>{ceiling.value}</Text>
                   </View>
-                ) : null}
-                {dynamicSafetyCeilings.sittingMax ? (
-                  <View style={styles.safetyRow}>
-                    <Text style={styles.safetyBullet}>•</Text>
-                    <Text style={styles.safetyLabel}>
-                      Continuous Sitting Max:
-                    </Text>
-                    <Text style={styles.safetyValue}>
-                      {dynamicSafetyCeilings.sittingMax} Mins
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.emptyStateBox}>
-                <Text style={styles.notAvailableText}>Not Available</Text>
-              </View>
-            )}
+                  {idx < STATIC_BIOMETRIC_DATA.safetyCeilings.length - 1 && (
+                    <View style={styles.bioSafetyDivider} />
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
 
-            {/* ==========================================
-                🔬 PHYSIOLOGICAL RATIONALE & CITATION
-                ========================================== */}
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionHeaderTitle}>
-              🔬 PHYSIOLOGICAL RATIONALE & CITATION:
-            </Text>
-
-            {dynamicRationale ? (
-              <View style={styles.rationaleBox}>
-                <Text style={styles.rationaleParagraph}>
-                  {dynamicRationale}
-                </Text>
+            {/* Physiological Rationale & Citation */}
+            <View style={styles.bioRationaleBox}>
+              <View style={styles.bioRationaleHeaderRow}>
+                <Text style={styles.bioRationaleIcon}>🔬</Text>
+                <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
               </View>
-            ) : (
-              <View style={styles.emptyStateBox}>
-                <Text style={styles.notAvailableText}>Not Available</Text>
-              </View>
-            )}
-          </View>
+              <Text style={styles.bioRationaleText}>
+                {STATIC_BIOMETRIC_DATA.clinicalRationale}
+              </Text>
+            </View>
 
-          {/* Submit CTA Button */}
-          <View style={styles.ctaContainer}>
-            <CustomButton
-              title="🏃‍♂️ GO TO WORKOUT LOGS"
+            {/* Action Button: Proceed to Activity Tracker */}
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.85}
               onPress={handleGoToWorkoutLogs}
-              variant="primary"
-              loading={accepting}
-              disabled={accepting}
-              style={styles.submitBtn}
-              textStyle={styles.submitBtnText}
-            />
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.actionBtnGradient}
+              >
+                <Text style={styles.actionBtnText}>PROCEED TO WORKOUT LOGS 🏃‍♂️</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      )}
+        )}
+
+        {/* =========================================================================
+            TAB 2: CURRENT TAB (Empty State: No Data Available)
+            ========================================================================= */}
+        {activeTab === 'CURRENT' && (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconCircle}>
+              <Text style={styles.emptyIcon}>⚡</Text>
+            </View>
+            <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION FORMULATION</Text>
+            <Text style={styles.emptySubhead}>No Data Available</Text>
+            <Text style={styles.emptyDesc}>
+              Your individualized clinical exercise prescription will be formulated and updated here once your 7-day baseline convergence period completes.
+            </Text>
+            <View style={styles.emptyNoticePill}>
+              <Text style={styles.emptyNoticePillText}>
+                🔒 Formulation Locked: Requires completed baseline telemetry
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* =========================================================================
+            TAB 3: ARCHIVE TAB (Empty State: No Data Available)
+            ========================================================================= */}
+        {activeTab === 'ARCHIVE' && (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconCircle}>
+              <Text style={styles.emptyIcon}>📂</Text>
+            </View>
+            <Text style={styles.emptyTitle}>ARCHIVED FORMULATIONS</Text>
+            <Text style={styles.emptySubhead}>No Data Available</Text>
+            <Text style={styles.emptyDesc}>
+              Historical 7-day rolling prescriptions and clinical assessments will be archived here sequentially after each weekly cycle completes.
+            </Text>
+            <View style={styles.emptyNoticePill}>
+              <Text style={styles.emptyNoticePillText}>
+                📁 Archive Repository: Empty (Cycle 01 in progress)
+              </Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -772,510 +469,580 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    position: 'relative',
+    backgroundColor: '#070B14',
   },
   headerContainer: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#070B14',
+    borderBottomColor: '#1E293B',
+    borderBottomWidth: 1,
   },
   headerTitle: {
-    color: theme.colors.text,
-    fontSize: 16,
+    color: '#FFFFFF',
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   headerButton: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
   },
   headerIcon: {
-    tintColor: theme.colors.text,
+    color: '#FFFFFF',
   },
   glowSpot1: {
     position: 'absolute',
-    top: '5%',
-    left: '-10%',
+    top: 40,
+    right: -40,
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: theme.colors.primaryLight + '20',
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
     zIndex: -1,
   },
   glowSpot2: {
     position: 'absolute',
-    bottom: '20%',
-    right: '-10%',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: theme.colors.secondary + '05',
+    bottom: 80,
+    left: -40,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(16, 185, 129, 0.06)',
     zIndex: -1,
   },
+
+  // Top Tabs Toggle
   headerToggleWrapper: {
-    paddingHorizontal: theme.spacing.containerPadding,
-    marginBottom: theme.spacing.md,
-    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   toggleSelectorContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#0F172A',
     borderRadius: 14,
     padding: 4,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#1E293B',
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 10,
   },
   toggleBtnActive: {
-    backgroundColor: theme.colors.primary,
-    shadowColor: theme.colors.primary,
+    backgroundColor: '#1E293B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   toggleBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.5,
+    color: '#64748B',
+    letterSpacing: 0.4,
   },
   toggleBtnTextActive: {
-    color: '#ffffff',
+    color: '#38BDF8',
     fontWeight: '800',
   },
+
   scrollContent: {
-    padding: theme.spacing.containerPadding,
-    paddingBottom: theme.spacing.xxl,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 36,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginTop: 12,
-    fontStyle: 'italic',
-  },
-  archiveDropdownContainer: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: theme.spacing.md,
+
+  // Biometric Reset Main Card
+  biometricMainCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#334155',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  dropdownLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.8,
+  bioTopHeader: {
+    marginBottom: 14,
+  },
+  bioBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
     marginBottom: 6,
   },
-  dropdownButton: {
+  bioBadgeIcon: {
+    fontSize: 12,
+    marginRight: 6,
+  },
+  bioBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  bioCardMainTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: 0.3,
+  },
+
+  // Patient Meta Box
+  bioPatientMetaBox: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 14,
+  },
+  bioMetaChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  bioMetaChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  bioMetaChipLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  bioMetaChipValue: {
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  bioProfileModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  bioProfileDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  bioProfileModeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+
+  // Weekly Tracking Window
+  bioWindowBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  dropdownButtonText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  dropdownArrow: {
-    fontSize: 11,
-    color: theme.colors.primary,
-    fontWeight: '800',
-  },
-  dropdownList: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  dropdownItemActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-  },
-  dropdownItemText: {
-    fontSize: 12,
-    color: theme.colors.text,
-    fontWeight: '600',
-  },
-  dropdownItemTextActive: {
-    color: theme.colors.primary,
-    fontWeight: '800',
-  },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-  },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 20,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  prescriptionHeaderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'rgba(99, 102, 241, 0.08)',
     borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.2)',
+    marginBottom: 16,
   },
-  prescriptionHeaderEmoji: {
-    fontSize: 16,
+  bioWindowLeft: {
+    flex: 1,
     marginRight: 8,
   },
-  prescriptionHeaderTitle: {
-    fontSize: 11.5,
+  bioWindowLabel: {
+    fontSize: 9.5,
     fontWeight: '800',
-    color: theme.colors.primary,
-    letterSpacing: 0.5,
-    flex: 1,
-  },
-  statusPill: {
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  statusPillProcessing: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderWidth: 0.5,
-    borderColor: '#f59e0b',
-  },
-  statusPillSuccess: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-    borderWidth: 0.5,
-    borderColor: '#22c55e',
-  },
-  statusPillText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#d97706',
-    letterSpacing: 0.5,
-  },
-  apiMessageBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#f59e0b',
-  },
-  apiMessageTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#b45309',
+    color: '#818CF8',
+    letterSpacing: 0.8,
     marginBottom: 2,
   },
-  apiMessageText: {
-    fontSize: 11,
-    color: theme.colors.text,
-    lineHeight: 15,
-  },
-  profileMetaBox: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    gap: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaLabel: {
-    fontSize: 10.5,
+  bioWindowRange: {
+    fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
-    width: 95,
+    color: '#F8FAFC',
   },
-  metaValue: {
+  bioResetBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bioResetText: {
     fontSize: 11,
     fontWeight: '800',
-    color: theme.colors.text,
-    flex: 1,
+    color: '#A5B4FC',
   },
-  metaValueMono: {
+
+  // Central Adaptive Target Ring
+  bioTargetSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  bioTargetRingOuter: {
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  bioTargetRingInner: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  bioTargetBigScore: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#10B981',
+    lineHeight: 38,
+  },
+  bioTargetSublabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginTop: 2,
+  },
+  bioTargetMetricTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#F8FAFC',
+    letterSpacing: 0.6,
+    marginTop: 1,
+  },
+  bioTargetStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  bioTargetGreenDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#10B981',
+    marginRight: 4,
+  },
+  bioTargetStatusText: {
     fontSize: 9.5,
-    fontFamily: 'monospace',
-    color: theme.colors.text,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+
+  // Core Targets & Lifestyle Pacing
+  bioSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  bioSectionHeaderIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  bioSectionHeader: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    letterSpacing: 0.4,
+  },
+  bioTargetsList: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  bioTargetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  bioTargetRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  validityWindowBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.06)',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
-    gap: 4,
+  bioTargetRowIcon: {
+    fontSize: 14,
+    marginRight: 8,
   },
-  validityTitleRow: {
+  bioTargetName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E2E8F0',
+  },
+  bioTargetRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bioTargetValues: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#38BDF8',
+  },
+  bioTargetBaseChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  bioTargetBase: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+
+  // Checklist (Static guideline style without pending/verified toggle)
+  bioChecklistContainer: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  bioChecklistItem: {
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  bioChecklistHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  bioChecklistTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  bioChecklistSchedule: {
+    fontSize: 11,
+    color: '#10B981',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  protocolBadgePill: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+  },
+  protocolBadgeText: {
+    color: '#38BDF8',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  bioChecklistRuleDesc: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    lineHeight: 16,
+  },
+
+  // Safety Ceilings
+  bioSafetyBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    marginBottom: 16,
+    gap: 8,
+  },
+  bioSafetyHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
   },
-  validityTitleEmoji: {
-    fontSize: 13,
+  bioSafetyIcon: {
+    fontSize: 14,
     marginRight: 6,
   },
-  validityTitleText: {
-    fontSize: 10.5,
+  bioSafetyTitle: {
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#d97706',
-    letterSpacing: 0.8,
+    color: '#F87171',
+    letterSpacing: 0.3,
   },
-  validityRow: {
+  bioSafetyItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  validityLabel: {
-    fontSize: 10.5,
-    color: theme.colors.textSecondary,
-    fontWeight: '700',
+  bioSafetyLabel: {
+    fontSize: 11.5,
+    color: '#CBD5E1',
   },
-  validityValue: {
-    fontSize: 10.5,
-    color: theme.colors.text,
-    fontWeight: '700',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 8,
+  bioSafetyValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  validityValueMono: {
-    fontSize: 9.5,
-    fontFamily: 'monospace',
-    color: theme.colors.text,
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 8,
+  bioSafetyDivider: {
+    height: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
-  adaptiveTargetContainer: {
+
+  // Rationale
+  bioRationaleBox: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 18,
+  },
+  bioRationaleHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
+    marginBottom: 6,
   },
-  targetHexagon: {
-    width: 170,
-    height: 95,
-    backgroundColor: theme.colors.background,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.primary,
+  bioRationaleIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  bioRationaleTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#10B981',
+  },
+  bioRationaleText: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    lineHeight: 17,
+  },
+
+  // Action Button
+  actionBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionBtnGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+
+  // Empty State Cards (for CURRENT and ARCHIVE tabs)
+  emptyCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginTop: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
-  targetHexInner: {
-    alignItems: 'center',
-  },
-  targetHexValue: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: theme.colors.primary,
-  },
-  targetHexLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.8,
-    marginTop: 2,
-  },
-  targetHexSub: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    marginVertical: 12,
-  },
-  sectionHeaderTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: theme.colors.primary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  metricsContainer: {
-    gap: 8,
-  },
-  metricRow: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    padding: 9,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  metricRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metricBullet: {
-    fontSize: 13,
-    color: theme.colors.primary,
-    marginRight: 6,
-    fontWeight: '900',
-  },
-  metricName: {
-    fontSize: 11,
-    color: theme.colors.text,
-    fontWeight: '700',
-    flex: 1,
-  },
-  metricTarget: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  metricSubInfo: {
-    fontSize: 9.5,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  meterTrack: {
-    height: 5,
-    backgroundColor: theme.colors.border,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 3,
-  },
-  meterFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  checklistContainer: {
-    gap: 8,
-  },
-  checklistItem: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  checklistTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  checklistSubtitle: {
-    fontSize: 10,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  expandedRationaleText: {
-    fontSize: 10.5,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-  },
-  safetyBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.15)',
-    gap: 4,
-  },
-  safetyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  safetyBullet: {
-    fontSize: 13,
-    color: '#ef4444',
-    marginRight: 6,
-    fontWeight: '900',
-  },
-  safetyLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    flex: 1,
-  },
-  safetyValue: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#ef4444',
-  },
-  rationaleBox: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  rationaleParagraph: {
-    fontSize: 11,
-    color: theme.colors.text,
-    lineHeight: 16,
-  },
-  emptyStateBox: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    marginBottom: 14,
   },
-  notAvailableText: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
+  emptyIcon: {
+    fontSize: 28,
   },
-  ctaContainer: {
-    marginTop: theme.spacing.lg,
-  },
-  submitBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  submitBtnText: {
+  emptyTitle: {
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#38BDF8',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  emptySubhead: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  emptyDesc: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  emptyNoticePill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  emptyNoticePillText: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

@@ -38,7 +38,6 @@ import ProfileScreen from '../screens/Profile';
 import ServiceProvidersScreen from '../screens/ServiceProviders';
 import ArenaScreen from '../screens/Arena';
 import ArenasScreen from '../screens/Arenas';
-import { WellnessPrescriptionScreen } from '../screens/WellnessPrescription';
 import { PrescriptionScreen } from '../screens/Prescription';
 import FitnessTrainingScreen from '../screens/FitnessTraining';
 import MealLogScreen from '../screens/Nutrition/meal-log';
@@ -252,8 +251,7 @@ const DrawerNavigatorContent: React.FC = () => {
     const moveHubScreens = [
       'Assessment',
       'Arena',
-      'FitnessPrescription',
-      'Prescription',
+            'Prescription',
       'TelemetryLog',
       'ActivityTracking',
       'NutritionalProfiler',
@@ -451,8 +449,6 @@ const DrawerNavigatorContent: React.FC = () => {
         return <ArenaScreen />;
       case 'Arenas':
         return <ArenasScreen />;
-      case 'FitnessPrescription':
-        return <WellnessPrescriptionScreen showDrawer={true} />;
       case 'Prescription':
         return <PrescriptionScreen showDrawer={true} />;
       case 'Awards':
@@ -556,22 +552,12 @@ const DrawerNavigatorContent: React.FC = () => {
         icon: '🏟️',
       },
       {
-        screen: 'FitnessPrescription',
-        label: 'Fitness Prescription',
-        icon: '📋',
-      },
-      {
         screen: 'Prescription',
         label: 'Prescription',
         icon: '📑',
       },
       { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
-      {
-        screen: 'ExercisePrescription',
-        label: 'Exercise Prescription',
-        icon: '🏋️‍♂️',
-      },
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
@@ -713,8 +699,7 @@ const DrawerNavigatorContent: React.FC = () => {
                     ? [
                         'Assessment',
                         'Arena',
-                        'FitnessPrescription',
-                        'Prescription',
+                                                'Prescription',
                         'TelemetryLog',
                         'ActivityTracking',
                         'NutritionalProfiler',
@@ -729,8 +714,7 @@ const DrawerNavigatorContent: React.FC = () => {
                     : [
                         'Assessment',
                         'Arena',
-                        'FitnessPrescription',
-                        'Prescription',
+                                                'Prescription',
                         'TelemetryLog',
                         'ActivityTracking',
                         'NutritionalProfiler',

@@ -4,11 +4,15 @@ export interface IServiceProvider {
   id: string;
   category: ProviderCategory;
   name: string;
-  subtext?: string; // e.g. Specialty or Facility Type
-  address?: string; // Location or City
-  phone?: string;   // Contact number
-  notes?: string;   // Custom remarks/instructions
-  tags?: string[];  // e.g. ['Primary', '24/7 Emergency']
+  subtext?: string;
+  address?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
+  area?: string;
+  phone?: string;
+  notes?: string;
+  tags?: string[];
   isPrimary?: boolean;
   isSelected?: boolean;
   createdAt?: string;
@@ -36,10 +40,16 @@ export interface ICustomProviderPayload {
   name: string;
   specialty?: string;
   address?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
+  area?: string;
+  uhid?: string;
   phone?: string;
 }
 
 export interface IRegisterProvidersPayload {
+  uhid?: string;
   selectedProviderIds: string[];
   customProviders: ICustomProviderPayload[];
 }
