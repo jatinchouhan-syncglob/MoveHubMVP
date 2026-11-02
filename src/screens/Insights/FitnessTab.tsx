@@ -223,7 +223,7 @@ const FitnessTab = ({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.cardTitle, { color: '#064E3B', fontSize: 15, fontWeight: '800' }]}>
-                Cardio Metabolic Score (CMAS)
+                Cardio Metabolic Alignment Score (CMAS)
               </Text>
             </View>
           </View>
@@ -273,7 +273,7 @@ const FitnessTab = ({
                 styles.cardSub,
                 { color: '#065F46', fontSize: 12.5, lineHeight: 18, fontWeight: '500' },
               ]}>
-              Cardio Metabolic Score (CMAS) performance based on your weekly health trends.
+              Cardio Metabolic Alignment Score (CMAS) performance based on your Daily Metrics.
             </Text>
           </View>
         </View>
@@ -494,7 +494,7 @@ const FitnessTab = ({
               {dailyStepsBreakdownCharts.target !== undefined &&
                 dailyStepsBreakdownCharts.target !== null && (
                   <View style={styles.modernSummaryItem}>
-                    <Text style={styles.modernSummaryLabel}>Target: </Text>
+                    <Text style={styles.modernSummaryLabel}>Target:{`<`} </Text>
                     <Text style={styles.modernSummaryValue}>{dailyStepsBreakdownCharts.target}</Text>
                   </View>
                 )}
@@ -655,7 +655,7 @@ const FitnessTab = ({
             <Text style={styles.emptyChartIcon}>💓</Text>
           </View>
           <Text style={[styles.cardTitle, { color: '#7C2D12', fontSize: 15, fontWeight: '800' }]}>
-            Modified Heart Point (MHP)
+            Modified Heart Points (MHP)
           </Text>
         </View>
 
@@ -679,7 +679,7 @@ const FitnessTab = ({
         </View>
 
         <Text style={[styles.caption, { color: '#9A3412' }]}>
-          Modified Heart Point (MHP) progress across active recovery days.
+          Modified Heart Points (MHP) progress across active recovery days.
         </Text>
       </RNLinearGradient>
 
@@ -792,7 +792,7 @@ const FitnessTab = ({
                   {energyExpandedCharts.target !== undefined &&
                     energyExpandedCharts.target !== null && (
                       <View style={styles.modernSummaryItem}>
-                        <Text style={styles.modernSummaryLabel}>Target: </Text>
+                        <Text style={styles.modernSummaryLabel}>Target: {`<`}</Text>
                         <Text style={styles.modernSummaryValue}>{energyExpandedCharts.target}</Text>
                       </View>
                     )}
@@ -894,7 +894,7 @@ const FitnessTab = ({
                   {dailySdexCharts.target !== undefined &&
                     dailySdexCharts.target !== null && (
                       <View style={styles.modernSummaryItem}>
-                        <Text style={styles.modernSummaryLabel}>Target: </Text>
+                        <Text style={styles.modernSummaryLabel}>Target: {`<`}</Text>
                         <Text style={styles.modernSummaryValue}>{dailySdexCharts.target}</Text>
                       </View>
                     )}

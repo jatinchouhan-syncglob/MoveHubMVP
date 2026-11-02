@@ -33,6 +33,7 @@ export interface IServiceProvidersDirectory {
   labs: IServiceProvider[];
   physicians: IServiceProvider[];
   gyms: IServiceProvider[];
+  customProviders?: any[];
 }
 
 export interface ICustomProviderPayload {
@@ -49,7 +50,7 @@ export interface ICustomProviderPayload {
 }
 
 export interface IRegisterProvidersPayload {
-  uhid?: string;
-  selectedProviderIds: string[];
+  uhid: string;
+  selectedProviderIds?: string[];
   customProviders: ICustomProviderPayload[];
 }

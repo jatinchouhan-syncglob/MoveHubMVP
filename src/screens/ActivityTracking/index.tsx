@@ -22,6 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
 import { STRINGS } from '../../constants/strings';
+import { formatFriendlyDate } from '../../utils/formatters';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { Loader } from '../../components/common/Loader';
@@ -187,6 +188,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   const [trainingProfile, setTrainingProfile] = useState('Working Set');
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
+  const [showAllRecent, setShowAllRecent] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [modalSelectedPill, setModalSelectedPill] = useState<string | null>(
     null,
@@ -557,9 +559,12 @@ export const ActivityTrackingScreen: React.FC = () => {
     }
   };
 
-  // Debounced API fetch for search query inside the modal
+  // Debounced API fetch for search query
   useEffect(() => {
-    if (!modalVisible) return;
+    if (!modalSearchQuery || modalSearchQuery.trim().length === 0) {
+      setModalSearchActivities(catalogActivities);
+      return;
+    }
 
     const fetchModalCatalog = async () => {
       setModalLoading(true);
@@ -613,7 +618,7 @@ export const ActivityTrackingScreen: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [modalSearchQuery, modalVisible]);
+  }, [modalSearchQuery, catalogActivities]);
 
   useEffect(() => {
     fetchActivities();
@@ -763,7 +768,7 @@ export const ActivityTrackingScreen: React.FC = () => {
   }, [activityType, catalogActivities]);
   // Sync category tab with selected activity category on open
   useEffect(() => {
-    if (modalVisible) {
+    if (activityType) {
       const foundInCatalog = catalogActivities.find(
         item => item.activityName.toLowerCase() === activityType.toLowerCase(),
       );
@@ -817,7 +822,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         }
       }
     }
-  }, [modalVisible, activityType, catalogActivities]);
+  }, [activityType, catalogActivities]);
 
   // Set initial category tab on catalog load
   useEffect(() => {
@@ -1222,7 +1227,6 @@ export const ActivityTrackingScreen: React.FC = () => {
             : resCardioPoints,
       });
 
-      setModalVisible(false);
       setMetricsModalVisible(false);
       setDuration('30');
       setDistance('2.0');
@@ -1637,6 +1641,49 @@ export const ActivityTrackingScreen: React.FC = () => {
     );
   };
 
+  const renderRecentActivityCard = (item: Activity) => {
+    const isSelected =
+      !!activityType && activityType.toLowerCase() === item.type.toLowerCase();
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[
+          styles.recentCompactCard,
+          isSelected && styles.recentCompactCardSelected,
+        ]}
+        onPress={() => {
+          setActivityType(item.type);
+          const found = catalogActivities.find(
+            c => (c.displayName || c.activityName || '').toLowerCase() === item.type.toLowerCase(),
+          );
+          if (found) {
+            setSelectedDynamicActivity(found);
+          }
+        }}
+        activeOpacity={0.75}
+      >
+        <View style={styles.recentCardHeaderRow}>
+          <Text style={styles.recentCardTitle} numberOfLines={1}>
+            {item.type}
+          </Text>
+          <Text style={styles.recentCardDate}>
+            {formatFriendlyDate(item.timestamp)}
+          </Text>
+        </View>
+        <View style={styles.recentCardMetaRow}>
+          <Text style={styles.recentCardValue}>
+            {item.value ? `${item.value.toLocaleString()} ${item.metric || 'mins'}` : `${item.durationMinutes}m`}
+          </Text>
+          <Text style={styles.recentCardDot}>•</Text>
+          <Text style={styles.recentCardCalories}>
+            {item.caloriesBurned} kcal
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader
@@ -1648,16 +1695,14 @@ export const ActivityTrackingScreen: React.FC = () => {
         iconStyle={styles.headerIcon}
       />
 
-      {loading && activities.length === 0 ? (
-        <Loader fullScreen message="Loading activities list..." />
-      ) : (
-        <FlatList
-          data={activities}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <ActivityCard activity={item} isDark={true} />
-          )}
-          contentContainerStyle={styles.listContent}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          scrollEnabled={parentScrollEnabled}
+          contentContainerStyle={styles.modalScroll}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -1665,78 +1710,79 @@ export const ActivityTrackingScreen: React.FC = () => {
               colors={[theme.colors.primary]}
             />
           }
-          ListHeaderComponent={
-            <View style={styles.headerComponent}>
-              <CustomButton
-                title={STRINGS.ACTIVITY_TRACKING.LOG_ACTIVITY}
-                onPress={handleOpenModal}
-                variant="primary"
-                style={styles.addButton}
+        >
+          {/* Main Card: Select Activity & Log Workout Plan */}
+          <View style={styles.formCard}>
+            <Text style={styles.formCardTitle}>
+              🎯 Select Activity Type
+            </Text>
+
+            {/* Search Bar Input */}
+            <View style={styles.modalSearchBar}>
+              <Text style={styles.modalSearchIcon}>🔍</Text>
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search exercise..."
+                placeholderTextColor="#94a3b8"
+                value={modalSearchQuery}
+                onChangeText={text => {
+                  setModalSearchQuery(text);
+                  if (text.trim().length === 0) {
+                    setModalSelectedPill(null);
+                  }
+                  setSelectedBioGoal(null);
+                }}
               />
-            </View>
-          }
-          ListEmptyComponent={
-            <EmptyState
-              title="No Activities Yet"
-              description={STRINGS.ACTIVITY_TRACKING.NO_ACTIVITIES}
-              actionTitle="Log Your First Activity"
-              onActionPress={handleOpenModal}
-            />
-          }
-        />
-      )}
-
-      {/* Interactive Activity Logging Form Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={handleCloseModal}
-      >
-        <View style={styles.modalContainer}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalKeyboardAvoiding}
-          >
-            <SafeAreaView style={styles.modalContent} edges={['top', 'bottom']}>
-              {/* Modal Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>📝 Log Workout Plan</Text>
+              {modalSearchQuery.trim().length > 0 && (
                 <TouchableOpacity
-                  onPress={handleCloseModal}
-                  style={styles.closeBtn}
+                  onPress={() => {
+                    setModalSearchQuery('');
+                    setModalSelectedPill(null);
+                  }}
+                  style={styles.modalSearchClearBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.closeText}>✕</Text>
+                  <Text style={styles.modalSearchClearText}>✕</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+            </View>
 
-              <ScrollView
-                scrollEnabled={parentScrollEnabled}
-                contentContainerStyle={styles.modalScroll}
-                showsVerticalScrollIndicator={false}
-              >
-                {/* Card 1: Select Activity */}
-                <View style={styles.formCard}>
-                  <Text style={styles.formCardTitle}>
-                    🎯 Select Activity Type
-                  </Text>
+            {/* Recent Activities Section (From GET API) - shown right below search in horizontal scroll */}
+            {!modalSearchQuery.trim() && (
+              <View style={styles.recentActivitiesSection}>
+                <View style={styles.recentActivitiesHeader}>
+                  <Text style={styles.sectionTitle}>🕒 RECENT ACTIVITIES</Text>
+                  {activities.length > 0 && (
+                    <View style={styles.recentCountBadge}>
+                      <Text style={styles.recentCountBadgeText}>
+                        {activities.length} LOGGED
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
-                  {/* Search Bar Input */}
-                  <View style={styles.modalSearchBar}>
-                    <TextInput
-                      style={styles.modalSearchInput}
-                      placeholder="Search exercise..."
-                      placeholderTextColor="#94a3b8"
-                      value={modalSearchQuery}
-                      onChangeText={text => {
-                        setModalSearchQuery(text);
-                        if (text.trim().length === 0) {
-                          setModalSelectedPill(null);
-                        }
-                        setSelectedBioGoal(null);
-                      }}
-                    />
+                {loading && activities.length === 0 ? (
+                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#3B82F6" />
                   </View>
+                ) : activities.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.recentHorizontalScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {activities.map(item => renderRecentActivityCard(item))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyRecentContainer}>
+                    <Text style={styles.emptyRecentText}>
+                      No recent activities logged yet. Select an exercise below to get started!
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
                   {/* Master Category Pills */}
                   {modalSearchQuery.trim().length > 0 && (
@@ -2335,53 +2381,52 @@ export const ActivityTrackingScreen: React.FC = () => {
                 </View>
               )}
 
-              {/* Modal Footer */}
-              <View style={styles.modalFooter}>
-                <CustomButton
-                  title="Cancel"
-                  onPress={handleCloseModal}
-                  variant="outline"
-                  style={styles.footerButton}
-                />
-                <CustomButton
-                  title="Next"
-                  disabled={
-                    !activityType ||
-                    activityType.trim().length === 0 ||
-                    isSelectedDistanceBased
-                  }
-                  onPress={() => {
-                    if (isSelectedDistanceBased) {
-                      Alert.alert(
-                        'Notice',
-                        sanitizeString(
-                          selectedDynamicActivity?.message ||
-                            'Please use auto sync',
-                        ),
-                      );
-                      return;
-                    }
-                    if (!activityType || activityType.trim().length === 0) {
-                      Alert.alert(
-                        'Selection Required',
-                        'Please select an exercise first.',
-                      );
-                      return;
-                    }
-                    setModalVisible(false);
-                    setMetricsModalVisible(true);
-                  }}
-                  variant="primary"
-                  style={[
-                    styles.footerButton,
-                    isSelectedDistanceBased && { opacity: 0.5 },
-                  ]}
-                />
-              </View>
-            </SafeAreaView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+              {/* Distance-based bottom spacing */}
+              <View style={{ height: activityType ? 80 : 20 }} />
+        </KeyboardAvoidingView>
+
+        {/* Sticky Action Footer - only visible when an exercise is chosen */}
+        {activityType ? (
+          <View style={styles.selectedActionBottomBar}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={styles.selectedActionLabel}>Selected Exercise</Text>
+              <Text style={styles.selectedActionTitle} numberOfLines={1}>
+                {activeRegistryItem?.emoji ? `${activeRegistryItem.emoji} ` : ''}{activityType}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setActivityType('');
+                setSelectedDynamicActivity(null);
+              }}
+              style={styles.selectedActionClearBtn}
+            >
+              <Text style={styles.selectedActionClearText}>Clear</Text>
+            </TouchableOpacity>
+            <CustomButton
+              title="Next ➔"
+              disabled={isSelectedDistanceBased}
+              onPress={() => {
+                if (isSelectedDistanceBased) {
+                  Alert.alert(
+                    'Notice',
+                    sanitizeString(
+                      selectedDynamicActivity?.message ||
+                        'Please use auto sync',
+                    ),
+                  );
+                  return;
+                }
+                setMetricsModalVisible(true);
+              }}
+              variant="primary"
+              style={[
+                styles.selectedActionNextBtn,
+                isSelectedDistanceBased && { opacity: 0.5 },
+              ]}
+            />
+          </View>
+        ) : null}
 
       {/* Interactive Workout Metrics Form Modal */}
       <Modal
@@ -2401,7 +2446,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                 <TouchableOpacity
                   onPress={() => {
                     setMetricsModalVisible(false);
-                    setModalVisible(true);
                   }}
                   style={styles.backBtn}
                 >
@@ -2901,7 +2945,6 @@ export const ActivityTrackingScreen: React.FC = () => {
                   title="Back"
                   onPress={() => {
                     setMetricsModalVisible(false);
-                    setModalVisible(true);
                   }}
                   variant="outline"
                   style={styles.footerButton}
@@ -3451,6 +3494,148 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B0F19',
   },
+  recentActivitiesSection: {
+    marginTop: 10,
+    marginBottom: 14,
+  },
+  recentActivitiesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  recentCountBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  recentCountBadgeText: {
+    color: '#60A5FA',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  recentHorizontalScroll: {
+    gap: 8,
+    paddingVertical: 2,
+    paddingRight: 10,
+  },
+  recentCompactCard: {
+    backgroundColor: '#131B2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    minWidth: 135,
+    maxWidth: 175,
+    justifyContent: 'center',
+  },
+  recentCompactCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#1E293B',
+  },
+  recentCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+    gap: 4,
+  },
+  recentCardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F8FAFC',
+    flexShrink: 1,
+  },
+  recentCardDate: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  recentCardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recentCardValue: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#38BDF8',
+  },
+  recentCardDot: {
+    fontSize: 8,
+    color: '#64748B',
+  },
+  recentCardCalories: {
+    fontSize: 10.5,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  emptyRecentContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#131B2E',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    marginBottom: 4,
+  },
+  emptyRecentText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  selectedActionBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#151E33',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  selectedActionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectedActionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 1,
+  },
+  selectedActionClearBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#1E293B',
+    marginRight: 10,
+  },
+  selectedActionClearText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  selectedActionNextBtn: {
+    minWidth: 105,
+    height: 40,
+  },
   bioGoalPillsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -3485,18 +3670,36 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   modalSearchBar: {
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 48,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
     borderWidth: 1,
     borderColor: '#334155',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  modalSearchIcon: {
+    marginRight: 8,
+    fontSize: 13,
   },
   modalSearchInput: {
+    flex: 1,
     color: '#F8FAFC',
-    fontSize: 15,
+    fontSize: 14,
+    paddingVertical: 0,
+    height: '100%',
+  },
+  modalSearchClearBtn: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSearchClearText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '700',
   },
   modalPillsScroll: {
     flexDirection: 'row',

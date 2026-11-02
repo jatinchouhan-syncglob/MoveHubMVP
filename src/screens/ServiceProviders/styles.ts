@@ -463,7 +463,12 @@ export const styles = StyleSheet.create({
     elevation: 6,
   },
   registerBtnDisabled: {
-    opacity: 0.6,
+    backgroundColor: '#1E293B',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  registerBtnTextDisabled: {
+    color: '#64748B',
   },
   loadingContainer: {
     paddingVertical: 36,

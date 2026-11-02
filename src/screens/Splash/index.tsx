@@ -46,7 +46,11 @@ export const SplashScreen: React.FC = () => {
       try {
         const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        if (token && cachedProfile?.isSetupComplete) {
+        const effectiveToken = token || cachedProfile?.token;
+        if (effectiveToken && cachedProfile?.isSetupComplete) {
+          if (!token && cachedProfile?.token) {
+            await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
+          }
           prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
           navigation.replace(ROUTES.DRAWER);
         } else {
@@ -69,7 +73,11 @@ export const SplashScreen: React.FC = () => {
     try {
       const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      if (token && cachedProfile?.isSetupComplete) {
+      const effectiveToken = token || cachedProfile?.token;
+      if (effectiveToken && cachedProfile?.isSetupComplete) {
+        if (!token && cachedProfile?.token) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
+        }
         prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
         navigation.replace(ROUTES.DRAWER);
       } else {

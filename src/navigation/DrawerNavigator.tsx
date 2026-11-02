@@ -29,6 +29,7 @@ import AwardsScreen from '../screens/Awards';
 import FitnessChallengesScreen from '../screens/FitnessChallenges';
 import TelemetryLogScreen from '../screens/TelemetryLog';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
+import WorkplaceStressorsScreen from '../screens/WorkplaceStressors';
 import NutritionalProfilerScreen from '../screens/NutritionalProfiler';
 import ExercisePrescriptionScreen from '../screens/ExercisePrescription';
 import LifestyleProfilerScreen from '../screens/LifestyleProfiler';
@@ -254,6 +255,7 @@ const DrawerNavigatorContent: React.FC = () => {
             'Prescription',
       'TelemetryLog',
       'ActivityTracking',
+      'WorkplaceStressors',
       'NutritionalProfiler',
       'ExercisePrescription',
       'LifestyleProfiler',
@@ -469,6 +471,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <TelemetryLogScreen />;
       case 'ActivityTracking':
         return <ActivityTrackingScreen />;
+      case 'WorkplaceStressors':
+        return <WorkplaceStressorsScreen />;
       case 'NutritionalProfiler':
         return <NutritionalProfilerScreen />;
       case 'ExercisePrescription':
@@ -546,11 +550,13 @@ const DrawerNavigatorContent: React.FC = () => {
         label: 'Assessment',
         icon: '📝',
       },
+      /*
       {
         screen: 'Arena',
         label: 'Arena',
         icon: '🏟️',
       },
+      */
       {
         screen: 'Prescription',
         label: 'Prescription',
@@ -702,6 +708,7 @@ const DrawerNavigatorContent: React.FC = () => {
                                                 'Prescription',
                         'TelemetryLog',
                         'ActivityTracking',
+      'WorkplaceStressors',
                         'NutritionalProfiler',
                         'ExercisePrescription',
                         'LifestyleProfiler',
@@ -717,6 +724,7 @@ const DrawerNavigatorContent: React.FC = () => {
                                                 'Prescription',
                         'TelemetryLog',
                         'ActivityTracking',
+      'WorkplaceStressors',
                         'NutritionalProfiler',
                         'ExercisePrescription',
                         'LifestyleProfiler',

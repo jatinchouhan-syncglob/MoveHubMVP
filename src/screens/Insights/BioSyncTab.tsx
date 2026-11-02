@@ -429,7 +429,7 @@ const BioSyncTab = ({
             <Text style={styles.emptyChartIcon}>⚡</Text>
           </View>
           <Text style={[styles.cardTitle, { color: '#064E3B', fontSize: 15, fontWeight: '800' }]}>
-            Energy Expenditure Economy (EE/KM) - E3
+            Energy Expenditure Economy- E3
           </Text>
         </View>
 
@@ -451,11 +451,11 @@ const BioSyncTab = ({
               )}
             </ScrollableChart>
           ) : (
-            <EmptyChart title="Energy Expenditure Economy (EE/KM)" />
+            <EmptyChart title="Energy Expenditure Economy" />
           )}
         </View>
         <Text style={[styles.caption, { color: '#065F46' }]}>
-          Lower energy per km (EE/KM - E3) indicates higher metabolic economy.
+          Lower E3 indicates higher metabolic economy.
         </Text>
 
         {eePerKmCharts &&
@@ -802,7 +802,7 @@ const BioSyncTab = ({
               {weeklyPerformanceSummary.eeKmAvg}
             </Text>
             {renderTrendIndicator(weeklyPerformanceSummary.eeKmTrend, weeklyPerformanceSummary.eeKmAvg)}
-            <Text style={styles.metricLabel}>EE/KM (E3) Avg</Text>
+            <Text style={styles.metricLabel}>(E3) Avg</Text>
           </View>
           <View style={styles.metricItem}>
             <Text style={styles.metricValue}>
@@ -860,13 +860,13 @@ const BioSyncTab = ({
         </View>
 
         <View style={[styles.legendRow, { backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 }]}>
-          <LegendItem color="#F97316" label="EE/KM (E3)" dashed />
+          <LegendItem color="#F97316" label="(E3)" dashed />
           <LegendItem color="#10B981" label="IS (Stamina)" />
           <LegendItem color="#3B82F6" label="PPI (Intensity)" />
         </View>
 
         <Text style={[styles.caption, { color: '#4338CA', marginTop: 8 }]}>
-          Weekly trend for EE/KM (E3), IS (Stamina) and PPI (Intensity) performance.
+          Weekly trend for (E3), IS (Stamina) and PPI (Intensity) performance.
         </Text>
 
         {weeklyTrendCharts &&

@@ -77,6 +77,8 @@ export const ServiceProvidersScreen: React.FC = () => {
 
   // Selected Providers State (In-memory, dynamic)
   const [selectedProviders, setSelectedProviders] = useState<IServiceProvider[]>([]);
+  // Server-saved providers state (tracks what came from GET or was last successfully saved)
+  const [serverRegisteredProviders, setServerRegisteredProviders] = useState<IServiceProvider[]>([]);
 
   // All 4 categories start CLOSED by default
   const [expandedCategories, setExpandedCategories] = useState<
@@ -114,8 +116,13 @@ export const ServiceProvidersScreen: React.FC = () => {
 
   // Load providers & profile from backend API on mount
   useEffect(() => {
-    fetchUserProfileData();
-    fetchProviders();
+    const initialize = async () => {
+      const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = cached?.uhid || '';
+      fetchUserProfileData();
+      fetchProviders(targetUhid);
+    };
+    initialize();
   }, []);
 
   const fetchUserProfileData = async () => {
@@ -169,25 +176,112 @@ export const ServiceProvidersScreen: React.FC = () => {
     }
   };
 
-  const fetchProviders = async () => {
+  const fetchProviders = async (passedUhid?: string) => {
     try {
-      const data = await apiService.getHealthServiceProviders();
-      const hospitals = (data?.hospitals || []).map(item => ({
-        ...item,
-        category: 'hospital' as ProviderCategory,
-      }));
-      const labs = (data?.labs || []).map(item => ({
-        ...item,
-        category: 'lab' as ProviderCategory,
-      }));
-      const physicians = (data?.physicians || []).map(item => ({
-        ...item,
-        category: 'physician' as ProviderCategory,
-      }));
-      const gyms = (data?.gyms || []).map(item => ({
-        ...item,
-        category: 'gym' as ProviderCategory,
-      }));
+      setIsLoading(true);
+      const currentUhid =
+        passedUhid ||
+        uhid ||
+        (await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE))?.uhid ||
+        '';
+
+      const data = await apiService.getHealthServiceProviders(currentUhid);
+      const customList = data?.customProviders || [];
+
+      // Helper to find custom metadata for an item
+      const findCustom = (item: any) =>
+        customList.find(
+          (c: any) =>
+            String(c.id) === String(item.id) ||
+            (c.name &&
+              item.name &&
+              c.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
+              c.category &&
+              item.category &&
+              c.category.trim().toLowerCase() === item.category.trim().toLowerCase()),
+        );
+
+      const dedupeList = (list: IServiceProvider[]): IServiceProvider[] => {
+        const seen = new Set<string>();
+        return list.filter(item => {
+          const key = (item.name || '').trim().toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      };
+
+      const hospitals = dedupeList(
+        (data?.hospitals || []).map(item => {
+          const custom = findCustom(item);
+          return {
+            ...item,
+            category: 'hospital' as ProviderCategory,
+            subtext: item.subtext || custom?.specialty,
+            address: item.address || custom?.address,
+            phone: item.phone || custom?.phone,
+            state: item.state || custom?.state,
+            city: item.city || custom?.city,
+            pincode: item.pincode || custom?.pincode,
+            area: item.area || custom?.area,
+            isSelected: item.isSelected !== undefined ? item.isSelected : true,
+          };
+        }),
+      );
+
+      const labs = dedupeList(
+        (data?.labs || []).map(item => {
+          const custom = findCustom(item);
+          return {
+            ...item,
+            category: 'lab' as ProviderCategory,
+            subtext: item.subtext || custom?.specialty,
+            address: item.address || custom?.address,
+            phone: item.phone || custom?.phone,
+            state: item.state || custom?.state,
+            city: item.city || custom?.city,
+            pincode: item.pincode || custom?.pincode,
+            area: item.area || custom?.area,
+            isSelected: item.isSelected !== undefined ? item.isSelected : true,
+          };
+        }),
+      );
+
+      const physicians = dedupeList(
+        (data?.physicians || []).map(item => {
+          const custom = findCustom(item);
+          return {
+            ...item,
+            category: 'physician' as ProviderCategory,
+            subtext: item.subtext || custom?.specialty,
+            address: item.address || custom?.address,
+            phone: item.phone || custom?.phone,
+            state: item.state || custom?.state,
+            city: item.city || custom?.city,
+            pincode: item.pincode || custom?.pincode,
+            area: item.area || custom?.area,
+            isSelected: item.isSelected !== undefined ? item.isSelected : true,
+          };
+        }),
+      );
+
+      const gyms = dedupeList(
+        (data?.gyms || []).map(item => {
+          const custom = findCustom(item);
+          return {
+            ...item,
+            category: 'gym' as ProviderCategory,
+            subtext: item.subtext || custom?.specialty,
+            address: item.address || custom?.address,
+            phone: item.phone || custom?.phone,
+            state: item.state || custom?.state,
+            city: item.city || custom?.city,
+            pincode: item.pincode || custom?.pincode,
+            area: item.area || custom?.area,
+            isSelected: item.isSelected !== undefined ? item.isSelected : true,
+          };
+        }),
+      );
 
       setDirectory({
         hospital: hospitals,
@@ -196,21 +290,60 @@ export const ServiceProvidersScreen: React.FC = () => {
         gym: gyms,
       });
 
-      // If backend returns any items with isSelected: true, reflect them
+      // Loaded custom providers list (only keep items not already in the category directory lists)
+      const isAlreadyInDirectory = (name?: string, category?: string) => {
+        if (!name || !category) return false;
+        const cat = category.toLowerCase();
+        const list =
+          cat === 'hospital'
+            ? hospitals
+            : cat === 'lab'
+            ? labs
+            : cat === 'physician'
+            ? physicians
+            : gyms;
+        return list.some(
+          d => d.name.trim().toLowerCase() === name.trim().toLowerCase(),
+        );
+      };
+
+      const loadedCustomProviders: IServiceProvider[] = customList
+        .filter((c: any) => !isAlreadyInDirectory(c.name, c.category))
+        .map((c: any) => ({
+          id: `custom_${c.id || Date.now()}`,
+          category: (c.category || 'hospital').toLowerCase() as ProviderCategory,
+          name: c.name || '',
+          subtext: c.specialty || '',
+          address: c.address || '',
+          phone: c.phone || '',
+          state: c.state || '',
+          city: c.city || '',
+          pincode: c.pincode || '',
+          area: c.area || '',
+          tags: [c.area, c.city, 'CUSTOM'].filter(Boolean),
+          isSelected: true,
+        }));
+      setCustomProviders(loadedCustomProviders);
+
+      // Pre-fill selected providers from GET API response:
       const serverSelected: IServiceProvider[] = [
         ...hospitals.filter(h => h.isSelected),
         ...labs.filter(l => l.isSelected),
         ...physicians.filter(p => p.isSelected),
         ...gyms.filter(g => g.isSelected),
+        ...loadedCustomProviders.filter(cp => cp.isSelected),
       ];
 
-      if (serverSelected.length > 0) {
-        setSelectedProviders(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const toAdd = serverSelected.filter(s => !existingIds.has(s.id));
-          return [...prev, ...toAdd];
-        });
-      }
+      const seenSelected = new Set<string>();
+      const uniqueSelected = serverSelected.filter(s => {
+        const key = `${s.category}_${s.name.trim().toLowerCase()}`;
+        if (seenSelected.has(key)) return false;
+        seenSelected.add(key);
+        return true;
+      });
+
+      setSelectedProviders(uniqueSelected);
+      setServerRegisteredProviders(uniqueSelected);
     } catch (err) {
       console.warn('[ServiceProviders] Failed to fetch providers:', err);
       Alert.alert(
@@ -244,18 +377,40 @@ export const ServiceProvidersScreen: React.FC = () => {
   // SELECT PROVIDER FROM DROPDOWN:
   // Auto-closes the category dropdown immediately upon selection
   const handleSelectOption = (item: IServiceProvider) => {
-    const isAlreadySelected = selectedProviders.some(p => p.id === item.id);
-    let updated: IServiceProvider[];
+    const isAlreadySelected = selectedProviders.some(
+      p =>
+        p.id === item.id ||
+        (p.name.trim().toLowerCase() === item.name.trim().toLowerCase() &&
+          p.category === item.category),
+    );
 
     if (isAlreadySelected) {
-      // Toggle off / remove
-      updated = selectedProviders.filter(p => p.id !== item.id);
-    } else {
-      // Add to selected list for this category
-      updated = [...selectedProviders, item];
+      // Already selected - keep selection and auto-close collapse
+      setExpandedCategories(prev => ({
+        ...prev,
+        [item.category]: false,
+      }));
+      return;
     }
 
-    setSelectedProviders(updated);
+    // Check if category already has 1 provider selected
+    const existingCount = selectedProviders.filter(
+      p => p.category === item.category,
+    ).length;
+
+    if (existingCount >= 1) {
+      const categoryName =
+        CATEGORIES_CONFIG[item.category]?.title?.split('/')[0] || 'Provider';
+      setAlertTitle(`${categoryName} Limit Reached`);
+      setAlertMessage(
+        `You can add only 1 ${categoryName}. You have already registered a ${categoryName}. Only one provider per category is permitted.`,
+      );
+      setAlertType('warning');
+      setAlertModalVisible(true);
+      return;
+    }
+
+    setSelectedProviders(prev => [...prev, item]);
 
     // AUTO-CLOSE THE COLLAPSE IMMEDIATELY UPON SELECTION
     setExpandedCategories(prev => ({
@@ -264,14 +419,22 @@ export const ServiceProvidersScreen: React.FC = () => {
     }));
   };
 
-  // REMOVE SELECTED PROVIDER
-  const handleRemoveSelected = (item: IServiceProvider) => {
-    const updated = selectedProviders.filter(p => p.id !== item.id);
-    setSelectedProviders(updated);
-  };
 
   // OPEN MODAL FOR CUSTOM ADD
   const handleOpenAddModal = (cat: ProviderCategory = 'hospital') => {
+    const existingCount = selectedProviders.filter(p => p.category === cat).length;
+    if (existingCount >= 1) {
+      const categoryName =
+        CATEGORIES_CONFIG[cat]?.title?.split('/')[0] || 'Provider';
+      setAlertTitle(`${categoryName} Limit Reached`);
+      setAlertMessage(
+        `You can add only 1 ${categoryName}. You have already registered a ${categoryName}. Only one provider per category is permitted.`,
+      );
+      setAlertType('warning');
+      setAlertModalVisible(true);
+      return;
+    }
+
     setFormCategory(cat);
     setFormName('');
     setFormSubtext('');
@@ -291,6 +454,21 @@ export const ServiceProvidersScreen: React.FC = () => {
     if (!formName.trim()) {
       setAlertTitle('Missing Name');
       setAlertMessage('Please enter a valid facility or provider name.');
+      setAlertType('warning');
+      setAlertModalVisible(true);
+      return;
+    }
+
+    const existingCount = selectedProviders.filter(
+      p => p.category === formCategory,
+    ).length;
+    if (existingCount >= 1) {
+      const categoryName =
+        CATEGORIES_CONFIG[formCategory]?.title?.split('/')[0] || 'Provider';
+      setAlertTitle(`${categoryName} Limit Reached`);
+      setAlertMessage(
+        `You can add only 1 ${categoryName}. You have already added a ${categoryName}.`,
+      );
       setAlertType('warning');
       setAlertModalVisible(true);
       return;
@@ -409,32 +587,23 @@ export const ServiceProvidersScreen: React.FC = () => {
       const activeUhid =
         uhid.trim() ||
         (await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE))?.uhid?.trim() ||
-        '';
+        'LIVSCO4573';
 
-      // Extract selected IDs from the fetched directory
-      const selectedProviderIds = selectedProviders
-        .filter(p => !p.id.startsWith('custom_'))
-        .map(p => p.id);
-
-      // Extract custom providers formatted as required by backend (small case keys and values)
-      const customPayloadList: ICustomProviderPayload[] = selectedProviders
-        .filter(p => p.id.startsWith('custom_'))
-        .map(p => ({
-          category: p.category.toLowerCase(),
-          name: p.name,
-          specialty: p.subtext || '',
-          address: p.address || '',
-          state: (p.state || '').trim().toLowerCase(),
-          city: (p.city || '').trim().toLowerCase(),
-          pincode: (p.pincode || '').trim().toLowerCase(),
-          area: (p.area || '').trim().toLowerCase(),
-          uhid: activeUhid.toLowerCase(),
-          phone: p.phone || '',
-        }));
+      // Format all selected providers into customProviders array as expected by the new API
+      const customPayloadList: ICustomProviderPayload[] = selectedProviders.map(p => ({
+        category: p.category.toLowerCase(),
+        name: p.name.trim(),
+        specialty: (p.subtext || '').trim(),
+        address: (p.address || '').trim(),
+        phone: (p.phone || '').trim(),
+        state: (p.state || 'Karnataka').trim(),
+        city: (p.city || city || 'Bengaluru').trim(),
+        pincode: (p.pincode || '560038').trim(),
+        area: (p.area || location || 'Indiranagar').trim(),
+      }));
 
       const payload: IRegisterProvidersPayload = {
         uhid: activeUhid,
-        selectedProviderIds,
         customProviders: customPayloadList,
       };
 
@@ -448,6 +617,10 @@ export const ServiceProvidersScreen: React.FC = () => {
       );
       setAlertType('success');
       setAlertModalVisible(true);
+      setServerRegisteredProviders(selectedProviders);
+
+      // Re-fetch to keep prefilled and UI state synchronized with backend
+      await fetchProviders(activeUhid);
     } catch (err: any) {
       console.error('[ServiceProviders] Registration failed:', err);
       const msg =
@@ -462,21 +635,43 @@ export const ServiceProvidersScreen: React.FC = () => {
     }
   };
 
-  // Total Available Directory Counts (Real live API count + custom added)
+  // Tracks whether the user has newly selected or changed any provider compared to server state
+  const hasPendingChanges = useMemo(() => {
+    if (selectedProviders.length === 0) return false;
+    if (selectedProviders.length !== serverRegisteredProviders.length) return true;
+
+    const serverKeys = new Set(
+      serverRegisteredProviders.map(
+        s => `${s.category}_${(s.name || '').trim().toLowerCase()}`,
+      ),
+    );
+
+    return selectedProviders.some(
+      p => !serverKeys.has(`${p.category}_${(p.name || '').trim().toLowerCase()}`),
+    );
+  }, [selectedProviders, serverRegisteredProviders]);
+
+  // Total Available Directory Counts (Deduplicated unique count per category)
   const availableCounts = useMemo(() => {
+    const getCount = (catKey: ProviderCategory) => {
+      const raw = [
+        ...customProviders.filter(p => p.category === catKey),
+        ...(directory[catKey] || []),
+      ];
+      const seen = new Set<string>();
+      return raw.filter(item => {
+        const key = item.name.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).length;
+    };
+
     return {
-      hospital:
-        (directory.hospital?.length || 0) +
-        customProviders.filter(p => p.category === 'hospital').length,
-      lab:
-        (directory.lab?.length || 0) +
-        customProviders.filter(p => p.category === 'lab').length,
-      physician:
-        (directory.physician?.length || 0) +
-        customProviders.filter(p => p.category === 'physician').length,
-      gym:
-        (directory.gym?.length || 0) +
-        customProviders.filter(p => p.category === 'gym').length,
+      hospital: getCount('hospital'),
+      lab: getCount('lab'),
+      physician: getCount('physician'),
+      gym: getCount('gym'),
     };
   }, [directory, customProviders]);
 
@@ -810,7 +1005,21 @@ export const ServiceProvidersScreen: React.FC = () => {
             <TouchableOpacity
               style={styles.heroAddAllBtn}
               activeOpacity={0.8}
-              onPress={() => handleOpenAddModal('hospital')}
+              onPress={() => {
+                const availableCat = categoryKeys.find(
+                  k => selectedProviders.filter(p => p.category === k).length === 0,
+                );
+                if (!availableCat) {
+                  setAlertTitle('Limit Reached');
+                  setAlertMessage(
+                    'You have already registered 1 provider for each category (Hospital, Lab, Doctor, Gym). Maximum 1 provider per category is permitted.',
+                  );
+                  setAlertType('warning');
+                  setAlertModalVisible(true);
+                  return;
+                }
+                handleOpenAddModal(availableCat);
+              }}
             >
               <Text style={styles.heroAddAllText}>+ Add Custom</Text>
             </TouchableOpacity>
@@ -904,10 +1113,17 @@ export const ServiceProvidersScreen: React.FC = () => {
           );
 
           // All selectable options for this category (live directory + custom added)
-          const allOptions = [
+          const rawOptions = [
             ...customProviders.filter(p => p.category === catKey),
             ...(directory[catKey] || []),
           ];
+          const seenKeys = new Set<string>();
+          const allOptions = rawOptions.filter(opt => {
+            const key = `${opt.category}_${opt.name.trim().toLowerCase()}`;
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
 
           // Filtered options based on category search input
           const searchQuery = categorySearch[catKey] || '';
@@ -976,19 +1192,21 @@ export const ServiceProvidersScreen: React.FC = () => {
 
                   {/* Actions: Add Button + Dropdown Chevron */}
                   <View style={styles.categoryHeaderActions}>
-                    <TouchableOpacity
-                      style={[
-                        styles.addCategoryBtn,
-                        { backgroundColor: config.accentColor },
-                      ]}
-                      activeOpacity={0.7}
-                      onPress={e => {
-                        e.stopPropagation();
-                        handleOpenAddModal(catKey);
-                      }}
-                    >
-                      <Text style={styles.addCategoryIcon}>+</Text>
-                    </TouchableOpacity>
+                    {categorySelectedItems.length === 0 && (
+                      <TouchableOpacity
+                        style={[
+                          styles.addCategoryBtn,
+                          { backgroundColor: config.accentColor },
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={e => {
+                          e.stopPropagation();
+                          handleOpenAddModal(catKey);
+                        }}
+                      >
+                        <Text style={styles.addCategoryIcon}>+</Text>
+                      </TouchableOpacity>
+                    )}
 
                     <View style={styles.chevronBox}>
                       <Text style={styles.chevronText}>
@@ -1033,17 +1251,8 @@ export const ServiceProvidersScreen: React.FC = () => {
                               {item.name}
                             </Text>
                           </View>
-                          {/* Remove Selected Button */}
-                          <TouchableOpacity
-                            style={styles.removeItemBtn}
-                            activeOpacity={0.7}
-                            onPress={e => {
-                              e.stopPropagation();
-                              handleRemoveSelected(item);
-                            }}
-                          >
-                            <Text style={styles.removeItemText}>✕</Text>
-                          </TouchableOpacity>
+                          {/* Cross button removed */}
+                          <View />
                         </View>
 
                         {item.subtext ? (
@@ -1121,7 +1330,10 @@ export const ServiceProvidersScreen: React.FC = () => {
                     ) : (
                       filteredOptions.map(option => {
                         const isOptionSelected = selectedProviders.some(
-                          p => p.id === option.id,
+                          p =>
+                            p.id === option.id ||
+                            (p.name.trim().toLowerCase() === option.name.trim().toLowerCase() &&
+                              p.category === option.category),
                         );
 
                         return (
@@ -1181,15 +1393,17 @@ export const ServiceProvidersScreen: React.FC = () => {
                     )}
 
                     {/* Bottom "+ Add Custom Provider" Button inside dropdown */}
-                    <TouchableOpacity
-                      style={styles.dropdownCustomAddRow}
-                      activeOpacity={0.7}
-                      onPress={() => handleOpenAddModal(catKey)}
-                    >
-                      <Text style={styles.dropdownCustomAddText}>
-                        + Add Custom {config.title.split('/')[0]}
-                      </Text>
-                    </TouchableOpacity>
+                    {categorySelectedItems.length === 0 && (
+                      <TouchableOpacity
+                        style={styles.dropdownCustomAddRow}
+                        activeOpacity={0.7}
+                        onPress={() => handleOpenAddModal(catKey)}
+                      >
+                        <Text style={styles.dropdownCustomAddText}>
+                          + Add Custom {config.title.split('/')[0]}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               )}
@@ -1206,21 +1420,35 @@ export const ServiceProvidersScreen: React.FC = () => {
       {activePhase === 'providers' && (
       <View style={styles.registerBottomBar}>
         <TouchableOpacity
-          style={[styles.registerBtn, isSubmitting && styles.registerBtnDisabled]}
+          style={[
+            styles.registerBtn,
+            (!hasPendingChanges || isSubmitting) && styles.registerBtnDisabled,
+          ]}
           activeOpacity={0.85}
-          disabled={isSubmitting}
+          disabled={!hasPendingChanges || isSubmitting}
           onPress={handleRegisterProviders}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.registerBtnText}>
-              Register Service Providers {selectedProviders.length > 0 ? `(${selectedProviders.length})` : ''}
+            <Text
+              style={[
+                styles.registerBtnText,
+                (!hasPendingChanges || isSubmitting) && styles.registerBtnTextDisabled,
+              ]}
+            >
+              {hasPendingChanges
+                ? `Register Service Providers (${selectedProviders.length})`
+                : serverRegisteredProviders.length > 0
+                ? `Registered (${selectedProviders.length})`
+                : 'Register Service Providers'}
             </Text>
           )}
         </TouchableOpacity>
         <Text style={styles.registerSubtext}>
-          Registers your selected healthcare & gym partners directly with MoveHub
+          {hasPendingChanges
+            ? 'Registers your selected healthcare & gym partners directly with MoveHub'
+            : 'All selected healthcare & gym partners are registered with MoveHub'}
         </Text>
       </View>
       )}

@@ -437,7 +437,7 @@ export const LifestyleProfilerScreen: React.FC<LifestyleProfilerProps> = ({
         title={alertTitle}
         message={alertMessage}
         type={alertType}
-        buttonText={alertType === 'success' ? (isEmbedded ? 'Next: Exercise Prescription ➡️' : 'Great!') : 'Dismiss'}
+        buttonText={alertType === 'success' ? (isEmbedded ? 'Next: Workplace Stressors ➡️' : 'Great!') : 'Dismiss'}
         onClose={() => {
           setAlertModalVisible(false);
           if (isEmbedded && alertType === 'success') {

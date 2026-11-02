@@ -27,6 +27,7 @@ export const ROUTES = {
   PRIVACY_POLICY: 'PrivacyPolicy',
   JOIN_CHALLENGE: 'JoinChallenge',
   SERVICE_PROVIDERS: 'ServiceProviders',
+  WORKPLACE_STRESSORS: 'WorkplaceStressors',
 } as const;
 
 export type RouteType = typeof ROUTES[keyof typeof ROUTES];

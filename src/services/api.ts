@@ -64,12 +64,21 @@ axios.interceptors.response.use(
       (error.response.status === 401 || error.response.status === 403)
     ) {
       console.warn(
-        '[apiService] 401/403 Unauthorized detected! Token expired or invalid.',
+        `[apiService] 401/403 Unauthorized detected on URL: ${error.config?.url}`,
       );
       try {
-        await storageHelper.removeItem(STORAGE_KEYS.TOKEN);
+        const currentToken = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
+        // Only invalidate if not in mock token testing and endpoint is core auth validation
+        const reqUrl = error.config?.url || '';
+        if (
+          currentToken &&
+          !currentToken.startsWith('mock-') &&
+          (reqUrl.includes('/auth/validate') || reqUrl.includes('/auth/verify') || reqUrl.includes('/auth/me'))
+        ) {
+          await storageHelper.removeItem(STORAGE_KEYS.TOKEN);
+        }
       } catch (e) {
-        console.warn('[apiService] Error removing expired token:', e);
+        console.warn('[apiService] Error checking expired token:', e);
       }
     }
     return Promise.reject(error);
@@ -930,9 +939,17 @@ export const apiService = {
     }
   },
 
-  async getHealthServiceProviders(): Promise<IServiceProvidersDirectory> {
+  async getHealthServiceProviders(
+    uhid?: string,
+  ): Promise<IServiceProvidersDirectory> {
     try {
-      const url = `${BACKEND_8081_URL}/backend/health-connect/referral/health-service-providers`;
+      const targetUhid = uhid ? uhid.trim() : '';
+      const url = targetUhid
+        ? `${BACKEND_8081_URL}/backend/service-providers/health-service-providers?uhid=${encodeURIComponent(
+            targetUhid,
+          )}`
+        : `${BACKEND_8081_URL}/backend/service-providers/health-service-providers`;
+      console.log(`[apiService] GET Health Service Providers URL: ${url}`);
       const response = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -956,9 +973,11 @@ export const apiService = {
     payload: IRegisterProvidersPayload,
   ): Promise<any> {
     try {
-      const url = `${BACKEND_8081_URL}/backend/health-connect/api/service-providers/register/`;
+      const url = `${BACKEND_8081_URL}/backend/service-providers/register`;
       console.log(
-        '[apiService] POST Register Service Providers Payload:',
+        '[apiService] POST Register Service Providers URL:',
+        url,
+        'Payload:',
         JSON.stringify(payload, null, 2),
       );
       const response = await axios.post(url, payload, {
@@ -987,6 +1006,13 @@ export const apiService = {
         '[apiService] POST Signin Response:',
         JSON.stringify(response.data, null, 2),
       );
+      if (response.data) {
+        const resData = response.data.data || response.data;
+        const authToken = resData.token || response.data.token || resData.authToken;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
+      }
       return response.data;
     } catch (error) {
       console.error('Error in signin:', error);
@@ -1013,6 +1039,13 @@ export const apiService = {
         '[apiService] POST Signup Response:',
         JSON.stringify(response.data, null, 2),
       );
+      if (response.data) {
+        const resData = response.data.data || response.data;
+        const authToken = resData.token || response.data.token || resData.authToken;
+        if (authToken) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
+        }
+      }
       return response.data;
     } catch (error) {
       console.error('Error in signup:', error);
@@ -1065,7 +1098,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = uhid || cachedProfile?.uhid;
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
       const targetMonth = month || 'July 2026';
 
       const url = `${BACKEND_8081_URL}/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(
@@ -1499,6 +1532,56 @@ export const apiService = {
     }
   },
 
+  /**
+   * Fetch active fitness challenges for a UHID
+   */
+  async getActiveChallenges(uhid?: string): Promise<any> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/challenges/active?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(`[apiService] GET getActiveChallenges URL: ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[apiService] Error in getActiveChallenges:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Join/Enroll in a fitness challenge
+   */
+  async joinChallenge(payload: { uhid: string; challengeId: string }): Promise<any> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/challenge/join`;
+      console.log(`[apiService] POST joinChallenge URL: ${url}`, JSON.stringify(payload));
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[apiService] Error in joinChallenge:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
   async getPhase1Leaderboard(
     uhid?: string,
   ): Promise<Phase1LeaderboardResponse> {
@@ -1686,6 +1769,110 @@ export const apiService = {
     } catch (error: any) {
       console.error(
         `[apiService] POST nominateReferralEntity FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Phase 2 Prescription API
+   * Fetch 7-day rolling baseline, current prescription formulation, and archived prescriptions.
+   */
+  async getPhase2Prescription(uhid?: string): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url =
+        'https://healthconnect.livingscopehealth.in/health/api/phase2prescription';
+      const body = `uhid=${encodeURIComponent(targetUhid)}`;
+      console.log(
+        `[apiService] POST getPhase2Prescription: ${url} for UHID: ${targetUhid}`,
+      );
+      const response = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST getPhase2Prescription FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Get latest Exercise Prescription intake by UHID
+   */
+  async getLatestExercisePrescription(uhid?: string): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'LIVSCO4573';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/exercise-prescription/latest?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(`[apiService] GET getLatestExercisePrescription: ${url}`);
+      const response = await axios.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] GET getLatestExercisePrescription FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Save / Submit Exercise Prescription intake
+   */
+  async saveExercisePrescription(payload: {
+    uhid: string;
+    userId: string;
+    q1FitnessGoal: string;
+    q2BodyFrame: string;
+    q3JointDiscomfort: string;
+    q4TrainingExperience: string;
+    q5DailyWorkRoutine: string;
+    q6SleepWakingFatigue: string;
+    q7StressWorkload: string;
+    q8NutritionalPattern: string;
+    q9GymEquipmentAccess: string;
+  }): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/exercise-prescription/save`;
+      console.log(
+        `[apiService] POST saveExercisePrescription: ${url}`,
+        JSON.stringify(payload),
+      );
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST saveExercisePrescription FAILED:`,
         error?.response?.data || error?.message,
       );
       throw error;

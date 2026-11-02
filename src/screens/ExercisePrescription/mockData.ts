@@ -138,7 +138,7 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
       },
       {
         id: 'q4_intermediate',
-        text: 'Intermediate',
+        text: 'Intermediate / Regular Lifter',
         subtext: 'I have worked out consistently for a few months/years.',
         icon: '⭐',
         aiMapping: 'Progressive Overload • 3-4 Sets',
@@ -237,7 +237,7 @@ export const INTAKE_QUESTIONS: IntakeQuestion[] = [
       },
       {
         id: 'q7_moderate',
-        text: 'Moderate Pressure',
+        text: 'Moderate / Manageable Stress',
         subtext: 'Typical daily pressures but I manage them well.',
         icon: '⚖️',
         aiMapping: 'Standard Adaptogenic Volume',

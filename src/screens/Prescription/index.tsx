@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,113 +17,80 @@ import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
 import DrawerContext from '../../navigation/DrawerContext';
+import { apiService } from '../../services/api';
 
 interface PrescriptionScreenProps {
   showDrawer?: boolean;
 }
 
-// Static Biometric Reset Blueprint Data (matching Exercise Prescription Biometric Reset tab)
-const STATIC_BIOMETRIC_DATA = {
-  uhid: 'JATCHO5525',
-  age: 28,
-  sex: 'Male',
-  profileMode: 'STAGE 2 REVERSAL (PRE-DIABETIC)',
-  rangeStart: '21 Apr 2026',
-  rangeEnd: '28 Apr 2026',
-  resetsInDays: 7,
-  bseAdaptiveTarget: 75.0,
-  coreTargets: [
-    {
-      key: 'bse',
-      icon: '📊',
-      name: 'BSE Efficiency',
-      target: '75.0',
-      base: '64.2',
-      unit: '',
-    },
-    {
-      key: 'sdex',
-      icon: '🛋️',
-      name: 'Sedentary Index',
-      target: '35.0',
-      base: '68.5',
-      unit: '%',
-    },
-    {
-      key: 'ppi',
-      icon: '💓',
-      name: 'Pulse Pace (PPI)',
-      target: '2.80',
-      base: '3.60',
-      unit: '',
-    },
-    {
-      key: 'e3',
-      icon: '⚡',
-      name: 'Move Economy (E3)',
-      target: '92.0',
-      base: '108.4',
-      unit: 'kcal/km',
-    },
-    {
-      key: 'is',
-      icon: '🛡️',
-      name: 'Stamina (IS)',
-      target: '80.0',
-      base: '68.0',
-      unit: '%',
-    },
-    {
-      key: 'aha',
-      icon: '🏆',
-      name: 'AHA Heart Volume',
-      target: '150',
-      base: '110',
-      unit: 'pts',
-    },
-  ],
-  checklist: [
-    {
-      id: 1,
-      name: 'Vascular Breakout Walk',
-      schedule: 'EVERY HOUR',
-      duration: '90 Secs continuous',
-      ruleDescription:
-        'Office/Field Rule: Walk with phone in pocket to activate calf venous return pump.',
-    },
-    {
-      id: 2,
-      name: 'Zone-2 Cadence Walk',
-      schedule: 'ONCE DAILY',
-      duration: '21 Mins (Slashed 30%)',
-      ruleDescription:
-        'Adaptive daily volume blocks to accelerate cellular glucose uptake.',
-    },
-    {
-      id: 3,
-      name: 'Core Prone Planks',
-      schedule: 'ONCE DAILY',
-      duration: '3 Sets x 45 Secs',
-      ruleDescription:
-        'Pre-walk postural alignment to stabilize pelvis and decompress spine.',
-    },
-    {
-      id: 4,
-      name: 'Evening Hatha Yoga',
-      schedule: 'EVERY NIGHT',
-      duration: '15 Mins',
-      ruleDescription:
-        'Rest-window autonomic wind-down to lower bedtime cortisol and improve deep sleep.',
-    },
-  ],
-  safetyCeilings: [
-    { label: 'Heart Rate Limit Ceiling', value: '140 BPM' },
-    { label: 'Continuous Sitting Max', value: '60 Mins' },
-    { label: 'Desk Stasis Break Rule', value: '90-Sec Pocket Walk' },
-  ],
-  clinicalRationale:
-    'Rhythmic moderate aerobic muscle activation increases cellular glucose transport pathways, while short, unbroken functional stretching sets remove localized pooling fluids to protect vascular endothelial walls [AHA].',
-};
+export interface ICoreTarget {
+  key: string;
+  name: string;
+  icon?: string;
+  target?: string | number;
+  base?: string | number;
+  unit?: string;
+}
+
+export interface IChecklistItem {
+  id?: number | string;
+  name?: string;
+  schedule?: string;
+  duration?: string;
+  ruleDescription?: string;
+}
+
+export interface ISafetyCeiling {
+  label: string;
+  value: string;
+}
+
+export interface IAdaptiveTarget {
+  score?: number;
+  metricName?: string;
+  statusLabel?: string;
+}
+
+export interface IRollingWindow {
+  days?: number;
+  daysAvailable?: number;
+  sourceStart?: string;
+  sourceEnd?: string;
+  sourceDate?: string;
+  sourceTable?: string;
+  availableDates?: string[];
+  metricSourceRowCounts?: Record<string, number>;
+}
+
+export interface IPrescriptionCycle {
+  cycleTitle?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  resetsInDays?: number;
+  adaptiveTarget?: IAdaptiveTarget;
+  coreTargets?: ICoreTarget[];
+  checklist?: IChecklistItem[];
+  safetyCeilings?: ISafetyCeiling[];
+  clinicalRationale?: string;
+  rollingWindow?: IRollingWindow;
+  isLocked?: boolean;
+  lockReason?: string;
+  weekNumber?: number;
+  weekLabel?: string;
+}
+
+export interface IPhase2PrescriptionData {
+  uhid: string;
+  patientMeta?: {
+    name?: string;
+    age?: number;
+    sex?: string;
+    profileMode?: string;
+  };
+  baseline?: IPrescriptionCycle;
+  current?: IPrescriptionCycle;
+  archive?: IPrescriptionCycle[];
+}
 
 export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
   showDrawer = true,
@@ -131,20 +100,45 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
 
   const [activeTab, setActiveTab] = useState<'BASELINE' | 'CURRENT' | 'ARCHIVE'>('BASELINE');
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [prescriptionData, setPrescriptionData] = useState<IPhase2PrescriptionData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPrescription = useCallback(async (isPullToRefresh = false) => {
+    try {
+      if (isPullToRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      if (cachedProfile) {
+        setProfile(cachedProfile);
+      }
+
+      const targetUhid = cachedProfile?.uhid?.trim() || 'JATCHO5525';
+      const response = await apiService.getPhase2Prescription(targetUhid);
+
+      if (response && response.status === 'Success' && response.data) {
+        setPrescriptionData(response.data);
+      } else {
+        setError(response?.message || 'Data not available');
+      }
+    } catch (err: any) {
+      console.error('[PrescriptionScreen] Fetch error:', err?.response?.data || err?.message);
+      setError('Unable to fetch prescription details. Pull to refresh to try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-        if (cachedProfile) {
-          setProfile(cachedProfile);
-        }
-      } catch (err) {
-        console.warn('[PrescriptionScreen] Error loading cached user profile:', err);
-      }
-    };
-    loadProfile();
-  }, []);
+    fetchPrescription();
+  }, [fetchPrescription]);
 
   const handleGoToWorkoutLogs = () => {
     if (drawer?.setActiveScreen) {
@@ -156,7 +150,19 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
     }
   };
 
-  const displayUhid = profile?.uhid || STATIC_BIOMETRIC_DATA.uhid;
+  const displayUhid = prescriptionData?.uhid || profile?.uhid || 'JATCHO5525';
+  const patientMeta = prescriptionData?.patientMeta;
+  const baseline = prescriptionData?.baseline;
+  const current = prescriptionData?.current;
+  const archive = prescriptionData?.archive;
+
+  // Helper for displaying values with fallback
+  const renderValueOrNA = (val: any, fallback = 'N/A') => {
+    if (val === undefined || val === null || String(val).trim() === '') {
+      return fallback;
+    }
+    return String(val);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -236,230 +242,573 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchPrescription(true)}
+            tintColor="#38BDF8"
+            colors={['#38BDF8', '#10B981']}
+          />
+        }
       >
-        {/* =========================================================================
-            TAB 1: BASELINE TAB (Biometric Reset Card UI with Static Data)
-            ========================================================================= */}
-        {activeTab === 'BASELINE' && (
-          <View style={styles.biometricMainCard}>
-            {/* Header Badge & Title */}
-            <View style={styles.bioTopHeader}>
-              <View style={styles.bioBadgePill}>
-                <Text style={styles.bioBadgeIcon}>🧬</Text>
-                <Text style={styles.bioBadgeText}>
-                  7-DAY ROLLING PRESCRIPTION
-                </Text>
-              </View>
-              <Text style={styles.bioCardMainTitle}>
-                Biometric Lifestyle Prescription
-              </Text>
-            </View>
+        {/* Loading Spinner Indicator */}
+        {loading && !refreshing && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#38BDF8" />
+            <Text style={styles.loadingText}>Loading prescription telemetry...</Text>
+          </View>
+        )}
 
-            {/* Patient Meta Strip */}
-            <View style={styles.bioPatientMetaBox}>
-              <View style={styles.bioMetaChipsRow}>
-                <View style={styles.bioMetaChip}>
-                  <Text style={styles.bioMetaChipLabel}>
-                    UHID: <Text style={styles.bioMetaChipValue}>{displayUhid}</Text>
-                  </Text>
-                </View>
-                <View style={styles.bioMetaChip}>
-                  <Text style={styles.bioMetaChipLabel}>
-                    Age: <Text style={styles.bioMetaChipValue}>{STATIC_BIOMETRIC_DATA.age} yrs</Text>
-                  </Text>
-                </View>
-                <View style={styles.bioMetaChip}>
-                  <Text style={styles.bioMetaChipLabel}>
-                    Sex: <Text style={styles.bioMetaChipValue}>{STATIC_BIOMETRIC_DATA.sex}</Text>
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.bioProfileModeRow}>
-                <View style={styles.bioProfileDot} />
-                <Text style={styles.bioProfileModeText}>
-                  Profile: {STATIC_BIOMETRIC_DATA.profileMode}
-                </Text>
-              </View>
-            </View>
-
-            {/* Weekly Tracking Window */}
-            <View style={styles.bioWindowBox}>
-              <View style={styles.bioWindowLeft}>
-                <Text style={styles.bioWindowLabel}>WEEKLY TRACKING WINDOW</Text>
-                <Text style={styles.bioWindowRange}>
-                  📅 {STATIC_BIOMETRIC_DATA.rangeStart} — {STATIC_BIOMETRIC_DATA.rangeEnd}
-                </Text>
-              </View>
-              <View style={styles.bioResetBadge}>
-                <Text style={styles.bioResetText}>
-                  ⏳ Resets in {STATIC_BIOMETRIC_DATA.resetsInDays}d
-                </Text>
-              </View>
-            </View>
-
-            {/* Central Adaptive Target Ring */}
-            <View style={styles.bioTargetSection}>
-              <View style={styles.bioTargetRingOuter}>
-                <View style={styles.bioTargetRingInner}>
-                  <Text style={styles.bioTargetBigScore}>
-                    {STATIC_BIOMETRIC_DATA.bseAdaptiveTarget.toFixed(1)}
-                  </Text>
-                  <Text style={styles.bioTargetSublabel}>ADAPTIVE TARGET</Text>
-                  <Text style={styles.bioTargetMetricTitle}>BSE EFFICIENCY</Text>
-                  <View style={styles.bioTargetStatusPill}>
-                    <View style={styles.bioTargetGreenDot} />
-                    <Text style={styles.bioTargetStatusText}>Optimal Pacing</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Core Targets & Lifestyle Pacing Balance */}
-            <View style={styles.bioSectionTitleRow}>
-              <Text style={styles.bioSectionHeaderIcon}>📋</Text>
-              <Text style={styles.bioSectionHeader}>
-                Core Targets & Lifestyle Pacing
-              </Text>
-            </View>
-
-            <View style={styles.bioTargetsList}>
-              {STATIC_BIOMETRIC_DATA.coreTargets.map(item => (
-                <View key={item.key} style={styles.bioTargetRow}>
-                  <View style={styles.bioTargetRowLeft}>
-                    <Text style={styles.bioTargetRowIcon}>{item.icon}</Text>
-                    <Text style={styles.bioTargetName}>{item.name}</Text>
-                  </View>
-                  <View style={styles.bioTargetRowRight}>
-                    <Text style={styles.bioTargetValues}>
-                      {item.target}{item.unit ? ` ${item.unit}` : ''}
-                    </Text>
-                    <View style={styles.bioTargetBaseChip}>
-                      <Text style={styles.bioTargetBase}>Base: {item.base}</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Weekly Foundational Checklist (Static guidelines without pending/verified toggle) */}
-            <View style={styles.bioSectionTitleRow}>
-              <Text style={styles.bioSectionHeaderIcon}>🚀</Text>
-              <Text style={styles.bioSectionHeader}>
-                Weekly Foundational Checklist
-              </Text>
-            </View>
-
-            <View style={styles.bioChecklistContainer}>
-              {STATIC_BIOMETRIC_DATA.checklist.map(item => (
-                <View key={item.id} style={styles.bioChecklistItem}>
-                  <View style={styles.bioChecklistHeaderRow}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={styles.bioChecklistTitle}>
-                        {item.id}. {item.name}
-                      </Text>
-                      <Text style={styles.bioChecklistSchedule}>
-                        ⏱️ {item.duration} • {item.schedule}
-                      </Text>
-                    </View>
-                    <View style={styles.protocolBadgePill}>
-                      <Text style={styles.protocolBadgeText}>Active Guideline</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.bioChecklistRuleDesc}>
-                    {item.ruleDescription}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Bounding Safety Ceilings */}
-            <View style={styles.bioSafetyBox}>
-              <View style={styles.bioSafetyHeaderRow}>
-                <Text style={styles.bioSafetyIcon}>🛑</Text>
-                <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
-              </View>
-              {STATIC_BIOMETRIC_DATA.safetyCeilings.map((ceiling, idx) => (
-                <React.Fragment key={ceiling.label}>
-                  <View style={styles.bioSafetyItem}>
-                    <Text style={styles.bioSafetyLabel}>{ceiling.label}</Text>
-                    <Text style={styles.bioSafetyValue}>{ceiling.value}</Text>
-                  </View>
-                  {idx < STATIC_BIOMETRIC_DATA.safetyCeilings.length - 1 && (
-                    <View style={styles.bioSafetyDivider} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
-
-            {/* Physiological Rationale & Citation */}
-            <View style={styles.bioRationaleBox}>
-              <View style={styles.bioRationaleHeaderRow}>
-                <Text style={styles.bioRationaleIcon}>🔬</Text>
-                <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
-              </View>
-              <Text style={styles.bioRationaleText}>
-                {STATIC_BIOMETRIC_DATA.clinicalRationale}
-              </Text>
-            </View>
-
-            {/* Action Button: Proceed to Activity Tracker */}
+        {/* Error Notice Card */}
+        {!loading && error && !prescriptionData && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorIcon}>⚠️</Text>
+            <Text style={styles.errorTitle}>Prescription Offline</Text>
+            <Text style={styles.errorDesc}>{error}</Text>
             <TouchableOpacity
-              style={styles.actionBtn}
-              activeOpacity={0.85}
-              onPress={handleGoToWorkoutLogs}
+              style={styles.retryBtn}
+              onPress={() => fetchPrescription()}
+              activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionBtnGradient}
-              >
-                <Text style={styles.actionBtnText}>PROCEED TO WORKOUT LOGS 🏃‍♂️</Text>
-              </LinearGradient>
+              <Text style={styles.retryBtnText}>Retry 🔄</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* =========================================================================
-            TAB 2: CURRENT TAB (Empty State: No Data Available)
-            ========================================================================= */}
-        {activeTab === 'CURRENT' && (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconCircle}>
-              <Text style={styles.emptyIcon}>⚡</Text>
-            </View>
-            <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION FORMULATION</Text>
-            <Text style={styles.emptySubhead}>No Data Available</Text>
-            <Text style={styles.emptyDesc}>
-              Your individualized clinical exercise prescription will be formulated and updated here once your 7-day baseline convergence period completes.
-            </Text>
-            <View style={styles.emptyNoticePill}>
-              <Text style={styles.emptyNoticePillText}>
-                🔒 Formulation Locked: Requires completed baseline telemetry
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* Main Content when loaded */}
+        {!loading && (
+          <>
+            {/* =========================================================================
+                TAB 1: BASELINE TAB (Dynamic Biometric Lifestyle Baseline from API)
+                ========================================================================= */}
+            {activeTab === 'BASELINE' && (
+              <View style={styles.biometricMainCard}>
+                {/* Header Badge & Title */}
+                <View style={styles.bioTopHeader}>
+                  <View style={styles.bioBadgePill}>
+                    <Text style={styles.bioBadgeIcon}>🧬</Text>
+                    <Text style={styles.bioBadgeText}>
+                      {baseline?.cycleTitle || '7-DAY ROLLING BASELINE'}
+                    </Text>
+                  </View>
+                  <Text style={styles.bioCardMainTitle}>
+                    Biometric Lifestyle Prescription
+                  </Text>
+                </View>
 
-        {/* =========================================================================
-            TAB 3: ARCHIVE TAB (Empty State: No Data Available)
-            ========================================================================= */}
-        {activeTab === 'ARCHIVE' && (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconCircle}>
-              <Text style={styles.emptyIcon}>📂</Text>
-            </View>
-            <Text style={styles.emptyTitle}>ARCHIVED FORMULATIONS</Text>
-            <Text style={styles.emptySubhead}>No Data Available</Text>
-            <Text style={styles.emptyDesc}>
-              Historical 7-day rolling prescriptions and clinical assessments will be archived here sequentially after each weekly cycle completes.
-            </Text>
-            <View style={styles.emptyNoticePill}>
-              <Text style={styles.emptyNoticePillText}>
-                📁 Archive Repository: Empty (Cycle 01 in progress)
-              </Text>
-            </View>
-          </View>
+                {/* Patient Meta Strip */}
+                <View style={styles.bioPatientMetaBox}>
+                  <View style={styles.bioMetaChipsRow}>
+                    <View style={styles.bioMetaChip}>
+                      <Text style={styles.bioMetaChipLabel}>
+                        UHID: <Text style={styles.bioMetaChipValue}>{renderValueOrNA(displayUhid)}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.bioMetaChip}>
+                      <Text style={styles.bioMetaChipLabel}>
+                        Age: <Text style={styles.bioMetaChipValue}>
+                          {patientMeta?.age !== undefined && patientMeta?.age !== null
+                            ? `${patientMeta.age} yrs`
+                            : 'N/A'}
+                        </Text>
+                      </Text>
+                    </View>
+                    <View style={styles.bioMetaChip}>
+                      <Text style={styles.bioMetaChipLabel}>
+                        Sex: <Text style={styles.bioMetaChipValue}>{renderValueOrNA(patientMeta?.sex)}</Text>
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.bioProfileModeRow}>
+                    <View
+                      style={[
+                        styles.bioProfileDot,
+                        {
+                          backgroundColor:
+                            patientMeta?.profileMode && patientMeta.profileMode !== 'ASSESSMENT REQUIRED'
+                              ? '#10B981'
+                              : '#F59E0B',
+                        },
+                      ]}
+                    />
+                    <Text style={styles.bioProfileModeText}>
+                      Profile: {renderValueOrNA(patientMeta?.profileMode, 'Data not available')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Weekly Tracking Window */}
+                <View style={styles.bioWindowBox}>
+                  <View style={styles.bioWindowLeft}>
+                    <Text style={styles.bioWindowLabel}>WEEKLY TRACKING WINDOW</Text>
+                    <Text style={styles.bioWindowRange}>
+                      📅{' '}
+                      {baseline?.rangeStart && baseline?.rangeEnd
+                        ? `${baseline.rangeStart} — ${baseline.rangeEnd}`
+                        : 'Data not available'}
+                    </Text>
+                  </View>
+                  <View style={styles.bioResetBadge}>
+                    <Text style={styles.bioResetText}>
+                      ⏳{' '}
+                      {baseline?.resetsInDays !== undefined && baseline?.resetsInDays !== null
+                        ? `Resets in ${baseline.resetsInDays}d`
+                        : 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Rolling Telemetry Summary Strip */}
+                {baseline?.rollingWindow && (
+                  <View style={styles.rollingTelemetryBox}>
+                    <View style={styles.rollingTelemetryLeft}>
+                      <Text style={styles.rollingTelemetryLabel}>TELEMETRY COVERAGE</Text>
+                      <Text style={styles.rollingTelemetryText}>
+                        📊 {baseline.rollingWindow.daysAvailable ?? 0} of {baseline.rollingWindow.days ?? 7} Days Available
+                      </Text>
+                    </View>
+                    <View style={styles.rollingTelemetryPill}>
+                      <Text style={styles.rollingTelemetryPillText}>
+                        {baseline.rollingWindow.sourceDate ? `As of ${baseline.rollingWindow.sourceDate}` : '7-Day Rolling'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Central Adaptive Target Ring */}
+                <View style={styles.bioTargetSection}>
+                  <View style={styles.bioTargetRingOuter}>
+                    <View style={styles.bioTargetRingInner}>
+                      <Text style={styles.bioTargetBigScore}>
+                        {baseline?.adaptiveTarget?.score !== undefined && baseline?.adaptiveTarget?.score !== null
+                          ? baseline.adaptiveTarget.score.toFixed(1)
+                          : 'N/A'}
+                      </Text>
+                      <Text style={styles.bioTargetSublabel}>ADAPTIVE TARGET</Text>
+                      <Text style={styles.bioTargetMetricTitle}>
+                        {renderValueOrNA(baseline?.adaptiveTarget?.metricName, 'BSE EFFICIENCY')}
+                      </Text>
+                      <View style={styles.bioTargetStatusPill}>
+                        <View
+                          style={[
+                            styles.bioTargetGreenDot,
+                            {
+                              backgroundColor:
+                                baseline?.adaptiveTarget?.statusLabel?.toLowerCase().includes('optimal')
+                                  ? '#10B981'
+                                  : '#F59E0B',
+                            },
+                          ]}
+                        />
+                        <Text style={styles.bioTargetStatusText}>
+                          {renderValueOrNA(baseline?.adaptiveTarget?.statusLabel, 'Assessment required')}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Core Targets & Lifestyle Pacing Balance */}
+                <View style={styles.bioSectionTitleRow}>
+                  <Text style={styles.bioSectionHeaderIcon}>📋</Text>
+                  <Text style={styles.bioSectionHeader}>
+                    Core Targets & Lifestyle Pacing
+                  </Text>
+                </View>
+
+                {baseline?.coreTargets && baseline.coreTargets.length > 0 ? (
+                  <View style={styles.bioTargetsList}>
+                    {baseline.coreTargets.map((item, idx) => {
+                      const targetStr =
+                        item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
+                          ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
+                          : 'N/A';
+                      const baseStr =
+                        item.base !== undefined && item.base !== null && String(item.base).trim() !== ''
+                          ? `Base: ${item.base}${item.unit ? ` ${item.unit}` : ''}`
+                          : 'Base: N/A';
+
+                      return (
+                        <View key={item.key || `core-${idx}`} style={styles.bioTargetRow}>
+                          <View style={styles.bioTargetRowLeft}>
+                            <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
+                            <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
+                          </View>
+                          <View style={styles.bioTargetRowRight}>
+                            <Text style={styles.bioTargetValues}>{targetStr}</Text>
+                            <View style={styles.bioTargetBaseChip}>
+                              <Text style={styles.bioTargetBase}>{baseStr}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.bioEmptySectionBox}>
+                    <Text style={styles.bioEmptySectionIcon}>📊</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bioEmptySectionTitle}>Core Targets</Text>
+                      <Text style={styles.bioEmptySectionDesc}>Data not available</Text>
+                    </View>
+                    <View style={styles.naBadge}>
+                      <Text style={styles.naBadgeText}>N/A</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Weekly Foundational Checklist */}
+                <View style={styles.bioSectionTitleRow}>
+                  <Text style={styles.bioSectionHeaderIcon}>🚀</Text>
+                  <Text style={styles.bioSectionHeader}>
+                    Weekly Foundational Checklist
+                  </Text>
+                </View>
+
+                {baseline?.checklist && baseline.checklist.length > 0 ? (
+                  <View style={styles.bioChecklistContainer}>
+                    {baseline.checklist.map((item, idx) => (
+                      <View key={item.id ?? `checklist-${idx}`} style={styles.bioChecklistItem}>
+                        <View style={styles.bioChecklistHeaderRow}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.bioChecklistTitle}>
+                              {item.id ? `${item.id}. ` : ''}{renderValueOrNA(item.name, 'Protocol Step')}
+                            </Text>
+                            <Text style={styles.bioChecklistSchedule}>
+                              ⏱️ {renderValueOrNA(item.duration)} • {renderValueOrNA(item.schedule)}
+                            </Text>
+                          </View>
+                          <View style={styles.protocolBadgePill}>
+                            <Text style={styles.protocolBadgeText}>Active Guideline</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.bioChecklistRuleDesc}>
+                          {renderValueOrNA(item.ruleDescription, 'Data not available')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.bioEmptySectionBox}>
+                    <Text style={styles.bioEmptySectionIcon}>📋</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bioEmptySectionTitle}>Protocol Checklist</Text>
+                      <Text style={styles.bioEmptySectionDesc}>
+                        Data not available (Checklist protocol formulation pending assessment)
+                      </Text>
+                    </View>
+                    <View style={styles.naBadge}>
+                      <Text style={styles.naBadgeText}>N/A</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Bounding Safety Ceilings */}
+                <View style={styles.bioSafetyBox}>
+                  <View style={styles.bioSafetyHeaderRow}>
+                    <Text style={styles.bioSafetyIcon}>🛑</Text>
+                    <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
+                    {(!baseline?.safetyCeilings || baseline.safetyCeilings.length === 0) && (
+                      <View style={[styles.naBadge, styles.naBadgeRed]}>
+                        <Text style={[styles.naBadgeText, { color: '#F87171' }]}>N/A</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {baseline?.safetyCeilings && baseline.safetyCeilings.length > 0 ? (
+                    baseline.safetyCeilings.map((ceiling, idx) => (
+                      <React.Fragment key={ceiling.label || `ceiling-${idx}`}>
+                        <View style={styles.bioSafetyItem}>
+                          <Text style={styles.bioSafetyLabel}>{renderValueOrNA(ceiling.label)}</Text>
+                          <Text style={styles.bioSafetyValue}>{renderValueOrNA(ceiling.value)}</Text>
+                        </View>
+                        {idx < (baseline?.safetyCeilings?.length ?? 0) - 1 && (
+                          <View style={styles.bioSafetyDivider} />
+                        )}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <Text style={styles.bioEmptySectionDesc}>
+                      Data not available (Standard physiological safety boundaries apply)
+                    </Text>
+                  )}
+                </View>
+
+                {/* Physiological Rationale & Citation */}
+                <View style={styles.bioRationaleBox}>
+                  <View style={styles.bioRationaleHeaderRow}>
+                    <Text style={styles.bioRationaleIcon}>🔬</Text>
+                    <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
+                    {(!baseline?.clinicalRationale || baseline.clinicalRationale.trim() === '') && (
+                      <View style={styles.naBadge}>
+                        <Text style={styles.naBadgeText}>N/A</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.bioRationaleText}>
+                    {baseline?.clinicalRationale && baseline.clinicalRationale.trim() !== ''
+                      ? baseline.clinicalRationale
+                      : 'Clinical rationale data not available at this stage.'}
+                  </Text>
+                </View>
+
+                {/* Action Button: Proceed to Activity Tracker */}
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  activeOpacity={0.85}
+                  onPress={handleGoToWorkoutLogs}
+                >
+                  <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionBtnGradient}
+                  >
+                    <Text style={styles.actionBtnText}>PROCEED TO WORKOUT LOGS 🏃‍♂️</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* =========================================================================
+                TAB 2: CURRENT TAB (Locked State or Active Formulation from API)
+                ========================================================================= */}
+            {activeTab === 'CURRENT' && (
+              <>
+                {current?.isLocked ? (
+                  <View style={styles.lockedContainer}>
+                    {/* Formulation Locked Hero Card */}
+                    <View style={styles.emptyCard}>
+                      <View style={[styles.emptyIconCircle, styles.lockedIconCircle]}>
+                        <Text style={styles.emptyIcon}>🔒</Text>
+                      </View>
+                      <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION FORMULATION</Text>
+                      <Text style={styles.emptySubhead}>Formulation Locked</Text>
+
+                      {/* Lock Reason Notice Pill */}
+                      <View style={styles.lockReasonBox}>
+                        <Text style={styles.lockReasonIcon}>⚠️</Text>
+                        <Text style={styles.lockReasonText}>
+                          {current.lockReason || 'Save the real lifestyle, nutrition and recovery assessment first'}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.emptyDesc}>
+                        Your individualized clinical exercise prescription will be formulated and unlocked here once your real lifestyle, nutrition, and recovery assessment is completed.
+                      </Text>
+
+                      <View style={styles.emptyNoticePill}>
+                        <Text style={styles.emptyNoticePillText}>
+                          {current.weekLabel || 'Week 0 (Locked)'} • Resets in {current.resetsInDays ?? 0}d
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Preview Targets Strip (if available) */}
+                    {current.coreTargets && current.coreTargets.length > 0 && (
+                      <View style={[styles.biometricMainCard, { marginTop: 14 }]}>
+                        <View style={styles.bioSectionTitleRow}>
+                          <Text style={styles.bioSectionHeaderIcon}>🎯</Text>
+                          <Text style={styles.bioSectionHeader}>
+                            Baseline Target Telemetry (Preview)
+                          </Text>
+                        </View>
+                        <View style={styles.bioTargetsList}>
+                          {current.coreTargets.map((item, idx) => (
+                            <View key={item.key || `curr-core-${idx}`} style={styles.bioTargetRow}>
+                              <View style={styles.bioTargetRowLeft}>
+                                <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
+                                <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
+                              </View>
+                              <View style={styles.bioTargetRowRight}>
+                                <Text style={styles.bioTargetValues}>
+                                  {item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
+                                    ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
+                                    : 'N/A'}
+                                </Text>
+                                <View style={styles.bioTargetBaseChip}>
+                                  <Text style={styles.bioTargetBase}>
+                                    Base: {item.base !== undefined && item.base !== null && String(item.base).trim() !== ''
+                                      ? `${item.base}${item.unit ? ` ${item.unit}` : ''}`
+                                      : 'N/A'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ) : current ? (
+                  /* Active Current Prescription when unlocked */
+                  <View style={styles.biometricMainCard}>
+                    <View style={styles.bioTopHeader}>
+                      <View style={styles.bioBadgePill}>
+                        <Text style={styles.bioBadgeIcon}>⚡</Text>
+                        <Text style={styles.bioBadgeText}>
+                          {current.weekLabel || current.cycleTitle || 'CURRENT ACTIVE PRESCRIPTION'}
+                        </Text>
+                      </View>
+                      <Text style={styles.bioCardMainTitle}>Active Lifestyle Prescription</Text>
+                    </View>
+
+                    {/* Weekly Window */}
+                    <View style={styles.bioWindowBox}>
+                      <View style={styles.bioWindowLeft}>
+                        <Text style={styles.bioWindowLabel}>CURRENT CYCLE WINDOW</Text>
+                        <Text style={styles.bioWindowRange}>
+                          📅{' '}
+                          {current.rangeStart && current.rangeEnd
+                            ? `${current.rangeStart} — ${current.rangeEnd}`
+                            : 'Data not available'}
+                        </Text>
+                      </View>
+                      <View style={styles.bioResetBadge}>
+                        <Text style={styles.bioResetText}>
+                          ⏳{' '}
+                          {current.resetsInDays !== undefined && current.resetsInDays !== null
+                            ? `Resets in ${current.resetsInDays}d`
+                            : 'N/A'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Adaptive Target Ring */}
+                    <View style={styles.bioTargetSection}>
+                      <View style={styles.bioTargetRingOuter}>
+                        <View style={styles.bioTargetRingInner}>
+                          <Text style={styles.bioTargetBigScore}>
+                            {current.adaptiveTarget?.score !== undefined && current.adaptiveTarget?.score !== null
+                              ? current.adaptiveTarget.score.toFixed(1)
+                              : 'N/A'}
+                          </Text>
+                          <Text style={styles.bioTargetSublabel}>ACTIVE TARGET</Text>
+                          <Text style={styles.bioTargetMetricTitle}>
+                            {renderValueOrNA(current.adaptiveTarget?.metricName, 'BSE EFFICIENCY')}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Core Targets */}
+                    {current.coreTargets && current.coreTargets.length > 0 ? (
+                      <View style={styles.bioTargetsList}>
+                        {current.coreTargets.map((item, idx) => (
+                          <View key={item.key || `curr-act-${idx}`} style={styles.bioTargetRow}>
+                            <View style={styles.bioTargetRowLeft}>
+                              <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
+                              <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
+                            </View>
+                            <View style={styles.bioTargetRowRight}>
+                              <Text style={styles.bioTargetValues}>
+                                {item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
+                                  ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
+                                  : 'N/A'}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <View style={styles.bioEmptySectionBox}>
+                        <Text style={styles.bioEmptySectionIcon}>📊</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.bioEmptySectionTitle}>Core Targets</Text>
+                          <Text style={styles.bioEmptySectionDesc}>Data not available</Text>
+                        </View>
+                        <View style={styles.naBadge}>
+                          <Text style={styles.naBadgeText}>N/A</Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Rationale */}
+                    <View style={styles.bioRationaleBox}>
+                      <View style={styles.bioRationaleHeaderRow}>
+                        <Text style={styles.bioRationaleIcon}>🔬</Text>
+                        <Text style={styles.bioRationaleTitle}>Clinical Rationale</Text>
+                      </View>
+                      <Text style={styles.bioRationaleText}>
+                        {renderValueOrNA(current.clinicalRationale, 'Clinical rationale data not available at this stage.')}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.emptyCard}>
+                    <View style={styles.emptyIconCircle}>
+                      <Text style={styles.emptyIcon}>⚡</Text>
+                    </View>
+                    <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION</Text>
+                    <Text style={styles.emptySubhead}>Data not available</Text>
+                    <Text style={styles.emptyDesc}>
+                      Your individualized clinical exercise prescription will be formulated and updated here once your baseline telemetry completes.
+                    </Text>
+                    <View style={styles.emptyNoticePill}>
+                      <Text style={styles.emptyNoticePillText}>
+                        🔒 Formulation: Data not available
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* =========================================================================
+                TAB 3: ARCHIVE TAB (Archived prescriptions from API or empty state)
+                ========================================================================= */}
+            {activeTab === 'ARCHIVE' && (
+              <>
+                {archive && archive.length > 0 ? (
+                  <View style={styles.biometricMainCard}>
+                    <View style={styles.bioTopHeader}>
+                      <View style={styles.bioBadgePill}>
+                        <Text style={styles.bioBadgeIcon}>📂</Text>
+                        <Text style={styles.bioBadgeText}>PRESCRIPTION ARCHIVES</Text>
+                      </View>
+                      <Text style={styles.bioCardMainTitle}>Historical Prescriptions</Text>
+                    </View>
+                    {archive.map((archItem, idx) => (
+                      <View key={`archive-item-${idx}`} style={styles.archiveCycleItem}>
+                        <View style={styles.archiveCycleHeader}>
+                          <Text style={styles.archiveCycleTitle}>
+                            {archItem.weekLabel || archItem.cycleTitle || `Cycle ${idx + 1}`}
+                          </Text>
+                          <Text style={styles.archiveCycleRange}>
+                            {archItem.rangeStart && archItem.rangeEnd
+                              ? `${archItem.rangeStart} — ${archItem.rangeEnd}`
+                              : 'Data not available'}
+                          </Text>
+                        </View>
+                        <Text style={styles.archiveCycleScore}>
+                          Adaptive Score:{' '}
+                          {archItem.adaptiveTarget?.score !== undefined
+                            ? archItem.adaptiveTarget.score.toFixed(1)
+                            : 'N/A'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyCard}>
+                    <View style={styles.emptyIconCircle}>
+                      <Text style={styles.emptyIcon}>📂</Text>
+                    </View>
+                    <Text style={styles.emptyTitle}>ARCHIVED FORMULATIONS</Text>
+                    <Text style={styles.emptySubhead}>Data not available</Text>
+                    <Text style={styles.emptyDesc}>
+                      Historical 7-day rolling prescriptions and clinical assessments will be archived here sequentially after each weekly cycle completes.
+                    </Text>
+                    <View style={styles.emptyNoticePill}>
+                      <Text style={styles.emptyNoticePillText}>
+                        📁 Archive Repository: N/A (Cycle 01 in progress)
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -507,6 +856,59 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: 'rgba(16, 185, 129, 0.06)',
     zIndex: -1,
+  },
+
+  // Loading & Error States
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 14,
+    letterSpacing: 0.3,
+  },
+  errorCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    marginVertical: 14,
+  },
+  errorIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#F87171',
+    marginBottom: 6,
+  },
+  errorDesc: {
+    fontSize: 12,
+    color: '#CBD5E1',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  retryBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  retryBtnText: {
+    color: '#FCA5A5',
+    fontWeight: '700',
+    fontSize: 12.5,
   },
 
   // Top Tabs Toggle
@@ -662,7 +1064,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(99, 102, 241, 0.2)',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   bioWindowLeft: {
     flex: 1,
@@ -690,6 +1092,45 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#A5B4FC',
+  },
+
+  // Rolling Telemetry Coverage Box
+  rollingTelemetryBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+    marginBottom: 14,
+  },
+  rollingTelemetryLeft: {
+    flex: 1,
+  },
+  rollingTelemetryLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#34D399',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  rollingTelemetryText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  rollingTelemetryPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  rollingTelemetryPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6EE7B7',
   },
 
   // Central Adaptive Target Ring
@@ -832,7 +1273,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Checklist (Static guideline style without pending/verified toggle)
+  // Empty Box Pattern (Used for missing/empty arrays or text)
+  bioEmptySectionBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 12,
+  },
+  bioEmptySectionIcon: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  bioEmptySectionTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    marginBottom: 2,
+  },
+  bioEmptySectionDesc: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
+  },
+  naBadge: {
+    backgroundColor: 'rgba(148, 163, 184, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+  },
+  naBadgeRed: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  naBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+
+  // Checklist
   bioChecklistContainer: {
     gap: 10,
     marginBottom: 16,
@@ -892,6 +1377,7 @@ const styles = StyleSheet.create({
   },
   bioSafetyHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
   },
@@ -904,6 +1390,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#F87171',
     letterSpacing: 0.3,
+    flex: 1,
   },
   bioSafetyItem: {
     flexDirection: 'row',
@@ -935,6 +1422,7 @@ const styles = StyleSheet.create({
   },
   bioRationaleHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
@@ -946,6 +1434,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '800',
     color: '#10B981',
+    flex: 1,
   },
   bioRationaleText: {
     fontSize: 11.5,
@@ -976,6 +1465,37 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '800',
     letterSpacing: 0.6,
+  },
+
+  // Locked Container & Elements
+  lockedContainer: {
+    width: '100%',
+  },
+  lockedIconCircle: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  lockReasonBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    marginBottom: 14,
+    gap: 8,
+  },
+  lockReasonIcon: {
+    fontSize: 16,
+  },
+  lockReasonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FCD34D',
+    flex: 1,
+    lineHeight: 16,
   },
 
   // Empty State Cards (for CURRENT and ARCHIVE tabs)
@@ -1043,6 +1563,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
+  },
+
+  // Archive Item Box
+  archiveCycleItem: {
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 10,
+  },
+  archiveCycleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  archiveCycleTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  archiveCycleRange: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  archiveCycleScore: {
+    fontSize: 11.5,
+    color: '#10B981',
+    fontWeight: '700',
   },
 });
 

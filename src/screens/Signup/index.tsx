@@ -19,6 +19,7 @@ import { ROUTES } from '../../constants/routes';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { CustomAlertModal } from '../../components/common/CustomAlertModal';
 import { apiService, prefetchStepsLogsData } from '../../services/api';
+import { syncHealthConnectAnalytics } from '../../services/healthConnect';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
@@ -142,9 +143,9 @@ export const SignupScreen: React.FC = () => {
 
       console.log('[SignupScreen] Signup API Response inside Screen:', JSON.stringify(response, null, 2));
 
-      if (response && response.status === 'Success') {
+      if (response && (response.status === 'Success' || response.status === 'success' || response.statusCode === 200 || response.data)) {
         const userData = response.data || {};
-        const authToken = userData.token || response.token;
+        const authToken = userData.token || response.token || userData.authToken || '';
         if (authToken) {
           await storageHelper.setItem(STORAGE_KEYS.TOKEN, authToken);
         }
@@ -161,13 +162,14 @@ export const SignupScreen: React.FC = () => {
         ).toString().trim().toUpperCase();
         const isMass = rawPromo === 'MASS01';
 
-        // Save the profile locally without dummy biometrics
+        // Save the profile locally with complete parity to LoginScreen
         const userProfile: UserProfile = {
           uhid: userData.uhid || '',
-          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          age: userData?.age || 0,
-          weight: userData?.weight || 0,
-          height: userData?.height || 0,
+          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : `${firstName.trim()} ${lastName.trim()}`.trim()),
+          age: userData?.age || 30,
+          weight: userData?.weight || 70,
+          height: userData?.height || 170,
+          calorieGoal: userData?.calorieGoal || 2400,
           isSetupComplete: true,
           email: userData.email || email.trim(),
           token: authToken,
@@ -183,7 +185,14 @@ export const SignupScreen: React.FC = () => {
           await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
         }
 
-        // Navigate to the Setup Profile screen
+        // Save credentials for biometrics parity so user can also use biometric login
+        await storageHelper.setItem(STORAGE_KEYS.BIOMETRICS_CREDENTIALS, {
+          email: email.trim(),
+          password: password,
+        });
+
+        // Trigger analytics sync & background steps prefetch identical to LoginScreen
+        syncHealthConnectAnalytics().catch(() => {});
         prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
         // Navigate directly to the main app (Drawer), bypassing General Information

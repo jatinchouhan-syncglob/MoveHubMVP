@@ -9,10 +9,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { LifestyleProfilerScreen } from '../LifestyleProfiler';
+import { WorkplaceStressorsScreen } from '../WorkplaceStressors';
 import { ExercisePrescriptionScreen } from '../ExercisePrescription';
 import { NutritionalProfilerScreen } from '../NutritionalProfiler';
 
-export type AssessmentTabType = 'lifestyle' | 'exercise' | 'nutritional';
+export type AssessmentTabType = 'lifestyle' | 'stressors' | 'exercise' | 'nutritional';
 
 interface TabItem {
   key: AssessmentTabType;
@@ -22,6 +23,7 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { key: 'lifestyle', label: 'Lifestyle Questionnaire', icon: '📋' },
+  { key: 'stressors', label: 'Workplace Stressors', icon: '💼' },
   { key: 'exercise', label: 'Exercise Prescription', icon: '🏋️‍♂️' },
   { key: 'nutritional', label: 'Nutritional Profiler', icon: '🥗' },
 ];
@@ -102,6 +104,12 @@ export const AssessmentScreen: React.FC = () => {
       <View style={styles.contentViewport}>
         {activeTab === 'lifestyle' && (
           <LifestyleProfilerScreen
+            isEmbedded={true}
+            onComplete={() => setActiveTab('stressors')}
+          />
+        )}
+        {activeTab === 'stressors' && (
+          <WorkplaceStressorsScreen
             isEmbedded={true}
             onComplete={() => setActiveTab('exercise')}
           />

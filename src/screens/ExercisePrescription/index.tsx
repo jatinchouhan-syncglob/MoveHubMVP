@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useDrawer } from '../../navigation/DrawerContext';
 import {
@@ -15,6 +16,11 @@ import {
 } from './mockData';
 import { BiometricChecklistItem } from './types';
 import { styles } from './styles';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
 
 const CORE_TARGETS_LIST = [
   {
@@ -72,12 +78,44 @@ export interface ExercisePrescriptionProps {
   onNext?: () => void;
 }
 
+const findOptionIdByText = (questionId: string, textVal?: string | null): string => {
+  if (!textVal) return '';
+  const question = INTAKE_QUESTIONS.find(q => q.id === questionId);
+  if (!question) return '';
+  const trimmed = textVal.trim().toLowerCase();
+  const match = question.options.find(
+    opt =>
+      opt.text.trim().toLowerCase() === trimmed ||
+      opt.id.toLowerCase() === trimmed ||
+      opt.text.toLowerCase().includes(trimmed) ||
+      trimmed.includes(opt.text.toLowerCase()),
+  );
+  return match ? match.id : '';
+};
+
+const getOptionText = (questionId: string, optionId?: string): string => {
+  if (!optionId) return '';
+  const question = INTAKE_QUESTIONS.find(q => q.id === questionId);
+  if (!question) return '';
+  const option = question.options.find(opt => opt.id === optionId);
+  return option ? option.text : '';
+};
+
 export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = ({
   isEmbedded = false,
   onNext,
 }) => {
-  const { openDrawer } = useDrawer();
+  const { openDrawer, setActiveScreen } = useDrawer();
   const [activeTab, setActiveTab] = useState<'intake' | 'biometric'>('intake');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Custom Alert Modal State
+  const [alertVisible, setAlertVisible] = useState<boolean>(false);
+  const [alertTitle, setAlertTitle] = useState<string>('');
+  const [alertMessage, setAlertMessage] = useState<string>('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
 
   // Answers state for the 9-question intake matrix
   const [answers, setAnswers] = useState<{ [qId: string]: string }>({
@@ -96,6 +134,77 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
   const [checklist, setChecklist] = useState<BiometricChecklistItem[]>(
     INITIAL_BIOMETRIC_RESET_CARD.checklist,
   );
+
+  // Load existing saved prescription from backend on mount
+  const loadLatestData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      if (cachedProfile) {
+        setProfile(cachedProfile);
+      }
+
+      const targetUhid = cachedProfile?.uhid?.trim() || 'LIVSCO4573';
+      console.log(`[ExercisePrescriptionScreen] Fetching latest prescription for UHID: ${targetUhid}`);
+      const res = await apiService.getLatestExercisePrescription(targetUhid);
+
+      if (res && res.status === 'Success' && res.data) {
+        const d = res.data;
+        const prefilled: { [qId: string]: string } = {};
+
+        if (d.q1FitnessGoal) {
+          const m = findOptionIdByText('q1', d.q1FitnessGoal);
+          if (m) prefilled.q1 = m;
+        }
+        if (d.q2BodyFrame) {
+          const m = findOptionIdByText('q2', d.q2BodyFrame);
+          if (m) prefilled.q2 = m;
+        }
+        if (d.q3JointDiscomfort) {
+          const m = findOptionIdByText('q3', d.q3JointDiscomfort);
+          if (m) prefilled.q3 = m;
+        }
+        if (d.q4TrainingExperience) {
+          const m = findOptionIdByText('q4', d.q4TrainingExperience);
+          if (m) prefilled.q4 = m;
+        }
+        if (d.q5DailyWorkRoutine) {
+          const m = findOptionIdByText('q5', d.q5DailyWorkRoutine);
+          if (m) prefilled.q5 = m;
+        }
+        if (d.q6SleepWakingFatigue) {
+          const m = findOptionIdByText('q6', d.q6SleepWakingFatigue);
+          if (m) prefilled.q6 = m;
+        }
+        if (d.q7StressWorkload) {
+          const m = findOptionIdByText('q7', d.q7StressWorkload);
+          if (m) prefilled.q7 = m;
+        }
+        if (d.q8NutritionalPattern) {
+          const m = findOptionIdByText('q8', d.q8NutritionalPattern);
+          if (m) prefilled.q8 = m;
+        }
+        if (d.q9GymEquipmentAccess) {
+          const m = findOptionIdByText('q9', d.q9GymEquipmentAccess);
+          if (m) prefilled.q9 = m;
+        }
+
+        if (Object.keys(prefilled).length > 0) {
+          setAnswers(prev => ({ ...prev, ...prefilled }));
+        }
+      }
+    } catch (err) {
+      console.warn('[ExercisePrescriptionScreen] Load latest error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLatestData();
+  }, [loadLatestData]);
 
   const answeredCount = Object.keys(answers).length;
   const totalQuestions = INTAKE_QUESTIONS.length;
@@ -121,20 +230,71 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
     );
   };
 
-  const handleSaveAndGenerate = () => {
-    Alert.alert(
-      'Intake Matrix Saved! 🧬',
-      'Your 9-Question responses have been mapped by the Uncurl C-MELA™ engine. Your 7-Day Biometric Reset has been generated.',
-      [
-        {
-          text: 'View Biometric Reset Card',
-          onPress: () => setActiveTab('biometric'),
-        },
-        {
-          text: 'OK',
-        },
-      ],
-    );
+  const handleSaveAndSubmit = async () => {
+    // 1. Validation check
+    const missing: string[] = [];
+    INTAKE_QUESTIONS.forEach(q => {
+      if (!answers[q.id]) {
+        missing.push(`Q${q.number}: ${q.title}`);
+      }
+    });
+
+    if (missing.length > 0) {
+      setAlertTitle('Incomplete Intake Matrix');
+      setAlertMessage(
+        `Please select an option for all 9 questions before proceeding:\n• ${missing.slice(0, 3).join('\n• ')}${
+          missing.length > 3 ? `\n...and ${missing.length - 3} more` : ''
+        }`,
+      );
+      setAlertType('warning');
+      setAlertVisible(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const targetUhid = profile?.uhid?.trim() || 'LIVSCO4573';
+      const targetUserId = profile?.userId ? `USR-${profile.userId}` : 'USR-9921';
+
+      const payload = {
+        uhid: targetUhid,
+        userId: targetUserId,
+        q1FitnessGoal: getOptionText('q1', answers.q1),
+        q2BodyFrame: getOptionText('q2', answers.q2),
+        q3JointDiscomfort: getOptionText('q3', answers.q3),
+        q4TrainingExperience: getOptionText('q4', answers.q4),
+        q5DailyWorkRoutine: getOptionText('q5', answers.q5),
+        q6SleepWakingFatigue: getOptionText('q6', answers.q6),
+        q7StressWorkload: getOptionText('q7', answers.q7),
+        q8NutritionalPattern: getOptionText('q8', answers.q8),
+        q9GymEquipmentAccess: getOptionText('q9', answers.q9),
+      };
+
+      const res = await apiService.saveExercisePrescription(payload);
+      if (res && res.status === 'Success') {
+        setAlertTitle('Prescription Saved! 🧬');
+        setAlertMessage(
+          'Your 9-Question exercise prescription matrix has been recorded successfully.',
+        );
+        setAlertType('success');
+        setAlertVisible(true);
+      } else {
+        setAlertTitle('Submission Error');
+        setAlertMessage(res?.message || 'Failed to save exercise prescription.');
+        setAlertType('error');
+        setAlertVisible(true);
+      }
+    } catch (err: any) {
+      console.error('[ExercisePrescriptionScreen] Save error:', err);
+      setAlertTitle('Network Error');
+      setAlertMessage(
+        err?.response?.data?.message || 'Could not connect to server. Please try again.',
+      );
+      setAlertType('error');
+      setAlertVisible(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetIntake = () => {
@@ -153,6 +313,20 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
   };
 
   const Container = isEmbedded ? View : SafeAreaView;
+
+  if (isLoading) {
+    return (
+      <Container style={styles.container}>
+        {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 }}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={{ marginTop: 12, color: '#94A3B8', fontSize: 13, fontWeight: '600' }}>
+            Loading Exercise Intake Matrix...
+          </Text>
+        </View>
+      </Container>
+    );
+  }
 
   return (
     <Container style={styles.container}>
@@ -186,7 +360,7 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
         </View>
       )}
 
-      {/* Top 3-Way Mode Switcher Tabs */}
+      {/* Top Mode Switcher Tabs (Only when not embedded) */}
       {!isEmbedded && (
         <View style={styles.modeTabBar}>
           <TouchableOpacity
@@ -338,18 +512,26 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 activeOpacity={0.8}
                 style={styles.resetBtn}
                 onPress={handleResetIntake}
+                disabled={isSubmitting}
               >
                 <Text style={styles.resetBtnText}>Reset Matrix</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 activeOpacity={0.85}
-                style={styles.generateBtn}
-                onPress={isEmbedded ? onNext : handleSaveAndGenerate}
+                style={[styles.generateBtn, isSubmitting && { opacity: 0.7 }]}
+                disabled={isSubmitting}
+                onPress={handleSaveAndSubmit}
               >
-                <Text style={styles.generateBtnText}>
-                  {isEmbedded ? 'Next: Nutritional Profiler ➡️' : 'Generate Prescriptions ⚡'}
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.generateBtnText}>
+                    {isEmbedded
+                      ? 'Submit & Next: Nutritional Profiler ➡️'
+                      : 'Save & Generate Prescriptions ⚡'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -370,7 +552,7 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                   </Text>
                 </View>
                 <Text style={styles.bioCardMainTitle}>
-                  Biometric Lifestyle Prescription
+                  Biometric Reset Blueprint
                 </Text>
               </View>
 
@@ -379,17 +561,26 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 <View style={styles.bioMetaChipsRow}>
                   <View style={styles.bioMetaChip}>
                     <Text style={styles.bioMetaChipLabel}>
-                      UHID: <Text style={styles.bioMetaChipValue}>{INITIAL_BIOMETRIC_RESET_CARD.uhid}</Text>
+                      UHID:{' '}
+                      <Text style={styles.bioMetaChipValue}>
+                        {profile?.uhid || INITIAL_BIOMETRIC_RESET_CARD.uhid}
+                      </Text>
                     </Text>
                   </View>
                   <View style={styles.bioMetaChip}>
                     <Text style={styles.bioMetaChipLabel}>
-                      Age: <Text style={styles.bioMetaChipValue}>{INITIAL_BIOMETRIC_RESET_CARD.age} yrs</Text>
+                      Age:{' '}
+                      <Text style={styles.bioMetaChipValue}>
+                        {INITIAL_BIOMETRIC_RESET_CARD.age} yrs
+                      </Text>
                     </Text>
                   </View>
                   <View style={styles.bioMetaChip}>
                     <Text style={styles.bioMetaChipLabel}>
-                      Sex: <Text style={styles.bioMetaChipValue}>{INITIAL_BIOMETRIC_RESET_CARD.sex}</Text>
+                      Sex:{' '}
+                      <Text style={styles.bioMetaChipValue}>
+                        {INITIAL_BIOMETRIC_RESET_CARD.sex}
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -406,7 +597,8 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 <View style={styles.bioWindowLeft}>
                   <Text style={styles.bioWindowLabel}>WEEKLY TRACKING WINDOW</Text>
                   <Text style={styles.bioWindowRange}>
-                    📅 {INITIAL_BIOMETRIC_RESET_CARD.rangeStart} — {INITIAL_BIOMETRIC_RESET_CARD.rangeEnd}
+                    📅 {INITIAL_BIOMETRIC_RESET_CARD.rangeStart} —{' '}
+                    {INITIAL_BIOMETRIC_RESET_CARD.rangeEnd}
                   </Text>
                 </View>
                 <View style={styles.bioResetBadge}>
@@ -433,7 +625,7 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 </View>
               </View>
 
-              {/* Core Targets & Lifestyle Pacing Balance */}
+              {/* Core Targets */}
               <View style={styles.bioSectionTitleRow}>
                 <Text style={styles.bioSectionHeaderIcon}>📋</Text>
                 <Text style={styles.bioSectionHeader}>
@@ -450,7 +642,8 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                     </View>
                     <View style={styles.bioTargetRowRight}>
                       <Text style={styles.bioTargetValues}>
-                        {item.target}{item.unit ? ` ${item.unit}` : ''}
+                        {item.target}
+                        {item.unit ? ` ${item.unit}` : ''}
                       </Text>
                       <View style={styles.bioTargetBaseChip}>
                         <Text style={styles.bioTargetBase}>Base: {item.base}</Text>
@@ -469,53 +662,44 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
               </View>
 
               <View style={styles.bioChecklistContainer}>
-                {checklist.map(item => {
-                  const isVerified = item.status === 'verified';
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      activeOpacity={0.8}
-                      style={[
-                        styles.bioChecklistItem,
-                        isVerified && styles.bioChecklistItemVerified,
-                      ]}
-                      onPress={() => handleToggleChecklist(item.id)}
-                    >
-                      <View style={styles.bioChecklistHeaderRow}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          <Text style={styles.bioChecklistTitle}>
-                            {item.id}. {item.name}
-                          </Text>
-                          <Text style={styles.bioChecklistSchedule}>
-                            ⏱️ {item.duration} • {item.schedule}
-                          </Text>
-                        </View>
-                        <View
+                {checklist.map(item => (
+                  <View key={item.id} style={styles.bioChecklistItem}>
+                    <View style={styles.bioChecklistHeaderRow}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={styles.bioChecklistTitle}>
+                          {item.id}. {item.name}
+                        </Text>
+                        <Text style={styles.bioChecklistSchedule}>
+                          ⏱️ {item.duration} • {item.schedule}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={[
+                          styles.statusVerificationPill,
+                          item.status === 'verified'
+                            ? styles.statusPillVerified
+                            : styles.statusPillPending,
+                        ]}
+                        onPress={() => handleToggleChecklist(item.id)}
+                      >
+                        <Text
                           style={[
-                            styles.statusVerificationPill,
-                            isVerified
-                              ? styles.statusPillVerified
-                              : styles.statusPillPending,
+                            styles.statusVerificationText,
+                            item.status === 'verified'
+                              ? styles.statusTextVerified
+                              : styles.statusTextPending,
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.statusVerificationText,
-                              isVerified
-                                ? styles.statusTextVerified
-                                : styles.statusTextPending,
-                            ]}
-                          >
-                            {isVerified ? '✓ Verified' : '○ Pending'}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.bioChecklistRuleDesc}>
-                        {item.ruleDescription}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                          {item.status === 'verified' ? '✓ Verified' : 'Pending'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.bioChecklistRuleDesc}>
+                      {item.ruleDescription}
+                    </Text>
+                  </View>
+                ))}
               </View>
 
               {/* Bounding Safety Ceilings */}
@@ -554,6 +738,25 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
           </View>
         )}
       </ScrollView>
+
+      {/* Custom Alert Modal for Submission Success & Error Feedback */}
+      <CustomAlertModal
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? 'Next: Nutritional Profiler ➡️' : 'Dismiss'}
+        onClose={() => {
+          setAlertVisible(false);
+          if (alertType === 'success') {
+            if (isEmbedded && onNext) {
+              onNext();
+            } else if (setActiveScreen) {
+              setActiveScreen('NutritionalProfiler');
+            }
+          }
+        }}
+      />
     </Container>
   );
 };

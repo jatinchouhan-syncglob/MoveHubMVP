@@ -91,3 +91,26 @@ export interface GymQuestCardData {
     staminaImpact: string;
   };
 }
+
+export interface IExercisePrescriptionPayload {
+  uhid: string;
+  userId: string;
+  q1FitnessGoal: string;
+  q2BodyFrame: string;
+  q3JointDiscomfort: string;
+  q4TrainingExperience: string;
+  q5DailyWorkRoutine: string;
+  q6SleepWakingFatigue: string;
+  q7StressWorkload: string;
+  q8NutritionalPattern: string;
+  q9GymEquipmentAccess: string;
+}
+
+export interface IExercisePrescriptionData extends IExercisePrescriptionPayload {
+  id?: number;
+  status?: string;
+  completionPercentage?: number;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
