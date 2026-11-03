@@ -71,19 +71,32 @@ const calculateTimeLeft = (targetDateStr?: string): TimeLeft => {
 export const FitnessChallengesScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
 
-  // Active Challenge State
+  // Active Challenge State (0th index)
   const [activeChallenge, setActiveChallenge] = useState<IActiveChallenge | null>(null);
+  // Upcoming Challenge State (1st index)
+  const [upcomingChallenge, setUpcomingChallenge] = useState<IActiveChallenge | null>(null);
   const [loadingActive, setLoadingActive] = useState<boolean>(true);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [imageError, setImageError] = useState<boolean>(false);
+  const [upcomingImageError, setUpcomingImageError] = useState<boolean>(false);
 
   // Challenge Registration State
   const [challengeJoined, setChallengeJoined] = useState(false);
 
+  // Challenge Started Check
+  const isChallengeStarted = (startDateStr?: string): boolean => {
+    if (!startDateStr) return false;
+    const start = new Date(startDateStr).getTime();
+    if (isNaN(start)) return false;
+    return Date.now() >= start;
+  };
+
+  const isStarted = isChallengeStarted(activeChallenge?.startDate);
+
   // Live Countdown Timer State (updates every second)
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
 
-  // Fetch active challenge from GET API
+  // Fetch active challenges from GET API
   const fetchActiveChallenges = useCallback(async () => {
     try {
       setLoadingActive(true);
@@ -97,6 +110,14 @@ export const FitnessChallengesScreen: React.FC = () => {
         setActiveChallenge(first);
         if (first.isEnrolled === true || (first as any).isEnroll === true) {
           setChallengeJoined(true);
+        } else {
+          setChallengeJoined(false);
+        }
+
+        if (res.data.length > 1 && res.data[1]) {
+          setUpcomingChallenge(res.data[1]);
+        } else {
+          setUpcomingChallenge(null);
         }
       }
     } catch (e) {
@@ -111,11 +132,12 @@ export const FitnessChallengesScreen: React.FC = () => {
   }, [fetchActiveChallenges]);
 
   useEffect(() => {
+    if (isStarted) return;
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft(activeChallenge?.startDate));
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeChallenge?.startDate]);
+  }, [activeChallenge?.startDate, isStarted]);
 
   // Success Modal State
   const [successModalVisible, setSuccessModalVisible] = useState(false);
@@ -187,6 +209,20 @@ export const FitnessChallengesScreen: React.FC = () => {
     setActiveScreen('TelemetryLog');
   };
 
+  const hasDuration = Boolean(
+    activeChallenge?.duration && activeChallenge.duration.trim() !== '',
+  );
+  const hasField = Boolean(
+    activeChallenge?.field && activeChallenge.field.trim() !== '',
+  );
+  const hasTelemetry = Boolean(
+    activeChallenge?.telemetry && activeChallenge.telemetry.trim() !== '',
+  );
+  const hasSpecs = hasDuration || hasField || hasTelemetry;
+  const hasWindowDates = Boolean(
+    activeChallenge?.windowDates && activeChallenge.windowDates.trim() !== '',
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#070B14" />
@@ -218,15 +254,28 @@ export const FitnessChallengesScreen: React.FC = () => {
             {/* Top Badges Row */}
             <View style={styles.heroTopRow}>
               <View style={styles.liveBadge}>
-                <View style={[styles.livePulseDot, { backgroundColor: '#F59E0B' }]} />
-                <Text style={[styles.liveBadgeText, { color: '#F59E0B' }]}>
-                  {activeChallenge?.statusBadge || 'N/A'}
+                <View
+                  style={[
+                    styles.livePulseDot,
+                    { backgroundColor: isStarted ? '#10B981' : '#F59E0B' },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.liveBadgeText,
+                    { color: isStarted ? '#10B981' : '#F59E0B' },
+                  ]}>
+                  {isStarted
+                    ? 'ACTIVE CHALLENGE'
+                    : (activeChallenge?.statusBadge || 'N/A')}
                 </Text>
               </View>
               <View style={styles.tierBadge}>
                 <Text style={styles.tierBadgeText}>
                   {activeChallenge?.tier
-                    ? (activeChallenge.tier.startsWith('⚡') ? activeChallenge.tier : `⚡ ${activeChallenge.tier}`)
+                    ? (activeChallenge.tier.startsWith('⚡')
+                        ? activeChallenge.tier
+                        : `⚡ ${activeChallenge.tier}`)
                     : 'N/A'}
                 </Text>
               </View>
@@ -237,35 +286,36 @@ export const FitnessChallengesScreen: React.FC = () => {
               {activeChallenge?.title || 'N/A'}
             </Text>
             <Text style={styles.heroSubtitle}>
-              {activeChallenge?.subtitle ||
-                'N/A'}
+              {activeChallenge?.subtitle || 'N/A'}
             </Text>
 
-            {/* Live Countdown Urgency Ribbon */}
-            <View style={styles.countdownRibbon}>
-              <Text style={styles.countdownLabel}>⏳ STARTS IN:</Text>
-              <View style={styles.countdownChips}>
-                <View style={styles.timeChip}>
-                  <Text style={styles.timeVal}>{timeLeft.days}</Text>
-                  <Text style={styles.timeUnit}>D</Text>
-                </View>
-                <Text style={styles.timeSeparator}>:</Text>
-                <View style={styles.timeChip}>
-                  <Text style={styles.timeVal}>{timeLeft.hours}</Text>
-                  <Text style={styles.timeUnit}>H</Text>
-                </View>
-                <Text style={styles.timeSeparator}>:</Text>
-                <View style={styles.timeChip}>
-                  <Text style={styles.timeVal}>{timeLeft.minutes}</Text>
-                  <Text style={styles.timeUnit}>M</Text>
-                </View>
-                <Text style={styles.timeSeparator}>:</Text>
-                <View style={styles.timeChip}>
-                  <Text style={styles.timeVal}>{timeLeft.seconds}</Text>
-                  <Text style={styles.timeUnit}>S</Text>
+            {/* Live Countdown Urgency Ribbon - Only shown when challenge has NOT started */}
+            {!isStarted && (
+              <View style={styles.countdownRibbon}>
+                <Text style={styles.countdownLabel}>⏳ STARTS IN:</Text>
+                <View style={styles.countdownChips}>
+                  <View style={styles.timeChip}>
+                    <Text style={styles.timeVal}>{timeLeft.days}</Text>
+                    <Text style={styles.timeUnit}>D</Text>
+                  </View>
+                  <Text style={styles.timeSeparator}>:</Text>
+                  <View style={styles.timeChip}>
+                    <Text style={styles.timeVal}>{timeLeft.hours}</Text>
+                    <Text style={styles.timeUnit}>H</Text>
+                  </View>
+                  <Text style={styles.timeSeparator}>:</Text>
+                  <View style={styles.timeChip}>
+                    <Text style={styles.timeVal}>{timeLeft.minutes}</Text>
+                    <Text style={styles.timeUnit}>M</Text>
+                  </View>
+                  <Text style={styles.timeSeparator}>:</Text>
+                  <View style={styles.timeChip}>
+                    <Text style={styles.timeVal}>{timeLeft.seconds}</Text>
+                    <Text style={styles.timeUnit}>S</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
 
             {/* Visual Hero Runner Stage - Uncropped 16:9 Aspect Frame */}
             <View style={styles.heroImageFrame}>
@@ -284,51 +334,55 @@ export const FitnessChallengesScreen: React.FC = () => {
               )}
             </View>
 
-            {/* Stage Pill Callout */}
-            <View style={styles.stageCallout}>
-              <Text style={styles.stageCalloutIcon}>🏁</Text>
-              <Text style={styles.stageCalloutText}>STAGE 01: ENDURANCE BLITZ (STARTS 23 NOV)</Text>
-            </View>
+            {/* Tournament Specs Grid - Only show cards that have data */}
+            {hasSpecs && (
+              <View style={styles.specsGrid}>
+                {hasDuration && (
+                  <View style={styles.specItem}>
+                    <Text style={styles.specIcon}>⏱️</Text>
+                    <Text style={styles.specLabel} numberOfLines={1}>DURATION</Text>
+                    <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {activeChallenge?.duration}
+                    </Text>
+                  </View>
+                )}
 
-            {/* 3-Column Tournament Specs Grid (Objective removed, Zero truncation) */}
-            <View style={styles.specsGrid}>
-              <View style={styles.specItem}>
-                <Text style={styles.specIcon}>⏱️</Text>
-                <Text style={styles.specLabel} numberOfLines={1}>DURATION</Text>
-                <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {activeChallenge?.duration || 'N/A'}
-                </Text>
-              </View>
+                {hasField && (
+                  <View style={styles.specItem}>
+                    <Text style={styles.specIcon}>👥</Text>
+                    <Text style={styles.specLabel} numberOfLines={1}>FIELD</Text>
+                    <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {activeChallenge?.field}
+                    </Text>
+                  </View>
+                )}
 
-              <View style={styles.specItem}>
-                <Text style={styles.specIcon}>👥</Text>
-                <Text style={styles.specLabel} numberOfLines={1}>FIELD</Text>
-                <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {activeChallenge?.field || 'N/A'}
-                </Text>
+                {hasTelemetry && (
+                  <View style={styles.specItem}>
+                    <Text style={styles.specIcon}>⚡</Text>
+                    <Text style={styles.specLabel} numberOfLines={1}>TELEMETRY</Text>
+                    <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {activeChallenge?.telemetry}
+                    </Text>
+                  </View>
+                )}
               </View>
+            )}
 
-              <View style={styles.specItem}>
-                <Text style={styles.specIcon}>⚡</Text>
-                <Text style={styles.specLabel} numberOfLines={1}>TELEMETRY</Text>
-                <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {activeChallenge?.telemetry || 'N/A'}
-                </Text>
+            {/* Schedule Window Banner - Only shown if windowDates exists */}
+            {hasWindowDates && (
+              <View style={styles.scheduleBanner}>
+                <View style={styles.scheduleIconWrap}>
+                  <Text style={styles.scheduleIcon}>🗓️</Text>
+                </View>
+                <View style={styles.scheduleTextWrap}>
+                  <Text style={styles.scheduleHeading}>Tournament Window</Text>
+                  <Text style={styles.scheduleDetail}>
+                    {activeChallenge?.windowDates}
+                  </Text>
+                </View>
               </View>
-            </View>
-
-            {/* Schedule Window Banner */}
-            <View style={styles.scheduleBanner}>
-              <View style={styles.scheduleIconWrap}>
-                <Text style={styles.scheduleIcon}>🗓️</Text>
-              </View>
-              <View style={styles.scheduleTextWrap}>
-                <Text style={styles.scheduleHeading}>Tournament Window</Text>
-                <Text style={styles.scheduleDetail}>
-                  {activeChallenge?.windowDates || 'N/A'}
-                </Text>
-              </View>
-            </View>
+            )}
 
             {/* Status & CTA Area */}
             {challengeJoined || activeChallenge?.isEnrolled ? (
@@ -456,33 +510,113 @@ export const FitnessChallengesScreen: React.FC = () => {
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Upcoming Tournaments</Text>
           <View style={styles.sectionCountBadge}>
-            <Text style={styles.sectionCountText}>STAY TUNED</Text>
+            <Text style={styles.sectionCountText}>
+              {upcomingChallenge ? '1 UPCOMING' : 'STAY TUNED'}
+            </Text>
           </View>
         </View>
 
-        {/* No Upcoming Tournaments Available Card */}
-        <View style={styles.noUpcomingCard}>
-          <LinearGradient
-            colors={['#131B2E', '#0B132B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.noUpcomingGradient}
-          >
-            <View style={styles.noUpcomingIconBadge}>
-              <Text style={styles.noUpcomingEmoji}>🏁</Text>
+        {upcomingChallenge ? (
+          <View style={styles.upcomingModernCard}>
+            {/* Top Poster Frame */}
+            <View style={styles.upcomingPosterFrame}>
+              {upcomingChallenge.bannerUrl && !upcomingImageError ? (
+                <Image
+                  source={{ uri: upcomingChallenge.bannerUrl }}
+                  style={styles.upcomingPosterImage}
+                  resizeMode="cover"
+                  onError={() => setUpcomingImageError(true)}
+                />
+              ) : (
+                <View style={styles.noImagePlaceholder}>
+                  <Text style={styles.noImageIcon}>🖼️</Text>
+                  <Text style={styles.noImageText}>Image Not Available</Text>
+                </View>
+              )}
+              {Boolean(upcomingChallenge.category) && (
+                <View style={styles.posterTagLeft}>
+                  <Text style={styles.posterTagLeftText}>
+                    {upcomingChallenge.category.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              {Boolean(upcomingChallenge.tier) && (
+                <View style={styles.posterTagRight}>
+                  <Text style={styles.posterTagRightText}>
+                    {upcomingChallenge.tier.toUpperCase()}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            <Text style={styles.noUpcomingTitle}>No Upcoming Tournaments Right Now</Text>
-            <Text style={styles.noUpcomingDesc}>
-              There are no new tournaments scheduled at the moment. Keep active in the ongoing challenge to climb the national leaderboard!
-            </Text>
+            {/* Bottom Card Content */}
+            <View style={styles.upcomingCardBody}>
+              <View style={styles.upcomingAccentLineAmber} />
+              <Text style={styles.upcomingCardTitle}>
+                {upcomingChallenge.title}
+              </Text>
+              {Boolean(upcomingChallenge.subtitle) && (
+                <Text style={styles.upcomingCardDesc}>
+                  {upcomingChallenge.subtitle}
+                </Text>
+              )}
 
-            <View style={styles.noUpcomingPill}>
-              <View style={styles.noUpcomingPillDot} />
-              <Text style={styles.noUpcomingPillText}>Next Schedule In Preparation</Text>
+              <View style={styles.upcomingDateRow}>
+                <Text style={styles.upcomingDateIcon}>🗓️</Text>
+                <Text style={styles.upcomingDateText}>
+                  {upcomingChallenge.windowDates ||
+                    (upcomingChallenge.startDate
+                      ? `Starting: ${new Date(upcomingChallenge.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                      : 'Date TBA')}
+                </Text>
+                {upcomingChallenge.isEnrolled ? (
+                  <View
+                    style={[
+                      styles.upcomingStatusChip,
+                      {
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        borderColor: 'rgba(16, 185, 129, 0.3)',
+                      },
+                    ]}>
+                    <Text style={[styles.upcomingStatusText, { color: '#10B981' }]}>
+                      Enrolled ✅
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.upcomingStatusChipAmber}>
+                    <Text style={styles.upcomingStatusTextAmber}>
+                      {upcomingChallenge.statusBadge || 'Coming Soon'}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </LinearGradient>
-        </View>
+          </View>
+        ) : (
+          /* No Upcoming Tournaments Available Card */
+          <View style={styles.noUpcomingCard}>
+            <LinearGradient
+              colors={['#131B2E', '#0B132B']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.noUpcomingGradient}
+            >
+              <View style={styles.noUpcomingIconBadge}>
+                <Text style={styles.noUpcomingEmoji}>🏁</Text>
+              </View>
+
+              <Text style={styles.noUpcomingTitle}>No Upcoming Tournaments Right Now</Text>
+              <Text style={styles.noUpcomingDesc}>
+                There are no new tournaments scheduled at the moment. Keep active in the ongoing challenge to climb the national leaderboard!
+              </Text>
+
+              <View style={styles.noUpcomingPill}>
+                <View style={styles.noUpcomingPillDot} />
+                <Text style={styles.noUpcomingPillText}>Next Schedule In Preparation</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        )}
 
         {/* ==================== AWARDS & PODIUM SHOWCASE ==================== */}
         <View style={styles.awardsCard}>
@@ -1259,7 +1393,7 @@ const styles = StyleSheet.create({
   upcomingPosterFrame: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F172A',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',

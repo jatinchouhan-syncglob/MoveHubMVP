@@ -430,6 +430,8 @@ export const InsightsScreen: React.FC = () => {
           const energyExpendedObj = metrics.energy_expended_kcal || {};
           const sdexObj = metrics.sdex || {};
           const activeMinutesObj = metrics.active_minutes || {};
+          const mhpObj = metrics.modified_heart_points || {};
+          const cmasObj = metrics.cmas;
           const stepsBreakdownObj = dailyChartsRes.daily_steps_breakdown || {};
           const bioSyncObj = dailyChartsRes.bio_sync_charts || {};
           const labelDate = dailyChartsRes.target_date || 'Today';
@@ -438,6 +440,7 @@ export const InsightsScreen: React.FC = () => {
           const sdexValue = sdexObj.value ?? (typeof sdexObj === 'number' ? sdexObj : 0);
           const energyExpendedValue = energyExpendedObj.value ?? (typeof energyExpendedObj === 'number' ? energyExpendedObj : 0);
           const activeMinutesValue = activeMinutesObj.value ?? (typeof activeMinutesObj === 'number' ? activeMinutesObj : 0);
+          const mhpValue = mhpObj.value ?? (typeof mhpObj === 'number' ? mhpObj : 0);
           const totalSteps = stepsBreakdownObj.total_steps ?? metrics.steps ?? 0;
 
           // Days arrays for 7-day charts
@@ -446,6 +449,7 @@ export const InsightsScreen: React.FC = () => {
           const sdexDays = sdexObj.days || [{ date: labelDate, day: 'Today', total: sdexValue }];
           const energyDays = energyExpendedObj.days || [{ date: labelDate, day: 'Today', total: energyExpendedValue }];
           const activeMinutesDays = activeMinutesObj.days || [{ date: labelDate, day: 'Today', active_minutes: activeMinutesValue }];
+          const mhpDays = mhpObj.days || [{ date: labelDate, day: 'Today', total: mhpValue }];
 
           const mappedFitnessTrend = {
             dailyStepsBreakdown: stepsDays,
@@ -453,9 +457,11 @@ export const InsightsScreen: React.FC = () => {
             dailySdex: sdexDays,
             energyExpanded: energyDays,
             dailyActiveMinutes: activeMinutesDays,
+            dailyModifiedHeartPoints: mhpDays,
             totalHeartPoint: hpValue,
             totalDailySdex: sdexValue,
             totalActiveMinutes: activeMinutesValue,
+            totalModifiedHeartPoints: mhpValue,
             dailyInsightText: dailyChartsRes.daily_insight_text || dailyChartsRes.daily_insight?.text || '',
             dailyHeartPointsCharts: {
               target: heartPointsObj.target ?? 21.4,
@@ -481,7 +487,19 @@ export const InsightsScreen: React.FC = () => {
               target: activeMinutesObj.target,
               value: activeMinutesValue,
               performance_percent: activeMinutesObj.performance_percent ?? activeMinutesObj.percent,
-            }
+            },
+            dailyModifiedHeartPointsCharts: {
+              target: mhpObj.target,
+              value: mhpValue,
+              performance_percent: mhpObj.performance_percent ?? mhpObj.percent,
+            },
+            cmasData: cmasObj ? {
+              value: cmasObj.value ?? (typeof cmasObj === 'number' ? cmasObj : undefined),
+              target: cmasObj.target,
+              percent: cmasObj.percent,
+              performance_percent: cmasObj.performance_percent,
+              status: cmasObj.status || cmasObj.alignment_status || cmasObj.performance_status,
+            } : undefined,
           };
 
           const ppiObj = bioSyncObj.ppi || {};
@@ -1279,15 +1297,19 @@ export const InsightsScreen: React.FC = () => {
               sdexActivity={parseFitnessTrendArray(fitnessTrend?.dailySdex)}
               energyExpended={parseFitnessTrendArray(fitnessTrend?.energyExpanded)}
               dailyActiveMinutes={parseFitnessTrendArray(fitnessTrend?.dailyActiveMinutes)}
+              dailyModifiedHeartPoints={parseFitnessTrendArray(fitnessTrend?.dailyModifiedHeartPoints)}
               totalHeartPoint={fitnessTrend?.totalHeartPoint ?? 0}
               totalDailySdex={fitnessTrend?.totalDailySdex ?? 0}
               totalActiveMinutes={fitnessTrend?.totalActiveMinutes ?? 0}
+              totalModifiedHeartPoints={fitnessTrend?.totalModifiedHeartPoints ?? 0}
               dailyHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyHeartPointsCharts)}
               dailySdexCharts={formatChartSummary(fitnessTrend?.dailySdexCharts)}
               dailyStepsBreakdownCharts={formatChartSummary(fitnessTrend?.dailyStepsBreakdownCharts)}
               energyExpandedCharts={formatChartSummary(fitnessTrend?.energyExpandedCharts)}
               dailyActiveMinutesCharts={formatChartSummary(fitnessTrend?.dailyActiveMinutesCharts)}
+              dailyModifiedHeartPointsCharts={formatChartSummary(fitnessTrend?.dailyModifiedHeartPointsCharts)}
               dailyInsightText={fitnessTrend?.dailyInsightText}
+              cmasData={fitnessTrend?.cmasData}
             />
           )
         )}

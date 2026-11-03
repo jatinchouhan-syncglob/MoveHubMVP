@@ -109,15 +109,16 @@ const FitnessTab = ({
   sdexActivity,
   energyExpended,
   dailyActiveMinutes,
+  dailyModifiedHeartPoints,
   totalHeartPoint = 0,
-  totalDailySdex = 0,
-  totalActiveMinutes = 0,
   dailyHeartPointsCharts,
   dailySdexCharts,
   dailyStepsBreakdownCharts,
   energyExpandedCharts,
   dailyActiveMinutesCharts,
+  dailyModifiedHeartPointsCharts,
   dailyInsightText,
+  cmasData,
 }: IFitnessTabProps) => {
   const animValue = useRef(new Animated.Value(0)).current;
 
@@ -136,14 +137,114 @@ const FitnessTab = ({
 
   const heartPointsMax = getDynamicMax(dailyHeartPoints?.values || []);
 
-  const staticMhpData = {
-    labels:
-      dailyHeartPoints?.labels && dailyHeartPoints.labels.length > 0
-        ? dailyHeartPoints.labels
-        : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    values: [18.5, 24.0, 31.2, 22.8, 27.5, 36.0, 29.4],
+  const mhpValues = dailyModifiedHeartPoints?.values || [];
+  const mhpLabels =
+    dailyModifiedHeartPoints?.labels && dailyModifiedHeartPoints.labels.length > 0
+      ? dailyModifiedHeartPoints.labels
+      : (dailyHeartPoints?.labels && dailyHeartPoints.labels.length > 0
+          ? dailyHeartPoints.labels
+          : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+  const mhpMax = getDynamicMax(mhpValues.length > 0 ? mhpValues : [10]);
+
+  // CMAS Score and Status Calculations
+  const hasCmas = cmasData !== undefined && cmasData !== null && cmasData.value !== undefined && cmasData.value !== null;
+  const cmasValue = hasCmas ? Number(cmasData.value) : null;
+  const cmasTarget = (cmasData?.target !== undefined && cmasData.target !== null && Number(cmasData.target) > 0)
+    ? Number(cmasData.target)
+    : 100;
+
+  const cmasPct = hasCmas && cmasValue !== null
+    ? (cmasData?.performance_percent !== undefined
+        ? Number(cmasData.performance_percent)
+        : cmasData?.percent !== undefined
+          ? Number(cmasData.percent)
+          : Math.min(100, Math.max(0, Math.round((cmasValue / cmasTarget) * 100))))
+    : 0;
+
+  const getCmasStatus = () => {
+    if (cmasData?.status) {
+      return String(cmasData.status).toUpperCase();
+    }
+    if (hasCmas && cmasValue !== null) {
+      if (cmasValue >= 75) return 'OPTIMAL';
+      if (cmasValue >= 50) return 'MODERATE';
+      if (cmasValue > 0) return 'DEFICIT';
+    }
+    return 'N/A';
   };
-  const mhpMax = getDynamicMax(staticMhpData.values);
+
+  const cmasStatus = getCmasStatus();
+
+  const getCmasStatusStyle = (status: string) => {
+    switch (status) {
+      case 'OPTIMAL':
+        return {
+          bg: 'rgba(34, 197, 94, 0.15)',
+          border: '#10B981',
+          text: '#047857',
+        };
+      case 'MODERATE':
+        return {
+          bg: 'rgba(245, 158, 11, 0.15)',
+          border: '#F59E0B',
+          text: '#B45309',
+        };
+      case 'DEFICIT':
+      case 'NEEDS ATTENTION':
+        return {
+          bg: 'rgba(239, 68, 68, 0.15)',
+          border: '#EF4444',
+          text: '#B91C1C',
+        };
+      default:
+        return {
+          bg: 'rgba(100, 116, 139, 0.12)',
+          border: '#94A3B8',
+          text: '#475569',
+        };
+    }
+  };
+
+  const cmasStatusStyle = getCmasStatusStyle(cmasStatus);
+
+  const getCmasScoreColors = (status: string, score: number | null) => {
+    if (score === null || status === 'N/A') {
+      return {
+        ring: '#94A3B8',
+        track: '#E2E8F0',
+        dot: '#94A3B8',
+        text: '#475569',
+        percent: '#64748B',
+      };
+    }
+    if (score >= 75 || status === 'OPTIMAL') {
+      return {
+        ring: '#059669',
+        track: '#A7F3D0',
+        dot: '#10B981',
+        text: '#064E3B',
+        percent: '#059669',
+      };
+    }
+    if (score >= 50 || status === 'MODERATE') {
+      return {
+        ring: '#D97706',
+        track: '#FDE68A',
+        dot: '#F59E0B',
+        text: '#78350F',
+        percent: '#B45309',
+      };
+    }
+    return {
+      ring: '#E11D48',
+      track: '#FECDD3',
+      dot: '#F43F5E',
+      text: '#881337',
+      percent: '#E11D48',
+    };
+  };
+
+  const cmasScoreColors = getCmasScoreColors(cmasStatus, cmasValue);
 
   const sdexMax = getDynamicMax(sdexActivity?.values || []);
 
@@ -232,15 +333,15 @@ const FitnessTab = ({
             style={[
               styles.statusBadge,
               {
-                backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                borderColor: '#10B981',
+                backgroundColor: cmasStatusStyle.bg,
+                borderColor: cmasStatusStyle.border,
                 paddingHorizontal: 10,
                 paddingVertical: 4,
                 borderRadius: 20,
               },
             ]}>
-            <Text style={[styles.statusText, { color: '#047857', fontSize: 10, fontWeight: '800' }]}>
-              OPTIMAL
+            <Text style={[styles.statusText, { color: cmasStatusStyle.text, fontSize: 10, fontWeight: '800' }]}>
+              {cmasStatus}
             </Text>
           </View>
         </View>
@@ -248,22 +349,24 @@ const FitnessTab = ({
         <View style={[styles.donutContainer, { marginTop: 4, alignItems: 'center' }]}>
           <View style={[styles.donutChartWrapper, { backgroundColor: '#FFFFFF', borderRadius: 60, padding: 6, shadowColor: '#059669', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 }]}>
             <DonutChart
-              pct={82}
+              pct={cmasPct}
               size={100}
-              color="#059669"
-              trackColor="#A7F3D0"
+              color={cmasScoreColors.ring}
+              trackColor={cmasScoreColors.track}
             />
             <View style={styles.donutScoreContainer}>
               <View
                 style={[
                   styles.trafficLightDot,
-                  { backgroundColor: '#10B981' },
+                  { backgroundColor: cmasScoreColors.dot },
                 ]}
               />
-              <Text style={[styles.donutScoreValue, { color: '#064E3B', fontWeight: '900' }]}>
-                82
+              <Text style={[styles.donutScoreValue, { color: cmasScoreColors.text, fontWeight: '900' }]}>
+                {hasCmas && cmasValue !== null ? Math.round(cmasValue) : 'N/A'}
               </Text>
-              <Text style={[styles.donutScorePercent, { color: '#059669', fontWeight: '700' }]}>%</Text>
+              {hasCmas && cmasValue !== null && (
+                <Text style={[styles.donutScorePercent, { color: cmasScoreColors.percent, fontWeight: '700' }]}>%</Text>
+              )}
             </View>
           </View>
 
@@ -660,27 +763,58 @@ const FitnessTab = ({
         </View>
 
         <View style={[styles.chartCanvasBox, { borderColor: 'rgba(234, 88, 12, 0.15)', shadowColor: '#EA580C' }]}>
-          <ScrollableChart
-            dataLength={staticMhpData.values.length}
-            visibleWidth={innerChartWidth}
-          >
-            {computedWidth => (
-              <BarChart
-                values={staticMhpData.values}
-                labels={staticMhpData.labels}
-                width={computedWidth}
-                height={180}
-                maxY={mhpMax}
-                yTicks={getDynamicTicks(mhpMax)}
-                color="#E11D48"
-              />
-            )}
-          </ScrollableChart>
+          {mhpValues.length > 0 ? (
+            <ScrollableChart
+              dataLength={mhpValues.length}
+              visibleWidth={innerChartWidth}
+            >
+              {computedWidth => (
+                <BarChart
+                  values={mhpValues}
+                  labels={mhpLabels}
+                  width={computedWidth}
+                  height={180}
+                  maxY={mhpMax}
+                  yTicks={getDynamicTicks(mhpMax)}
+                  color="#EA580C"
+                />
+              )}
+            </ScrollableChart>
+          ) : (
+            <EmptyChart title="Modified Heart Points (MHP)" />
+          )}
         </View>
 
         <Text style={[styles.caption, { color: '#9A3412' }]}>
           Modified Heart Points (MHP) progress across active recovery days.
         </Text>
+
+        {dailyModifiedHeartPointsCharts && (
+          <View style={styles.modernSummaryRow}>
+            {dailyModifiedHeartPointsCharts.target !== undefined &&
+              dailyModifiedHeartPointsCharts.target !== null && (
+                <View style={styles.modernSummaryItem}>
+                  <Text style={styles.modernSummaryLabel}>Target: </Text>
+                  <Text style={styles.modernSummaryValue}>{dailyModifiedHeartPointsCharts.target}</Text>
+                </View>
+              )}
+            {dailyModifiedHeartPointsCharts.actual !== undefined &&
+              dailyModifiedHeartPointsCharts.actual !== null && (
+                <View style={styles.modernSummaryItem}>
+                  <Text style={styles.modernSummaryLabel}>Actual: </Text>
+                  <Text style={styles.modernSummaryValue}>{dailyModifiedHeartPointsCharts.actual}</Text>
+                </View>
+              )}
+            {dailyModifiedHeartPointsCharts.performance !== undefined &&
+              dailyModifiedHeartPointsCharts.performance !== null && (
+                <View style={styles.modernPerformanceBadge}>
+                  <Text style={styles.modernPerformanceText}>
+                    Performance: {dailyModifiedHeartPointsCharts.performance}%
+                  </Text>
+                </View>
+              )}
+          </View>
+        )}
       </RNLinearGradient>
 
       {!isINOXuser && (

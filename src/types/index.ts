@@ -194,9 +194,14 @@ export interface IFitnessTabProps {
     values: number[];
     labels: string[];
   };
+  dailyModifiedHeartPoints?: {
+    values: number[];
+    labels: string[];
+  };
   totalHeartPoint?: number;
   totalDailySdex?: number;
   totalActiveMinutes?: number;
+  totalModifiedHeartPoints?: number;
   dailyHeartPointsCharts?: {
     target?: number | string;
     actual?: number | string;
@@ -222,7 +227,19 @@ export interface IFitnessTabProps {
     actual?: number | string;
     performance?: number | string;
   };
+  dailyModifiedHeartPointsCharts?: {
+    target?: number | string;
+    actual?: number | string;
+    performance?: number | string;
+  };
   dailyInsightText?: string;
+  cmasData?: {
+    value?: number;
+    target?: number;
+    percent?: number;
+    performance_percent?: number;
+    status?: string;
+  };
 }
 
 export interface PillarHealthItem {
