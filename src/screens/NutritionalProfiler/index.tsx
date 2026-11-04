@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useDrawer } from '../../navigation/DrawerContext';
-import { INBDPSketchPayload} from './types';
+import { CustomAlertModal } from '../../components/common/CustomAlertModal';
+import { apiService } from '../../services/api';
+import { storageHelper } from '../../storage/storageHelper';
+import { STORAGE_KEYS } from '../../storage/storageKeys';
+import { UserProfile } from '../../types';
+import { INBDPSketchPayload } from './types';
 import { NBDP_STEPS, NBDP_QUESTIONS } from './questions';
 import { styles } from './styles';
 
@@ -45,7 +50,15 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [form, setForm] = useState<INBDPSketchPayload>(DEFAULT_FORM);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // Custom Alert Modal State for success/error feedback
+  const [alertModalVisible, setAlertModalVisible] = useState<boolean>(false);
+  const [alertTitle, setAlertTitle] = useState<string>('');
+  const [alertMessage, setAlertMessage] = useState<string>('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
 
   const currentStep = NBDP_STEPS[currentStepIndex];
   const totalSteps = NBDP_STEPS.length;
@@ -54,6 +67,51 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
   useEffect(() => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   }, [currentStepIndex]);
+
+  // Load existing profile and latest questionnaire data on mount
+  const loadLatestProfiler = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      if (cachedProfile) {
+        setProfile(cachedProfile);
+      }
+      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      console.log(`[NutritionalProfiler] Loading latest profiler for UHID: ${targetUhid}...`);
+
+      const res = await apiService.getLatestNutritionalProfiler(targetUhid);
+      if (res && res.status === 'Success' && res.data) {
+        const d = res.data;
+        console.log('[NutritionalProfiler] Existing profiler data loaded:', d);
+        setForm({
+          processed_sugar_frequency: d.q1SugarRefinedFlourFrequency || '',
+          glycogen_substrate_source: d.q2PrimaryCarbohydrateSource || '',
+          pre_workout_fueling_status: d.q3PreWorkoutIntake || '',
+          post_workout_intake_window: d.q4PostWorkoutIntake || '',
+          daily_water_intake_liters: typeof d.q5DailyWaterLiters === 'number' ? d.q5DailyWaterLiters : 0,
+          hydration_distribution_pattern: d.q6FluidDistribution || '',
+          processed_sodium_exposure: d.q7ProcessedFoodFrequency || '',
+          table_salt_behavior: d.q8SaltBehavior || '',
+          protein_intake_density: d.q9ProteinConsumptionTarget || '',
+          dominant_lipid_profile: Array.isArray(d.q10FatSources) ? d.q10FatSources : [],
+          microbiome_substrate_frequency: d.q11FermentedFoodsFrequency || '',
+          late_night_ingestion_gap: d.q12LateNightEatingGap || '',
+          dietary_archetype_profile: Array.isArray(d.q13DietaryProfileAllergies) ? d.q13DietaryProfileAllergies : [],
+          satiety_volume_envelope: d.q14EatingCapacitySatiety || '',
+        });
+      }
+    } catch (err: any) {
+      console.warn('[NutritionalProfiler] Error loading latest profiler:', err?.message || err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLatestProfiler();
+  }, [loadLatestProfiler]);
 
   // Counts how many questions (out of 14) have been answered
   const countAnsweredQuestions = (): number => {
@@ -180,37 +238,66 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
             });
           },
         },
-      ]
+      ],
     );
   };
 
   const handleSubmit = async () => {
+    if (!isStepValid()) {
+      setAlertTitle('Incomplete Section');
+      setAlertMessage('Please answer all questions before submitting.');
+      setAlertType('warning');
+      setAlertModalVisible(true);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 600));
+      const targetUhid = profile?.uhid || 'JATCHO5525';
+      const targetUserId = profile?.userId ? `USR_${profile.userId}` : 'USR_NUTR_01';
 
-      Alert.alert(
-        'Nutritional Profile Saved! 🎉',
-        'Your dietary responses have been submitted successfully.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setForm(DEFAULT_FORM);
-              setCurrentStepIndex(0);
-              scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-              onComplete?.();
-            },
-          },
-        ],
-        { cancelable: false }
+      const payload = {
+        uhid: targetUhid,
+        userId: targetUserId,
+        q1SugarRefinedFlourFrequency: form.processed_sugar_frequency,
+        q2PrimaryCarbohydrateSource: form.glycogen_substrate_source,
+        q3PreWorkoutIntake: form.pre_workout_fueling_status,
+        q4PostWorkoutIntake: form.post_workout_intake_window,
+        q5DailyWaterLiters: form.daily_water_intake_liters,
+        q6FluidDistribution: form.hydration_distribution_pattern,
+        q7ProcessedFoodFrequency: form.processed_sodium_exposure,
+        q8SaltBehavior: form.table_salt_behavior,
+        q9ProteinConsumptionTarget: form.protein_intake_density,
+        q10FatSources: form.dominant_lipid_profile,
+        q11FermentedFoodsFrequency: form.microbiome_substrate_frequency,
+        q12LateNightEatingGap: form.late_night_ingestion_gap,
+        q13DietaryProfileAllergies: form.dietary_archetype_profile,
+        q14EatingCapacitySatiety: form.satiety_volume_envelope,
+        notes: 'Test',
+      };
+
+      console.log('[NutritionalProfilerScreen] Submitting payload:', payload);
+      const res = await apiService.saveNutritionalProfiler(payload);
+
+      if (res && res.status === 'Success') {
+        setAlertTitle('Nutritional Profile Saved! 🥗');
+        setAlertMessage(res.message || 'Your dietary responses have been submitted successfully.');
+        setAlertType('success');
+        setAlertModalVisible(true);
+      } else {
+        setAlertTitle('Submission Failed');
+        setAlertMessage(res?.message || 'Unable to save profiler data. Please try again.');
+        setAlertType('error');
+        setAlertModalVisible(true);
+      }
+    } catch (error: any) {
+      console.error('[NutritionalProfilerScreen] Submit error:', error);
+      setAlertTitle('Submission Error');
+      setAlertMessage(
+        error?.response?.data?.message || 'Unable to save profiler data. Please check your network connection.',
       );
-    } catch (error) {
-      Alert.alert(
-        'Submission Failed',
-        'Unable to save profiler data. Please try again.',
-        [{ text: 'OK' }]
-      );
+      setAlertType('error');
+      setAlertModalVisible(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -239,7 +326,7 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
         {q.type === 'radio' && q.options && (
           <View style={styles.optionsList}>
             {q.options.map(option => {
-              const isSelected = form[q.id] === option.value;
+              const isSelected = form[q.id] === option.value || form[q.id] === option.label;
               return (
                 <TouchableOpacity
                   key={option.value}
@@ -274,7 +361,7 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
           <View style={styles.optionsList}>
             {q.options.map(option => {
               const selectedList = (form[q.id] as string[]) || [];
-              const isChecked = selectedList.includes(option.value);
+              const isChecked = selectedList.includes(option.value) || selectedList.includes(option.label);
               return (
                 <TouchableOpacity
                   key={option.value}
@@ -384,6 +471,20 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
 
   const Container = isEmbedded ? View : SafeAreaView;
 
+  if (isLoading) {
+    return (
+      <Container style={styles.container}>
+        {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 }}>
+          <ActivityIndicator size="large" color="#38BDF8" />
+          <Text style={{ marginTop: 12, color: '#94A3B8', fontSize: 13, fontWeight: '600' }}>
+            Loading Nutritional Profiler...
+          </Text>
+        </View>
+      </Container>
+    );
+  }
+
   return (
     <Container style={styles.container}>
       {!isEmbedded && <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />}
@@ -478,6 +579,21 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Custom Alert Modal for Submission Success & Error Feedback */}
+      <CustomAlertModal
+        visible={alertModalVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        buttonText={alertType === 'success' ? (isEmbedded ? 'Complete Assessment ✅' : 'OK') : 'Dismiss'}
+        onClose={() => {
+          setAlertModalVisible(false);
+          if (alertType === 'success') {
+            onComplete?.();
+          }
+        }}
+      />
     </Container>
   );
 };

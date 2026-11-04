@@ -59,18 +59,46 @@ export interface Phase1LeaderboardItem {
   '6AM_CALCULATION_TIMESTAMP': string;
 }
 
-export interface Phase1LeaderboardResponse {
-  status: string;
+export interface Phase1ChallengeData {
+  status?: string;
+  challenge_id?: string;
+  active_challenge_day?: number;
+  cutoff_at?: string;
+  rank_scope?: string;
+  participants?: number;
+  active_crew_participants?: number;
+  benchmark_avg_score?: number;
+  benchmark_sample_size?: number;
+  leaderboard: Phase1LeaderboardItem[];
+}
+
+export interface Phase1ChallengeEntry {
   challenge_id: string;
-  active_challenge_day: number;
-  cutoff_at: string;
-  participants: number;
-  rank_scope: string;
+  data: Phase1ChallengeData;
+}
+
+export interface Phase1LeaderboardResponse {
+  uhid?: string;
+  challenges?: Phase1ChallengeEntry[];
+  source?: string;
+  historical?: boolean;
+  currently_enrolled?: boolean;
+
+  // Backwards compatibility with previous flat response
+  status?: string;
+  challenge_id?: string;
+  active_challenge_day?: number;
+  cutoff_at?: string;
+  participants?: number;
+  active_crew_participants?: number;
+  benchmark_avg_score?: number;
+  benchmark_sample_size?: number;
+  rank_scope?: string;
+  leaderboard?: Phase1LeaderboardItem[];
   persistence?: {
     database: string;
     redis: string;
   };
-  leaderboard: Phase1LeaderboardItem[];
   verified_rows?: any;
   step_target_sources?: Record<string, string>;
   profile_sources?: Record<string, string>;
@@ -79,7 +107,6 @@ export interface Phase1LeaderboardResponse {
   source_dates?: string[];
   calculation_mode?: string;
   implementation_version?: string;
-  uhid: string;
 }
 
 export interface Phase2LeaderboardItem {

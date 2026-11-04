@@ -31,7 +31,6 @@ import {
   Phase2LeaderboardItem,
 } from '../../types';
 import Svg, { Path } from 'react-native-svg';
-import { IMAGES } from '../../assets/images';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -93,6 +92,7 @@ export interface PhasePlayer {
   id: string;
   name: string;
   userId: string;
+  rank?: number;
   department: string;
   isCurrentUser?: boolean;
   masterScore: number;
@@ -110,6 +110,7 @@ export interface PhasePlayer {
   middayQuestAlert?: string;
   calculationTimestamp?: string;
   dailyEodAudit?: string;
+  behavioralTrackCumCmas?: string;
 }
 
 // 21 Days Metadata
@@ -193,13 +194,20 @@ export const mapApiLeaderboardToPlayers = (
   currentUserName?: string,
 ): PhasePlayer[] => {
   return apiItems.map((item, idx) => {
+    const rawUserId = (item.USER_ID && typeof item.USER_ID === 'string') ? item.USER_ID.trim() : '';
+    const userId = rawUserId || 'N/A';
     const isCurrentUser =
-      (currentUhid && item.USER_ID.toUpperCase() === currentUhid.toUpperCase()) ||
-      item.USER_ID === 'ANJROY3773' ||
+      (currentUhid && rawUserId && rawUserId.toUpperCase() === currentUhid.toUpperCase()) ||
+      rawUserId === 'JATCHO5525' ||
+      rawUserId === 'ANJROY3773' ||
       apiItems.length === 1;
 
-    const cmasScore = parseFloat(item.CUMULATIVE_CMAS_100) || 0;
-    const rawStatus = (item.STATUS || '').toUpperCase();
+    const rawRank = (item.RANK && typeof item.RANK === 'string') ? item.RANK.trim() : '';
+    const parsedRank = rawRank && !isNaN(parseInt(rawRank, 10)) ? parseInt(rawRank, 10) : (idx + 1);
+
+    const rawCmas = (item.CUMULATIVE_CMAS_100 && typeof item.CUMULATIVE_CMAS_100 === 'string') ? item.CUMULATIVE_CMAS_100.trim() : '';
+    const cmasScore = rawCmas && !isNaN(parseFloat(rawCmas)) ? parseFloat(rawCmas) : 0;
+    const rawStatus = (item.STATUS || '').trim().toUpperCase();
     const isDanger = rawStatus.includes('ELIMINATED') || rawStatus.includes('DANGER');
 
     let status: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER' = 'ACTIVE';
@@ -211,12 +219,20 @@ export const mapApiLeaderboardToPlayers = (
       status = 'PODIUM';
     }
 
-    const stepVolume = item.STEP_VOLUME_COMPLIANCE || 'N/A';
-    const cardioIntensity = item.CARDIO_INTENSITY_COMPLIANCE || 'N/A';
-    const sDexSeverity = item.SEDENTARY_SDEX_SEVERITY || 'N/A';
+    const stepVolume = (item.STEP_VOLUME_COMPLIANCE && item.STEP_VOLUME_COMPLIANCE.trim()) ? item.STEP_VOLUME_COMPLIANCE.trim() : 'N/A';
+    const cardioIntensity = (item.CARDIO_INTENSITY_COMPLIANCE && item.CARDIO_INTENSITY_COMPLIANCE.trim()) ? item.CARDIO_INTENSITY_COMPLIANCE.trim() : 'N/A';
+    const sDexSeverity = (item.SEDENTARY_SDEX_SEVERITY && item.SEDENTARY_SDEX_SEVERITY.trim()) ? item.SEDENTARY_SDEX_SEVERITY.trim() : 'N/A';
+    const cumCmasDisplay = rawCmas || 'N/A';
+    const healthInference = (item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE && item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE.trim())
+      ? item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE.trim()
+      : 'N/A';
+    const middayAlert = (item.MIDDAY_QUEST_ALERT && item.MIDDAY_QUEST_ALERT.trim()) ? item.MIDDAY_QUEST_ALERT.trim() : 'N/A';
+    const timestamp = (item['6AM_CALCULATION_TIMESTAMP'] && item['6AM_CALCULATION_TIMESTAMP'].trim()) ? item['6AM_CALCULATION_TIMESTAMP'].trim() : 'N/A';
+    const playerStatusLabel = (item.STATUS && item.STATUS.trim()) ? item.STATUS.trim() : 'N/A';
+    const behCumCmas = (item.BEHAVIORAL_TRACK_CUM_CMAS && item.BEHAVIORAL_TRACK_CUM_CMAS.trim()) ? item.BEHAVIORAL_TRACK_CUM_CMAS.trim() : (cumCmasDisplay !== 'N/A' ? `${cumCmasDisplay} / 100` : 'N/A');
 
     const behavioralTrack: PhaseTrack = {
-      id: `t-beh-${item.USER_ID}-${idx}`,
+      id: `t-beh-${userId}-${idx}`,
       trackNumber: 1,
       name: 'Track 1: Behavioral Track (Behavioral Foundation)',
       shortName: 'Track 1: Behavioral',
@@ -226,48 +242,57 @@ export const mapApiLeaderboardToPlayers = (
       statusColor: isDanger ? '#EF4444' : '#10B981',
       subMetrics: [
         {
+          title: 'Cumulative CMAS Track Score',
+          weight: 'Overall',
+          value: behCumCmas,
+          statusTag: behCumCmas !== 'N/A' && cmasScore < 50 ? '🚨 IN DANGER' : 'ACTIVE',
+          isDanger: behCumCmas !== 'N/A' && cmasScore < 50,
+        },
+        {
           title: 'Step Volume Compliance',
           weight: '40% Weight',
           value: stepVolume,
-          statusTag: stepVolume.includes('0.0%') || stepVolume.includes('1.') ? 'DEFICIT' : 'OPTIMAL',
-          isDanger: stepVolume.includes('0.0%') || stepVolume.includes('1.'),
+          statusTag: stepVolume === 'N/A' ? 'N/A' : (stepVolume.includes('0.0%') || stepVolume.includes('1.') ? 'DEFICIT' : 'OPTIMAL'),
+          isDanger: stepVolume !== 'N/A' && (stepVolume.includes('0.0%') || stepVolume.includes('1.')),
         },
         {
           title: 'Cardio Intensity Compliance',
           weight: '40% Weight',
           value: cardioIntensity,
-          statusTag: cardioIntensity.includes('0.0%') ? '🚨 ZERO CARDIO' : 'AEROBIC PEAK',
-          isDanger: cardioIntensity.includes('0.0%'),
+          statusTag: cardioIntensity === 'N/A' ? 'N/A' : (cardioIntensity.includes('0.0%') ? '🚨 ZERO CARDIO' : 'AEROBIC PEAK'),
+          isDanger: cardioIntensity !== 'N/A' && cardioIntensity.includes('0.0%'),
         },
         {
           title: 'Sedentary S-DEX Severity',
           weight: '20% Weight',
           value: sDexSeverity !== 'N/A' ? `${sDexSeverity} [MAX HAZARD]` : 'N/A',
           statusTag: sDexSeverity !== 'N/A' ? '🚨 >6H SITTING' : 'N/A',
-          isDanger: true,
+          isDanger: sDexSeverity !== 'N/A',
         },
       ],
       clinicalInference: {
         title: '3-Day Cumulative Behavioral Health Inference [AHA]',
-        text: item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE || 'N/A',
+        text: healthInference,
       },
     };
 
     return {
-      id: `p-${item.USER_ID}-${idx}`,
-      name: isCurrentUser && currentUserName ? `${currentUserName} (You)` : item.USER_ID,
-      userId: item.USER_ID,
+      id: `p-${userId}-${idx}`,
+      name: isCurrentUser && currentUserName ? `${currentUserName} (You)` : userId,
+      userId,
+      rank: parsedRank,
       department: 'N/A',
       isCurrentUser,
       masterScore: cmasScore,
-      scoreDisplay: `[ ${item.CUMULATIVE_CMAS_100 || 'N/A'} ]`,
+      scoreDisplay: cumCmasDisplay !== 'N/A' ? `[ ${cumCmasDisplay} ]` : 'N/A',
       status,
-      statusLabel: item.STATUS || 'N/A',
+      statusLabel: playerStatusLabel,
       isDanger,
       matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
       tracks: [behavioralTrack],
-      middayQuestAlert: item.MIDDAY_QUEST_ALERT || 'N/A',
-      calculationTimestamp: item['6AM_CALCULATION_TIMESTAMP'] || 'N/A',
+      middayQuestAlert: middayAlert,
+      calculationTimestamp: timestamp,
+      behavioralTrackCumCmas: behCumCmas,
     };
   });
 };
@@ -464,6 +489,7 @@ export const LeaderboardScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaderboardData, setLeaderboardData] = useState<Phase1LeaderboardResponse | null>(null);
   const [phase2LeaderboardData, setPhase2LeaderboardData] = useState<Phase2LeaderboardResponse | null>(null);
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string>('');
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Close dropdown when drawer opens to prevent overlapping
@@ -488,7 +514,7 @@ export const LeaderboardScreen: React.FC = () => {
       }
 
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const targetUhid = profileData?.uhid || cachedProfile?.uhid || 'ANJROY3773';
+      const targetUhid = profileData?.uhid || cachedProfile?.uhid || 'JATCHO5525';
 
       console.log(`[Leaderboard] Fetching Leaderboards for UHID: ${targetUhid}`);
       const [p1Result, p2Result] = await Promise.allSettled([
@@ -497,21 +523,31 @@ export const LeaderboardScreen: React.FC = () => {
       ]);
 
       if (p1Result.status === 'fulfilled') {
-        setLeaderboardData(p1Result.value);
+        const val = p1Result.value;
+        setLeaderboardData(val);
+        if (val?.challenges && val.challenges.length > 0) {
+          setSelectedChallengeId(prev => {
+            const exists = val.challenges?.some(c => c.challenge_id === prev);
+            return exists ? prev : val.challenges![0].challenge_id;
+          });
+          const day = val.challenges[0]?.data?.active_challenge_day;
+          if (day && activePhase === 1) {
+            setSelectedDay(day);
+          }
+        } else if (val?.active_challenge_day && activePhase === 1) {
+          setSelectedDay(val.active_challenge_day);
+        }
       } else {
         console.warn('[Leaderboard] Phase 1 fetch failed:', p1Result.reason);
       }
 
       if (p2Result.status === 'fulfilled') {
         setPhase2LeaderboardData(p2Result.value);
-        if (p2Result.value?.active_challenge_day) {
+        if (p2Result.value?.active_challenge_day && activePhase === 2) {
           setSelectedDay(p2Result.value.active_challenge_day);
         }
       } else {
         console.warn('[Leaderboard] Phase 2 fetch failed:', p2Result.reason);
-        if (p1Result.status === 'fulfilled' && p1Result.value?.active_challenge_day) {
-          setSelectedDay(p1Result.value.active_challenge_day);
-        }
       }
 
       if (p1Result.status === 'rejected' && p2Result.status === 'rejected') {
@@ -537,15 +573,37 @@ export const LeaderboardScreen: React.FC = () => {
     await loadData();
   };
 
+  // Get active Phase 1 challenge entry
+  const getActiveP1Challenge = () => {
+    if (!leaderboardData?.challenges || leaderboardData.challenges.length === 0) {
+      return null;
+    }
+    return (
+      leaderboardData.challenges.find(c => c.challenge_id === selectedChallengeId) ||
+      leaderboardData.challenges[0]
+    );
+  };
+
   // Get players list for current active phase
   const getPhasePlayers = (): PhasePlayer[] => {
     // Phase 1: Dynamic Data mapped from Backend POST API
     if (activePhase === 1) {
-      if (!leaderboardData || !Array.isArray(leaderboardData.leaderboard)) {
+      if (!leaderboardData) {
         return [];
       }
+
+      // Check if new challenges array format
+      let items: Phase1LeaderboardItem[] = [];
+      if (Array.isArray(leaderboardData.challenges) && leaderboardData.challenges.length > 0) {
+        const activeEntry = getActiveP1Challenge();
+        items = activeEntry?.data?.leaderboard || [];
+      } else if (Array.isArray(leaderboardData.leaderboard)) {
+        // Backwards compatibility with previous flat format
+        items = leaderboardData.leaderboard;
+      }
+
       return mapApiLeaderboardToPlayers(
-        leaderboardData.leaderboard,
+        items,
         userProfile?.uhid,
         userProfile?.name,
       );
@@ -816,11 +874,61 @@ export const LeaderboardScreen: React.FC = () => {
             },
           ]}
         >
-          <Image
-            source={IMAGES.trialRunner}
-            style={styles.bannerImage}
-            resizeMode="cover"
-          />
+          {(() => {
+            const activeP1 = getActiveP1Challenge();
+            const p1Img =
+              (activeP1?.data as any)?.banner_image ||
+              (activeP1?.data as any)?.banner_url ||
+              (activeP1?.data as any)?.image_url ||
+              (activeP1?.data as any)?.image ||
+              (leaderboardData as any)?.banner_image ||
+              (leaderboardData as any)?.banner_url ||
+              (leaderboardData as any)?.image_url;
+
+            const p2Img =
+              (phase2LeaderboardData as any)?.banner_image ||
+              (phase2LeaderboardData as any)?.banner_url ||
+              (phase2LeaderboardData as any)?.image_url;
+
+            const currentBannerUrl = activePhase === 1 ? p1Img : p2Img;
+
+            if (currentBannerUrl && typeof currentBannerUrl === 'string' && currentBannerUrl.trim().length > 0) {
+              return (
+                <Image
+                  source={{ uri: currentBannerUrl.trim() }}
+                  style={styles.bannerImage}
+                  resizeMode="cover"
+                />
+              );
+            }
+
+            return (
+              <View style={styles.bannerPlaceholder}>
+                <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"
+                    stroke="#64748B"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"
+                    stroke="#64748B"
+                    strokeWidth={1.8}
+                  />
+                  <Path
+                    d="M21 15l-5-5L5 21"
+                    stroke="#64748B"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+                <Text style={styles.bannerPlaceholderText}>Image Not Available</Text>
+              </View>
+            );
+          })()}
           <View style={styles.statsRow}>
             {/* Box 1: Active members count */}
             <View
@@ -847,11 +955,38 @@ export const LeaderboardScreen: React.FC = () => {
                 Participants
               </Text>
               <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                {activePhase === 1 && leaderboardData?.participants !== undefined
-                  ? String(leaderboardData.participants)
-                  : activePhase === 2 && phase2LeaderboardData?.participants !== undefined
-                  ? String(phase2LeaderboardData.participants)
-                  : 'N/A'}
+                {(() => {
+                  if (activePhase === 1) {
+                    const activeP1 = getActiveP1Challenge();
+                    if (activeP1?.data) {
+                      if (activeP1.data.active_crew_participants !== undefined && activeP1.data.active_crew_participants !== null) {
+                        return String(activeP1.data.active_crew_participants);
+                      }
+                      if (activeP1.data.participants !== undefined && activeP1.data.participants !== null) {
+                        return String(activeP1.data.participants);
+                      }
+                      if (Array.isArray(activeP1.data.leaderboard)) {
+                        return String(activeP1.data.leaderboard.length);
+                      }
+                    }
+                    if (leaderboardData?.active_crew_participants !== undefined && leaderboardData.active_crew_participants !== null) {
+                      return String(leaderboardData.active_crew_participants);
+                    }
+                    if (leaderboardData?.participants !== undefined && leaderboardData.participants !== null) {
+                      return String(leaderboardData.participants);
+                    }
+                    if (Array.isArray(leaderboardData?.leaderboard)) {
+                      return String(leaderboardData.leaderboard.length);
+                    }
+                    return 'N/A';
+                  }
+                  if (activePhase === 2) {
+                    return phase2LeaderboardData?.participants !== undefined
+                      ? String(phase2LeaderboardData.participants)
+                      : 'N/A';
+                  }
+                  return 'N/A';
+                })()}
               </Text>
             </View>
 
@@ -892,33 +1027,73 @@ export const LeaderboardScreen: React.FC = () => {
                 Benchmark
               </Text>
               <Text style={[styles.statLabelSub, { color: themeColors.textSecondary }]}>
-                Avg Score
+                {(() => {
+                  if (activePhase === 1) {
+                    const activeP1 = getActiveP1Challenge();
+                    const sampleSize = activeP1?.data?.benchmark_sample_size ?? leaderboardData?.benchmark_sample_size;
+                    return sampleSize !== undefined && sampleSize !== null ? `Avg Score` : 'Avg Score';
+                  }
+                  return 'Avg Score';
+                })()}
               </Text>
               <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                N/A
+                {(() => {
+                  if (activePhase === 1) {
+                    const activeP1 = getActiveP1Challenge();
+                    const avgScore = activeP1?.data?.benchmark_avg_score ?? leaderboardData?.benchmark_avg_score;
+                    if (avgScore !== undefined && avgScore !== null) {
+                      return typeof avgScore === 'number' ? avgScore.toFixed(1) : String(avgScore);
+                    }
+                    return 'N/A';
+                  }
+                  if (activePhase === 2) {
+                    return 'N/A';
+                  }
+                  return 'N/A';
+                })()}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Tournament Phase Title Card */}
-        <View style={styles.phaseHeaderCard}>
-          <View style={styles.phaseHeaderTopRow}>
-            <View style={styles.phasePill}>
-              <Text style={styles.phasePillText}>PHASE {activePhaseConfig.phaseNumber}</Text>
-            </View>
-            <Text style={styles.phaseActiveDayText}>
-              Active Day:{' '}
-              {activePhase === 1 && leaderboardData?.active_challenge_day !== undefined
-                ? `${leaderboardData.active_challenge_day}/7`
-                : activePhase === 2 && phase2LeaderboardData?.active_challenge_day !== undefined
-                ? `${phase2LeaderboardData.active_challenge_day}/14`
-                : `${selectedDay}/21`}
-            </Text>
+        {/* Multi-Challenge Switcher (when response returns challenges array) */}
+        {activePhase === 1 && leaderboardData?.challenges && leaderboardData.challenges.length > 1 && (
+          <View style={styles.challengeTabsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.challengeTabsContent}>
+              {leaderboardData.challenges.map((c, idx) => {
+                const activeP1 = getActiveP1Challenge();
+                const isSelected = (activeP1?.challenge_id === c.challenge_id);
+                const formattedName = c.challenge_id === 'ecfl_longevity_challenge'
+                  ? 'ECFL Longevity Challenge'
+                  : c.challenge_id === 'ecfl_longevity_challenge_01'
+                  ? 'ECFL Longevity Challenge 01'
+                  : c.challenge_id.replace(/_/g, ' ').toUpperCase();
+
+                return (
+                  <TouchableOpacity
+                    key={c.challenge_id || idx}
+                    style={[
+                      styles.challengeTabButton,
+                      isSelected && styles.challengeTabButtonActive,
+                    ]}
+                    onPress={() => setSelectedChallengeId(c.challenge_id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.challengeTabText,
+                        isSelected && styles.challengeTabTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      🏆 {formattedName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
-          <Text style={styles.phaseFocusTitle}>{activePhaseConfig.title}</Text>
-          <Text style={styles.phaseFormulaText}>{activePhaseConfig.formulaLabel}</Text>
-        </View>
+        )}
 
         {/* Real-time Search Input Bar */}
         <View style={styles.searchContainer}>
@@ -987,7 +1162,7 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         ) : (
           filteredPlayers.map((player, index) => {
-            const rankNumber = index + 1;
+            const rankNumber = player.rank ?? (index + 1);
             const isUser = !!player.isCurrentUser;
             const isDanger = !!player.isDanger || player.status === 'IN DANGER';
 
@@ -1135,8 +1310,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B0F19',
   },
   dropdownWrapper: {
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: 12,
+    marginTop: 10,
     marginBottom: 4,
   },
   dropdownButton: {
@@ -1259,8 +1434,8 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
     paddingBottom: 60,
   },
   bannerCard: {
@@ -1274,6 +1449,22 @@ const styles = StyleSheet.create({
   bannerImage: {
     width: '100%',
     height: 140,
+  },
+  bannerPlaceholder: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+    gap: 6,
+  },
+  bannerPlaceholderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    letterSpacing: 0.3,
   },
   statsRow: {
     flexDirection: 'row',
@@ -1356,6 +1547,40 @@ const styles = StyleSheet.create({
     color: '#FBBF24',
     marginTop: 3,
     fontWeight: '500',
+  },
+  challengeTabsContainer: {
+    marginTop: 0,
+    marginBottom: 16,
+  },
+  challengeTabsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  challengeTabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#151F38',
+    borderWidth: 1.5,
+    borderColor: '#1E293B',
+  },
+  challengeTabButtonActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+    borderColor: '#38BDF8',
+  },
+  challengeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  challengeTabTextActive: {
+    color: '#38BDF8',
+    fontWeight: '700',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -2034,7 +2259,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     padding: 24,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginVertical: 20,
     alignItems: 'center',
   },
@@ -2072,7 +2297,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     padding: 24,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginVertical: 20,
     alignItems: 'center',
   },
@@ -2102,6 +2327,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  phaseMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  phaseMetaBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  phaseMetaBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

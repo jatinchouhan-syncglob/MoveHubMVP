@@ -1588,7 +1588,7 @@ export const apiService = {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const targetUhid = uhid || cachedProfile?.uhid || 'ANJROY3773';
+    const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
     const url = 'http://13.204.123.149:8001/health/api/phase1leaderboard';
     console.log(
       `[apiService] POST getPhase1Leaderboard: ${url} for UHID: ${targetUhid}`,
@@ -1614,13 +1614,13 @@ export const apiService = {
       );
       // Fallback: if the user's specific UHID does not have test records (e.g. "No common daily_summaries dates exist"),
       // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
-      if (targetUhid !== 'ANJROY3773') {
+      if (targetUhid !== 'JATCHO5525') {
         try {
           console.log(
-            `[apiService] Fallback to ANJROY3773 for phase1leaderboard...`,
+            `[apiService] Fallback to JATCHO5525 for phase1leaderboard...`,
           );
           const fallbackForm = new FormData();
-          fallbackForm.append('uhid', 'ANJROY3773');
+          fallbackForm.append('uhid', 'JATCHO5525');
           const fallbackRes = await axios.post(url, fallbackForm, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
@@ -1873,6 +1873,85 @@ export const apiService = {
     } catch (error: any) {
       console.error(
         `[apiService] POST saveExercisePrescription FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+  /**
+   * Get latest Nutritional Profiler for user
+   */
+  async getLatestNutritionalProfiler(uhid?: string): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const cachedProfile = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const url = `${BACKEND_8081_URL}/backend/health-connect/nutritional-profiler/latest?uhid=${encodeURIComponent(
+        targetUhid,
+      )}`;
+      console.log(`[apiService] GET getLatestNutritionalProfiler: ${url}`);
+      const response = await axios.get(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] GET getLatestNutritionalProfiler FAILED:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  /**
+   * Save / Submit Nutritional Profiler
+   */
+  async saveNutritionalProfiler(payload: {
+    uhid: string;
+    userId: string;
+    q1SugarRefinedFlourFrequency: string;
+    q2PrimaryCarbohydrateSource: string;
+    q3PreWorkoutIntake: string;
+    q4PostWorkoutIntake: string;
+    q5DailyWaterLiters: number;
+    q6FluidDistribution: string;
+    q7ProcessedFoodFrequency: string;
+    q8SaltBehavior: string;
+    q9ProteinConsumptionTarget: string;
+    q10FatSources: string[];
+    q11FermentedFoodsFrequency: string;
+    q12LateNightEatingGap: string;
+    q13DietaryProfileAllergies: string[];
+    q14EatingCapacitySatiety: string;
+    notes?: string;
+  }): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> {
+    try {
+      const url = `${BACKEND_8081_URL}/backend/health-connect/nutritional-profiler/save`;
+      console.log(
+        `[apiService] POST saveNutritionalProfiler: ${url}`,
+        JSON.stringify(payload),
+      );
+      const response = await axios.post(url, payload, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST saveNutritionalProfiler FAILED:`,
         error?.response?.data || error?.message,
       );
       throw error;
