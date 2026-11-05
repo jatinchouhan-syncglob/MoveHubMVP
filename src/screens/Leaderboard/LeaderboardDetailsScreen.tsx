@@ -325,7 +325,7 @@ export const LeaderboardDetailsScreen: React.FC = () => {
               })}
             </View>
 
-            {/* Clinical Health Inference Box [AHA] */}
+            {/* Clinical Health Inference Box */}
             <View
               style={[
                 styles.clinicalInferenceCard,

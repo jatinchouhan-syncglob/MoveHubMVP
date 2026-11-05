@@ -25,6 +25,7 @@ export interface IFocusTracker {
   subLabel: string;
   statusBadge: string;
   badgeType: 'optimal' | 'warning' | 'active' | 'locked';
+  isDummy?: boolean;
 }
 
 export interface IStandingsTeam {
@@ -74,7 +75,7 @@ export interface ISegmentConfig {
   tickerStream: string[];
   focusTrackers: [IFocusTracker, IFocusTracker];
   standings: ISegmentStandings;
-  actions: [ISegmentAction, ISegmentAction];
+  actions: ISegmentAction[];
   psychologicalHook: string;
   contentHookTitle: string;
   bottomNavTabs: [string, string, string, string];

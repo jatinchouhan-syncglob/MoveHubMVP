@@ -562,11 +562,13 @@ export const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   bioTargetMetricTitle: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '800',
     color: '#F8FAFC',
     marginTop: 1,
     letterSpacing: 0.4,
+    textAlign: 'center',
+    maxWidth: 124,
   },
   bioTargetStatusPill: {
     flexDirection: 'row',
@@ -606,6 +608,144 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#F8FAFC',
     letterSpacing: 0.2,
+  },
+
+  // Targets Table (Name, Base, Target)
+  targetTableCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  targetTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#151E33',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  targetTableColHeaderText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.6,
+  },
+  targetTableColName: {
+    flex: 1.8,
+  },
+  targetTableColBase: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetTableColTarget: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  targetTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  targetTableRowLast: {
+    borderBottomWidth: 0,
+  },
+  targetTableRowAlt: {
+    backgroundColor: 'rgba(255, 255, 255, 0.015)',
+  },
+  targetNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 6,
+  },
+  targetRowIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  targetRowNameText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F1F5F9',
+    flex: 1,
+  },
+  targetBaseText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#CBD5E1',
+    textAlign: 'center',
+  },
+  targetTargetText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#10B981',
+    textAlign: 'right',
+  },
+  textCenter: {
+    textAlign: 'center',
+  },
+  textRight: {
+    textAlign: 'right',
+  },
+
+  // Coming Soon Cards
+  comingSoonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 16,
+    gap: 12,
+  },
+  comingSoonIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  comingSoonIcon: {
+    fontSize: 18,
+  },
+  comingSoonTextCol: {
+    flex: 1,
+  },
+  comingSoonTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F1F5F9',
+    marginBottom: 2,
+  },
+  comingSoonDesc: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 15,
+  },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  comingSoonBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
   },
 
   // Targets List

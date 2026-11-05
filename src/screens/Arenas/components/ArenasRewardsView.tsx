@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
@@ -87,39 +88,52 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
   const [commercialEmail, setCommercialEmail] = useState('');
   const [commercialPhone, setCommercialPhone] = useState('');
 
+  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || 'JATCHO5525';
+  const referralWebUrl = `https:/ecfl-reg-form.livingscope.in/${userUhid}`;
+
   const handleShareInnerCircle = async () => {
     try {
-      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to download the app and join my Inner Circle instantly:\n👉 https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl\n🔑 Enter my Unique Circle ID during registration: ${circleId}`;
+      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
 
-      await Share.share(
-        Platform.OS === 'ios'
-          ? {
-              title: 'Inner Circle National Tournament Invite',
-              message: inviteMessage,
-              url: 'https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl',
-            }
-          : {
-              title: 'Inner Circle National Tournament Invite',
-              message: inviteMessage,
-            },
-      );
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(inviteMessage)}`;
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Share.share(
+          Platform.OS === 'ios'
+            ? {
+                title: 'Inner Circle National Tournament Invite',
+                message: inviteMessage,
+                url: referralWebUrl,
+              }
+            : {
+                title: 'Inner Circle National Tournament Invite',
+                message: inviteMessage,
+              },
+        );
+      }
     } catch (err) {
       console.warn('[ArenasRewardsView] Share error:', err);
+      try {
+        const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
+        await Share.share({
+          title: 'Inner Circle National Tournament Invite',
+          message: inviteMessage,
+        });
+      } catch (e) {
+        console.warn('Fallback share failed:', e);
+      }
     }
   };
 
-  const handleCopyLink = () => {
-    Alert.alert(
-      'Link Copied',
-      `Inner Circle invitation link copied:\nhttps://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl\n\nUnique Circle ID: ${circleId}`,
-    );
-  };
-
-  const handleCopyCircleId = () => {
-    Alert.alert(
-      'Circle ID Copied',
-      `Your Unique Circle ID copied: ${circleId}\nShare this with members during registration.`,
-    );
+  const handleOpenReferralLink = async () => {
+    try {
+      await Linking.openURL(referralWebUrl);
+    } catch (err) {
+      console.warn('[ArenasRewardsView] Failed to open referral link:', err);
+      Alert.alert('Error', 'Unable to open link in web browser.');
+    }
   };
 
   const handleSubmitNodeB = async () => {
@@ -433,7 +447,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
           </View>
 
           <Text style={styles.rewardsCardDesc}>
-            Form your exclusive up to 25-member Inner Circle (minimum 10) by pooling together your closest friends, family members, office colleagues, or local neighbours into a single, high-performance health alliance. By combining your daily habits, your team will enter the high-velocity Inter-"Inner Circle" National Tournament!
+            Form your exclusive Inner Circle (minimum 10) by pooling together your closest friends, family members, office colleagues, or local neighbours into a single, high-performance health alliance. By combining your daily habits, your team will enter the high-velocity Inter-"Inner Circle" National Tournament!
           </Text>
 
           <Text style={[styles.rewardsCardDesc, { marginTop: -4 }]}>
@@ -441,33 +455,22 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
           </Text>
 
           {/* Referral Link Box */}
-          <View style={styles.rewardsLinkBox}>
+          <TouchableOpacity
+            style={styles.rewardsLinkBox}
+            activeOpacity={0.8}
+            onPress={handleOpenReferralLink}
+          >
             <Text style={styles.rewardsLinkText} numberOfLines={1}>
-              https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl
+              {referralWebUrl}
             </Text>
             <TouchableOpacity
               style={styles.rewardsCopyBtn}
               activeOpacity={0.7}
-              onPress={handleCopyLink}
+              onPress={handleOpenReferralLink}
             >
-              <Text style={styles.rewardsCopyBtnText}>COPY LINK</Text>
+              <Text style={styles.rewardsCopyBtnText}>OPEN LINK</Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Unique Circle ID Box */}
-          <View style={styles.rewardsCircleIdBox}>
-            <View>
-              <Text style={styles.rewardsCircleIdLabel}>Unique Circle ID</Text>
-              <Text style={styles.rewardsCircleIdVal}>{circleId}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.rewardsCopyBtn}
-              activeOpacity={0.7}
-              onPress={handleCopyCircleId}
-            >
-              <Text style={styles.rewardsCopyBtnText}>COPY ID</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
           {/* Share CTA Button */}
           <TouchableOpacity

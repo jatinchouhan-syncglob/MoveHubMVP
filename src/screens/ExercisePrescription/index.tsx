@@ -25,7 +25,7 @@ import { UserProfile } from '../../types';
 const CORE_TARGETS_LIST = [
   {
     key: 'bse',
-    name: 'BSE Efficiency',
+    name: 'Bio Sync Efficiency',
     icon: '⚡',
     target: '75.0',
     base: '64.2',
@@ -230,6 +230,48 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
     );
   };
 
+  const hasValidMetricValue = (val: any): boolean => {
+    if (val === undefined || val === null) return false;
+    const s = String(val).trim();
+    if (
+      s === '' ||
+      s.toLowerCase() === 'n/a' ||
+      s.toLowerCase() === 'null' ||
+      s.toLowerCase() === 'undefined' ||
+      s === '-'
+    ) {
+      return false;
+    }
+    const num = parseFloat(s);
+    if (!isNaN(num)) {
+      return num > 0;
+    }
+    return true;
+  };
+
+  const isTargetItemValid = (item: any): boolean => {
+    return hasValidMetricValue(item.target);
+  };
+
+  const renderComingSoonCard = (
+    title: string,
+    desc = 'Data will appear here once assessment calibration is completed.',
+    icon = '⏳',
+  ) => (
+    <View style={styles.comingSoonCard}>
+      <View style={styles.comingSoonIconCircle}>
+        <Text style={styles.comingSoonIcon}>{icon}</Text>
+      </View>
+      <View style={styles.comingSoonTextCol}>
+        <Text style={styles.comingSoonTitle}>{title}</Text>
+        <Text style={styles.comingSoonDesc}>{desc}</Text>
+      </View>
+      <View style={styles.comingSoonBadge}>
+        <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+      </View>
+    </View>
+  );
+
   const handleSaveAndSubmit = async () => {
     // 1. Validation check
     const missing: string[] = [];
@@ -340,7 +382,7 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
               <Text style={{ fontSize: 18, color: '#FFFFFF' }}>☰</Text>
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Exercise Prescription</Text>
+              <Text style={styles.headerTitle}>Exercise Strategies</Text>
               <Text style={styles.headerSubtitle}>Phase-2 C-MELA™ Clinical Intake</Text>
             </View>
           </View>
@@ -616,7 +658,7 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                       {INITIAL_BIOMETRIC_RESET_CARD.bseAdaptiveTarget.toFixed(1)}
                     </Text>
                     <Text style={styles.bioTargetSublabel}>ADAPTIVE TARGET</Text>
-                    <Text style={styles.bioTargetMetricTitle}>BSE EFFICIENCY</Text>
+                    <Text style={styles.bioTargetMetricTitle}>BIO SYNC EFFICIENCY</Text>
                     <View style={styles.bioTargetStatusPill}>
                       <View style={styles.bioTargetGreenDot} />
                       <Text style={styles.bioTargetStatusText}>Optimal Pacing</Text>
@@ -633,25 +675,71 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 </Text>
               </View>
 
-              <View style={styles.bioTargetsList}>
-                {CORE_TARGETS_LIST.map(item => (
-                  <View key={item.key} style={styles.bioTargetRow}>
-                    <View style={styles.bioTargetRowLeft}>
-                      <Text style={styles.bioTargetRowIcon}>{item.icon}</Text>
-                      <Text style={styles.bioTargetName}>{item.name}</Text>
-                    </View>
-                    <View style={styles.bioTargetRowRight}>
-                      <Text style={styles.bioTargetValues}>
-                        {item.target}
-                        {item.unit ? ` ${item.unit}` : ''}
-                      </Text>
-                      <View style={styles.bioTargetBaseChip}>
-                        <Text style={styles.bioTargetBase}>Base: {item.base}</Text>
+              {/* Targets Table: Name, Base, Target */}
+              {(() => {
+                const validTargets = CORE_TARGETS_LIST.filter(isTargetItemValid);
+                if (validTargets.length === 0) {
+                  return renderComingSoonCard(
+                    'Core Targets & Pacing',
+                    'Targets are currently being calibrated and will appear soon.',
+                    '🎯',
+                  );
+                }
+
+                return (
+                  <View style={styles.targetTableCard}>
+                    <View style={styles.targetTableHeader}>
+                      <View style={styles.targetTableColName}>
+                        <Text style={styles.targetTableColHeaderText}>NAME</Text>
+                      </View>
+                      <View style={styles.targetTableColBase}>
+                        <Text style={[styles.targetTableColHeaderText, styles.textCenter]}>BASE</Text>
+                      </View>
+                      <View style={styles.targetTableColTarget}>
+                        <Text style={[styles.targetTableColHeaderText, styles.textRight]}>TARGET</Text>
                       </View>
                     </View>
+
+                    {validTargets.map((item, idx) => {
+                      const isLast = idx === validTargets.length - 1;
+                      const formattedBase = hasValidMetricValue(item.base)
+                        ? (item.unit ? `${item.base} ${item.unit}` : String(item.base))
+                        : '-';
+                      const formattedTarget = hasValidMetricValue(item.target)
+                        ? (item.unit ? `${item.target} ${item.unit}` : String(item.target))
+                        : '-';
+
+                      return (
+                        <View
+                          key={item.key}
+                          style={[
+                            styles.targetTableRow,
+                            isLast && styles.targetTableRowLast,
+                            idx % 2 === 1 && styles.targetTableRowAlt,
+                          ]}
+                        >
+                          <View style={[styles.targetTableColName, styles.targetNameRow]}>
+                            <Text style={styles.targetRowIcon}>{item.icon}</Text>
+                            <Text style={styles.targetRowNameText} numberOfLines={2}>
+                              {item.name}
+                            </Text>
+                          </View>
+                          <View style={styles.targetTableColBase}>
+                            <Text style={styles.targetBaseText} numberOfLines={1}>
+                              {formattedBase}
+                            </Text>
+                          </View>
+                          <View style={styles.targetTableColTarget}>
+                            <Text style={styles.targetTargetText} numberOfLines={1}>
+                              {formattedTarget}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
-                ))}
-              </View>
+                );
+              })()}
 
               {/* Weekly Foundational Checklist */}
               <View style={styles.bioSectionTitleRow}>
@@ -661,79 +749,118 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 </Text>
               </View>
 
-              <View style={styles.bioChecklistContainer}>
-                {checklist.map(item => (
-                  <View key={item.id} style={styles.bioChecklistItem}>
-                    <View style={styles.bioChecklistHeaderRow}>
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={styles.bioChecklistTitle}>
-                          {item.id}. {item.name}
-                        </Text>
-                        <Text style={styles.bioChecklistSchedule}>
-                          ⏱️ {item.duration} • {item.schedule}
+              {(() => {
+                const validChecklist = checklist.filter(
+                  item => item && item.name && item.name.trim() !== '',
+                );
+                if (validChecklist.length === 0) {
+                  return renderComingSoonCard(
+                    'Protocol Checklist',
+                    'Checklist protocols are being prepared and will appear soon.',
+                    '📋',
+                  );
+                }
+
+                return (
+                  <View style={styles.bioChecklistContainer}>
+                    {validChecklist.map(item => (
+                      <View key={item.id} style={styles.bioChecklistItem}>
+                        <View style={styles.bioChecklistHeaderRow}>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.bioChecklistTitle}>
+                              {item.id}. {item.name}
+                            </Text>
+                            <Text style={styles.bioChecklistSchedule}>
+                              ⏱️ {item.duration} • {item.schedule}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            style={[
+                              styles.statusVerificationPill,
+                              item.status === 'verified'
+                                ? styles.statusPillVerified
+                                : styles.statusPillPending,
+                            ]}
+                            onPress={() => handleToggleChecklist(item.id)}
+                          >
+                            <Text
+                              style={[
+                                styles.statusVerificationText,
+                                item.status === 'verified'
+                                  ? styles.statusTextVerified
+                                  : styles.statusTextPending,
+                              ]}
+                            >
+                              {item.status === 'verified' ? '✓ Verified' : 'Pending'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.bioChecklistRuleDesc}>
+                          {item.ruleDescription}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={[
-                          styles.statusVerificationPill,
-                          item.status === 'verified'
-                            ? styles.statusPillVerified
-                            : styles.statusPillPending,
-                        ]}
-                        onPress={() => handleToggleChecklist(item.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.statusVerificationText,
-                            item.status === 'verified'
-                              ? styles.statusTextVerified
-                              : styles.statusTextPending,
-                          ]}
-                        >
-                          {item.status === 'verified' ? '✓ Verified' : 'Pending'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.bioChecklistRuleDesc}>
-                      {item.ruleDescription}
-                    </Text>
+                    ))}
                   </View>
-                ))}
-              </View>
+                );
+              })()}
 
               {/* Bounding Safety Ceilings */}
-              <View style={styles.bioSafetyBox}>
-                <View style={styles.bioSafetyHeaderRow}>
-                  <Text style={styles.bioSafetyIcon}>🛑</Text>
-                  <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
-                </View>
-                <View style={styles.bioSafetyItem}>
-                  <Text style={styles.bioSafetyLabel}>Heart Rate Limit Ceiling</Text>
-                  <Text style={styles.bioSafetyValue}>140 BPM</Text>
-                </View>
-                <View style={styles.bioSafetyDivider} />
-                <View style={styles.bioSafetyItem}>
-                  <Text style={styles.bioSafetyLabel}>Continuous Sitting Max</Text>
-                  <Text style={styles.bioSafetyValue}>60 Mins</Text>
-                </View>
-                <View style={styles.bioSafetyDivider} />
-                <View style={styles.bioSafetyItem}>
-                  <Text style={styles.bioSafetyLabel}>Desk Stasis Break Rule</Text>
-                  <Text style={styles.bioSafetyValue}>90-Sec Pocket Walk</Text>
-                </View>
-              </View>
+              {(() => {
+                const ceilings = INITIAL_BIOMETRIC_RESET_CARD.safetyCeilings;
+                if (!ceilings || !ceilings.maxHeartRateBpm) {
+                  return renderComingSoonCard(
+                    'Bounding Safety Ceilings',
+                    'Physiological safety limits will be established based on your clinical assessment.',
+                    '🛑',
+                  );
+                }
+                return (
+                  <View style={styles.bioSafetyBox}>
+                    <View style={styles.bioSafetyHeaderRow}>
+                      <Text style={styles.bioSafetyIcon}>🛑</Text>
+                      <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
+                    </View>
+                    <View style={styles.bioSafetyItem}>
+                      <Text style={styles.bioSafetyLabel}>Heart Rate Limit Ceiling</Text>
+                      <Text style={styles.bioSafetyValue}>{ceilings.maxHeartRateBpm} BPM</Text>
+                    </View>
+                    <View style={styles.bioSafetyDivider} />
+                    <View style={styles.bioSafetyItem}>
+                      <Text style={styles.bioSafetyLabel}>Continuous Sitting Max</Text>
+                      <Text style={styles.bioSafetyValue}>{ceilings.continuousSittingMaxMins} Mins</Text>
+                    </View>
+                    <View style={styles.bioSafetyDivider} />
+                    <View style={styles.bioSafetyItem}>
+                      <Text style={styles.bioSafetyLabel}>Desk Stasis Break Rule</Text>
+                      <Text style={styles.bioSafetyValue}>{ceilings.stasisBreakRule}</Text>
+                    </View>
+                  </View>
+                );
+              })()}
 
               {/* Physiological Rationale */}
-              <View style={styles.bioRationaleBox}>
-                <View style={styles.bioRationaleHeaderRow}>
-                  <Text style={styles.bioRationaleIcon}>🔬</Text>
-                  <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
-                </View>
-                <Text style={styles.bioRationaleText}>
-                  {INITIAL_BIOMETRIC_RESET_CARD.clinicalRationale}
-                </Text>
-              </View>
+              {(() => {
+                const rationale = INITIAL_BIOMETRIC_RESET_CARD.clinicalRationale?.trim();
+                if (!rationale) {
+                  return renderComingSoonCard(
+                    'Physiological Rationale & Citation',
+                    'Evidence-based clinical rationale will appear here upon prescription formulation.',
+                    '🔬',
+                  );
+                }
+                return (
+                  <View style={styles.bioRationaleBox}>
+                    <View style={styles.bioRationaleHeaderRow}>
+                      <Text style={styles.bioRationaleIcon}>🔬</Text>
+                      <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
+                    </View>
+                    <Text style={styles.bioRationaleText}>
+                      {rationale}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
           </View>
         )}

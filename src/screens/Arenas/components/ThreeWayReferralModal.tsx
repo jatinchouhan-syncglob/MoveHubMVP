@@ -10,6 +10,7 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { styles } from '../styles';
@@ -92,24 +93,42 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
   const [commercialName, setCommercialName] = useState('');
   const [commercialContact, setCommercialContact] = useState('');
 
+  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || 'JATCHO5525';
+  const referralWebUrl = `https:/ecfl-reg-form.livingscope.in/${userUhid}`;
+
   const handleShareNodeA = async () => {
     try {
-      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to download the app and join my Inner Circle instantly:\n👉 https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl\n🔑 Enter my Unique Circle ID during registration: ${circleId}`;
+      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
 
-      await Share.share(
-        Platform.OS === 'ios'
-          ? {
-              title: 'Inner Circle National Tournament Invite',
-              message: inviteMessage,
-              url: 'https://play.google.com/store/apps/details?id=com.livingscopehealth.uncurl',
-            }
-          : {
-              title: 'Inner Circle National Tournament Invite',
-              message: inviteMessage,
-            },
-      );
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(inviteMessage)}`;
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Share.share(
+          Platform.OS === 'ios'
+            ? {
+                title: 'Inner Circle National Tournament Invite',
+                message: inviteMessage,
+                url: referralWebUrl,
+              }
+            : {
+                title: 'Inner Circle National Tournament Invite',
+                message: inviteMessage,
+              },
+        );
+      }
     } catch (err) {
       console.warn('[ThreeWayReferralModal] Share error:', err);
+      try {
+        const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
+        await Share.share({
+          title: 'Inner Circle National Tournament Invite',
+          message: inviteMessage,
+        });
+      } catch (e) {
+        console.warn('Fallback share failed:', e);
+      }
     }
   };
 

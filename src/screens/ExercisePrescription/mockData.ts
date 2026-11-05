@@ -428,7 +428,7 @@ export const INITIAL_BIOMETRIC_RESET_CARD: BiometricResetCardData = {
     },
   ],
   clinicalRationale:
-    'Rhythmic moderate aerobic muscle activation increases cellular glucose transport pathways, while short, unbroken functional stretching sets remove localized pooling fluids to protect vascular endothelial walls [AHA].',
+    'Rhythmic moderate aerobic muscle activation increases cellular glucose transport pathways, while short, unbroken functional stretching sets remove localized pooling fluids to protect vascular endothelial walls.',
 };
 
 export const INITIAL_GYM_QUEST_CARD: GymQuestCardData = {
@@ -440,7 +440,7 @@ export const INITIAL_GYM_QUEST_CARD: GymQuestCardData = {
     somatotypeFrame: 'Mesomorph Frame (Highly Responsive)',
     metabolicTargetTrack: 'GLUCOSE VACUUM (INTENSE)',
     clinicalReasoning:
-      'Your Stage 2 Lifestyle Sketch records an HbA1c of 5.7%+, meaning early insulin resistance is active. Your Gym QUEST is set to intense compound leg mechanics to activate massive muscle glucose vacuums, pulling sugar straight out of your blood [AHA].',
+      'Your Stage 2 Lifestyle Sketch records an HbA1c of 5.7%+, meaning early insulin resistance is active. Your Gym QUEST is set to intense compound leg mechanics to activate massive muscle glucose vacuums, pulling sugar straight out of your blood.',
   },
   exerciseSelection: {
     exerciseName: 'Seated Cable Rows (Decompression Mode)',

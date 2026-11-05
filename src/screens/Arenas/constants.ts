@@ -26,8 +26,8 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
   MASS_INDIVIDUALS: {
     key: 'MASS_INDIVIDUALS',
     segmentNumber: '01',
-    name: 'Mass Individuals',
-    shortLabel: 'Mass Individuals',
+    name: 'Mass',
+    shortLabel: 'Mass',
     icon: '💻',
     targetAudience: 'White-collar Office Workers & Remote Desk Workers',
     title: '🏟️ THE ARENA: THE CARDIOMETABOLIC WAR ROOM & WORKSPACE RECOVERY LOUNGE',
@@ -55,17 +55,19 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
     focusTrackers: [
       {
         title: 'S-DEX™ STASIS RUN',
-        value: '0.00',
-        subLabel: 'STASIS INTERCEPTED',
-        statusBadge: '🚶 RESET ACTIVE',
+        value: '55',
+        subLabel: 'High',
+        statusBadge: '',
         badgeType: 'active',
+        isDummy: true,
       },
       {
-        title: 'MHP: Modified Heart Points',
+        title: 'Modified Heart Points',
         value: '20',
         subLabel: 'MODERATE RISK',
-        statusBadge: '🔥 SILVER',
+        statusBadge: '',
         badgeType: 'optimal',
+        isDummy: true,
       },
     ],
     standings: {
@@ -91,18 +93,12 @@ export const SEGMENT_CONFIGS: Record<UserSegmentKey, ISegmentConfig> = {
         icon: '⏱️',
         type: 'audit',
       },
-      {
-        id: 'share_corporate',
-        label: 'Create Your Inner Circle',
-        icon: '👥',
-        type: 'share',
-      },
     ],
     psychologicalHook:
       'Appeals directly to busy white-collar office desk workers. It frames the app page as an active tool built to combat the physical exhaustion and metabolic damage of long, sedentary sitting runs.',
     contentHookTitle: "Desk Worker's Metabolic Leak Radar",
     bottomNavTabs: ['War Room', 'Metrics', 'Cadence', 'Profile'],
-    category: 'Mass Individuals',
+    category: 'Mass',
     tagline: 'The Metabolic Leak Radar',
     headline: 'THE CARDIOMETABOLIC WAR ROOM & WORKSPACE RECOVERY LOUNGE.',
     summary:
@@ -687,13 +683,13 @@ export const TOURNAMENT_STAGES: ITournamentBracketStage[] = [
     dropPercent: 'Top 75% Advance',
     survivalGate: '25% Knockout Gate (Top 75% Advance).',
     whatWeMeasure:
-      'Daily movement volume, exercise intensity, and your defence against physical stagnation [AHA].',
+      'Daily movement volume, exercise intensity, and your defence against physical stagnation.',
     howScoreCalculated:
       'Blends your aerobic quality (Norm_MHP™), baseline steps (Norm_Steps), and active penalty points for continuous immobility (S-DEX™). Crucially, your scores are derived entirely as a percentage of your demographically calibrated, personalized targets.',
     howToScoreHigh:
-      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes [AHA]. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces) [AHA]. This rapid micro-intervention instantly activates your skeletal muscle pumps, forces pooled blood back to your heart, and resets your S-DEX™ stasis counter to zero—instantly maximizing your percentage of target achievement to secure your rank safely above the Axe Line.',
+      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces). This rapid micro-intervention instantly activates your skeletal muscle pumps, forces pooled blood back to your heart, and resets your S-DEX™ stasis counter to zero—instantly maximizing your percentage of target achievement to secure your rank safely above the Axe Line.',
     survivalRules:
-      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes [AHA]. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces) [AHA].',
+      'Focus strictly on hitting 100% of your personalized activity targets. Avoid staying immobile for over 60 minutes. When prompted, complete a 90-to-180 second vascular breakout walk (logging a minimum of 60 pocket-sensor paces).',
     bracketResetDetails:
       'At the stroke of midnight on Day 7, bottom 25% are eliminated. Remaining 75% advance to Stage 2.',
     accentColor: '#3B82F6',
@@ -706,7 +702,7 @@ export const TOURNAMENT_STAGES: ITournamentBracketStage[] = [
     dropPercent: 'Top 25% Advance',
     survivalGate: '50% Knockout Gate (Top 25% Advance).',
     whatWeMeasure:
-      'Your cumulative lifestyle alignment, nervous system recovery, and daily biological clock uniformity [AHA].',
+      'Your cumulative lifestyle alignment, nervous system recovery, and daily biological clock uniformity.',
     howScoreCalculated:
       'Your score is the direct summation of your Stage 1 CMAS™ baseline and your Stage 2 BSE™ (Bio-Sync Efficiency) score. Your standing depends entirely on what percentage you achieve of your personalized sleep uniformity targets and your customized functional physical targets.',
     howToScoreHigh:
@@ -729,7 +725,7 @@ export const TOURNAMENT_STAGES: ITournamentBracketStage[] = [
     howScoreCalculated:
       'Computes your master BARI™ (Bio-Age Resilience Index) Score by blending your Stage 1 cardio, Stage 2 sleep data, and active muscle logs relative to your personal targets. In this final week, your data-driven compliance with both your personalized nutrition and specialized physical plans is woven directly into the scoring core.',
     howToScoreHigh:
-      'To secure the championship, you must comply as closely as possible with your hyper-personalized exercise prescriptions, customized nutrition choices, and exact meal substrates provided to you. This final gauntlet is strategically designed to help you internalize permanent, lifelong behavioural habits. By seamlessly adopting these protocols, you lock down long-term immunity against chronic lifestyle diseases, dramatically elevate your daily energy, and achieve the ultimate quality of life (QOL).',
+      'To secure the championship, you must comply as closely as possible with your hyper-personalized exercise prescriptions, customized nutrition choices, and exact meal substrates provided to you. This final gauntlet is strategically designed to help you internalize permanent, lifelong behavioural habits. By seamlessly adopting these protocols, you improve your long-term health, dramatically elevate your daily energy, and achieve the ultimate quality of life (QOL).',
     survivalRules:
       'Comply as closely as possible with your hyper-personalized exercise prescriptions, customized nutrition choices, and exact meal substrates.',
     bracketResetDetails:
@@ -743,7 +739,7 @@ export const METRIC_STRATEGIES: IMetricStrategyItem[] = [
     id: 'mhp',
     code: 'MHP™',
     name: 'Modified Heart Points',
-    target: 'Target: 150+ pts/week (>129 steps/min)',
+    target: 'Target: 150+ pts/week',
     simpleRule:
       'Awards double points for brisk cadence blocks (>129 steps/min) that induce cardiovascular adaptation.',
     actionStrategy:
@@ -761,18 +757,6 @@ export const METRIC_STRATEGIES: IMetricStrategyItem[] = [
     actionStrategy:
       'Set the 90 second radar break. Place your smartphone in your pocket or hold it in your hand and take a quick walk to grab a glass of water, print a document, or step down a corridor, if possible. This easily hits the 60-step, 90-second target and will reset your S-DEX™ stasis counter back to zero, clear lower-limb blood pooling, release arterial nitric oxide, and instantly protect your leaderboard rank.',
     accentColor: '#00E5FF',
-    category: 'metabolic',
-  },
-  {
-    id: 'e3',
-    code: 'E3™',
-    name: 'Energy Expenditure Economy',
-    target: 'Target: 3.5 - 4.2 kcal/km',
-    simpleRule:
-      'Calculates mechanical caloric economy per distance traveled, optimizing fat-burn efficiency.',
-    actionStrategy:
-      'Avoid slouching. An upright spine and light ground strike improve walking economy by 18%.',
-    accentColor: '#38BDF8',
     category: 'metabolic',
   },
 ];

@@ -271,7 +271,7 @@ export const mapApiLeaderboardToPlayers = (
         },
       ],
       clinicalInference: {
-        title: '3-Day Cumulative Behavioral Health Inference [AHA]',
+        title: '3-Day Cumulative Behavioral Health Inference',
         text: healthInference,
       },
     };
@@ -647,6 +647,94 @@ export const LeaderboardScreen: React.FC = () => {
     });
   };
 
+  const getSelectedChallengeTitle = (): string => {
+    if (activePhase === 1) {
+      const activeP1 = getActiveP1Challenge();
+      const id = activeP1?.challenge_id || leaderboardData?.challenge_id || '';
+      if (id === 'ecfl_longevity_challenge') return 'ECFL Longevity Challenge';
+      if (id === 'ecfl_longevity_challenge_01') return 'ECFL Longevity Challenge 01';
+      if (id) {
+        return id
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, char => char.toUpperCase());
+      }
+      return 'ECFL Longevity Challenge';
+    }
+    if (activePhase === 2) {
+      const p2Id = (phase2LeaderboardData as any)?.challenge_id;
+      if (p2Id) {
+        return p2Id
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (char: string) => char.toUpperCase());
+      }
+      return 'Phase 2: Elite Biometric Nexus';
+    }
+    return 'Phase 3: The Grand Olympus';
+  };
+
+  const selectedChallengeTitle = getSelectedChallengeTitle();
+
+  const getActiveDayDisplay = (): string => {
+    if (activePhase === 1) {
+      const activeP1 = getActiveP1Challenge();
+      const p1Day = activeP1?.data?.active_challenge_day ?? leaderboardData?.active_challenge_day;
+      if (p1Day !== undefined) return `${p1Day}/7`;
+      return `${selectedDay}/7`;
+    }
+    if (activePhase === 2 && phase2LeaderboardData?.active_challenge_day !== undefined) {
+      return `${phase2LeaderboardData.active_challenge_day}/14`;
+    }
+    return `${selectedDay}/21`;
+  };
+
+  const getActiveCrewCount = (): string => {
+    if (activePhase === 1) {
+      const activeP1 = getActiveP1Challenge();
+      if (activeP1?.data) {
+        if (activeP1.data.active_crew_participants !== undefined && activeP1.data.active_crew_participants !== null) {
+          return String(activeP1.data.active_crew_participants);
+        }
+        if (activeP1.data.participants !== undefined && activeP1.data.participants !== null) {
+          return String(activeP1.data.participants);
+        }
+        if (Array.isArray(activeP1.data.leaderboard)) {
+          return String(activeP1.data.leaderboard.length);
+        }
+      }
+      if (leaderboardData?.active_crew_participants !== undefined && leaderboardData.active_crew_participants !== null) {
+        return String(leaderboardData.active_crew_participants);
+      }
+      if (leaderboardData?.participants !== undefined && leaderboardData.participants !== null) {
+        return String(leaderboardData.participants);
+      }
+      if (Array.isArray(leaderboardData?.leaderboard)) {
+        return String(leaderboardData.leaderboard.length);
+      }
+      return 'N/A';
+    }
+    if (activePhase === 2) {
+      return phase2LeaderboardData?.participants !== undefined
+        ? String(phase2LeaderboardData.participants)
+        : 'N/A';
+    }
+    return 'N/A';
+  };
+
+  const getBenchmarkAvgScore = (): string => {
+    if (activePhase === 1) {
+      const activeP1 = getActiveP1Challenge();
+      const avgScore = activeP1?.data?.benchmark_avg_score ?? leaderboardData?.benchmark_avg_score;
+      if (avgScore !== undefined && avgScore !== null) {
+        return typeof avgScore === 'number' ? avgScore.toFixed(1) : String(avgScore);
+      }
+      return 'N/A';
+    }
+    if (activePhase === 2) {
+      return 'N/A';
+    }
+    return 'N/A';
+  };
+
   const themeColors = {
     containerBg: '#0B0F19',
     headerBg: '#0E1626',
@@ -686,7 +774,8 @@ export const LeaderboardScreen: React.FC = () => {
         }}
       />
 
-      {/* Grouped Day / Phase Selector Dropdown */}
+      {/* Grouped Day / Phase Selector Dropdown - COMMENTED OUT AS REQUESTED */}
+      {false && (
       <View style={[styles.dropdownWrapper, { zIndex: dropdownOpen ? 2000 : 1 }]}>
         <TouchableOpacity
           style={[
@@ -851,6 +940,7 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         )}
       </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -864,200 +954,8 @@ export const LeaderboardScreen: React.FC = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Banner Card with 2 Stat Boxes */}
-        <View
-          style={[
-            styles.bannerCard,
-            {
-              backgroundColor: themeColors.cardBg,
-              borderColor: themeColors.cardBorder,
-            },
-          ]}
-        >
-          {(() => {
-            const activeP1 = getActiveP1Challenge();
-            const p1Img =
-              (activeP1?.data as any)?.banner_image ||
-              (activeP1?.data as any)?.banner_url ||
-              (activeP1?.data as any)?.image_url ||
-              (activeP1?.data as any)?.image ||
-              (leaderboardData as any)?.banner_image ||
-              (leaderboardData as any)?.banner_url ||
-              (leaderboardData as any)?.image_url;
-
-            const p2Img =
-              (phase2LeaderboardData as any)?.banner_image ||
-              (phase2LeaderboardData as any)?.banner_url ||
-              (phase2LeaderboardData as any)?.image_url;
-
-            const currentBannerUrl = activePhase === 1 ? p1Img : p2Img;
-
-            if (currentBannerUrl && typeof currentBannerUrl === 'string' && currentBannerUrl.trim().length > 0) {
-              return (
-                <Image
-                  source={{ uri: currentBannerUrl.trim() }}
-                  style={styles.bannerImage}
-                  resizeMode="cover"
-                />
-              );
-            }
-
-            return (
-              <View style={styles.bannerPlaceholder}>
-                <Svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"
-                    stroke="#64748B"
-                    strokeWidth={1.8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <Path
-                    d="M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"
-                    stroke="#64748B"
-                    strokeWidth={1.8}
-                  />
-                  <Path
-                    d="M21 15l-5-5L5 21"
-                    stroke="#64748B"
-                    strokeWidth={1.8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
-                <Text style={styles.bannerPlaceholderText}>Image Not Available</Text>
-              </View>
-            );
-          })()}
-          <View style={styles.statsRow}>
-            {/* Box 1: Active members count */}
-            <View
-              style={[
-                styles.statBox,
-                {
-                  backgroundColor: themeColors.statBoxBg,
-                  borderColor: themeColors.cardBorder,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statIconCircle,
-                  { backgroundColor: 'rgba(20, 184, 166, 0.15)' },
-                ]}
-              >
-                <ActiveCrewSvg color="#14B8A6" />
-              </View>
-              <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                Active Crew
-              </Text>
-              <Text style={[styles.statLabelSub, { color: themeColors.textSecondary }]}>
-                Participants
-              </Text>
-              <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                {(() => {
-                  if (activePhase === 1) {
-                    const activeP1 = getActiveP1Challenge();
-                    if (activeP1?.data) {
-                      if (activeP1.data.active_crew_participants !== undefined && activeP1.data.active_crew_participants !== null) {
-                        return String(activeP1.data.active_crew_participants);
-                      }
-                      if (activeP1.data.participants !== undefined && activeP1.data.participants !== null) {
-                        return String(activeP1.data.participants);
-                      }
-                      if (Array.isArray(activeP1.data.leaderboard)) {
-                        return String(activeP1.data.leaderboard.length);
-                      }
-                    }
-                    if (leaderboardData?.active_crew_participants !== undefined && leaderboardData.active_crew_participants !== null) {
-                      return String(leaderboardData.active_crew_participants);
-                    }
-                    if (leaderboardData?.participants !== undefined && leaderboardData.participants !== null) {
-                      return String(leaderboardData.participants);
-                    }
-                    if (Array.isArray(leaderboardData?.leaderboard)) {
-                      return String(leaderboardData.leaderboard.length);
-                    }
-                    return 'N/A';
-                  }
-                  if (activePhase === 2) {
-                    return phase2LeaderboardData?.participants !== undefined
-                      ? String(phase2LeaderboardData.participants)
-                      : 'N/A';
-                  }
-                  return 'N/A';
-                })()}
-              </Text>
-            </View>
-
-            {/* Box 2: Master Benchmark Metric */}
-            <View
-              style={[
-                styles.statBox,
-                {
-                  backgroundColor: themeColors.statBoxBg,
-                  borderColor: themeColors.cardBorder,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statIconCircle,
-                  {
-                    backgroundColor:
-                      activePhase === 1
-                        ? 'rgba(59, 130, 246, 0.15)'
-                        : activePhase === 2
-                        ? 'rgba(168, 85, 247, 0.15)'
-                        : 'rgba(234, 179, 8, 0.15)',
-                  },
-                ]}
-              >
-                <BenchmarkSvg
-                  color={
-                    activePhase === 1
-                      ? '#3B82F6'
-                      : activePhase === 2
-                      ? '#A855F7'
-                      : '#EAB308'
-                  }
-                />
-              </View>
-              <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                Benchmark
-              </Text>
-              <Text style={[styles.statLabelSub, { color: themeColors.textSecondary }]}>
-                {(() => {
-                  if (activePhase === 1) {
-                    const activeP1 = getActiveP1Challenge();
-                    const sampleSize = activeP1?.data?.benchmark_sample_size ?? leaderboardData?.benchmark_sample_size;
-                    return sampleSize !== undefined && sampleSize !== null ? `Avg Score` : 'Avg Score';
-                  }
-                  return 'Avg Score';
-                })()}
-              </Text>
-              <Text style={[styles.statValue, { color: themeColors.textMain }]}>
-                {(() => {
-                  if (activePhase === 1) {
-                    const activeP1 = getActiveP1Challenge();
-                    const avgScore = activeP1?.data?.benchmark_avg_score ?? leaderboardData?.benchmark_avg_score;
-                    if (avgScore !== undefined && avgScore !== null) {
-                      return typeof avgScore === 'number' ? avgScore.toFixed(1) : String(avgScore);
-                    }
-                    return 'N/A';
-                  }
-                  if (activePhase === 2) {
-                    return 'N/A';
-                  }
-                  return 'N/A';
-                })()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Multi-Challenge Switcher (when response returns challenges array) */}
-        {activePhase === 1 && leaderboardData?.challenges && leaderboardData.challenges.length > 1 && (
+        {/* Multi-Challenge Switcher Tabs - Top of Screen */}
+        {activePhase === 1 && leaderboardData?.challenges && leaderboardData.challenges.length > 0 && (
           <View style={styles.challengeTabsContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.challengeTabsContent}>
               {leaderboardData.challenges.map((c, idx) => {
@@ -1094,6 +992,74 @@ export const LeaderboardScreen: React.FC = () => {
             </ScrollView>
           </View>
         )}
+
+        {/* Selected Challenge Title Card */}
+        <View style={styles.challengeTitleCard}>
+          <View style={styles.challengeTitleHeaderRow}>
+            <View style={styles.challengeBadge}>
+              <Text style={styles.challengeBadgeText}>CHALLENGE</Text>
+            </View>
+            <Text style={styles.challengeActiveDayText}>
+              Active Day: {getActiveDayDisplay()}
+            </Text>
+          </View>
+          <Text style={styles.challengeTitleText} numberOfLines={1}>
+            🏆 {selectedChallengeTitle}
+          </Text>
+        </View>
+
+        {/* Resized Compact Stats Row: Active Crew & Benchmark */}
+        <View style={styles.compactStatsRow}>
+          {/* Box 1: Active Crew Participants */}
+          <View style={styles.compactStatBox}>
+            <View style={[styles.compactStatIconCircle, { backgroundColor: 'rgba(20, 184, 166, 0.15)' }]}>
+              <ActiveCrewSvg color="#14B8A6" />
+            </View>
+            <View style={styles.compactStatTextCol}>
+              <Text style={styles.compactStatLabel} numberOfLines={1}>
+                Active Crew
+              </Text>
+              <Text style={styles.compactStatValue}>
+                {getActiveCrewCount()}
+              </Text>
+            </View>
+          </View>
+
+          {/* Box 2: Benchmark Avg Score */}
+          <View style={styles.compactStatBox}>
+            <View
+              style={[
+                styles.compactStatIconCircle,
+                {
+                  backgroundColor:
+                    activePhase === 1
+                      ? 'rgba(59, 130, 246, 0.15)'
+                      : activePhase === 2
+                      ? 'rgba(168, 85, 247, 0.15)'
+                      : 'rgba(234, 179, 8, 0.15)',
+                },
+              ]}
+            >
+              <BenchmarkSvg
+                color={
+                  activePhase === 1
+                    ? '#3B82F6'
+                    : activePhase === 2
+                    ? '#A855F7'
+                    : '#EAB308'
+                }
+              />
+            </View>
+            <View style={styles.compactStatTextCol}>
+              <Text style={styles.compactStatLabel} numberOfLines={1}>
+                Benchmark
+              </Text>
+              <Text style={styles.compactStatValue}>
+                {getBenchmarkAvgScore()}
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* Real-time Search Input Bar */}
         <View style={styles.searchContainer}>
@@ -1438,71 +1404,82 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 60,
   },
-  bannerCard: {
+  challengeTitleCard: {
     backgroundColor: '#151E33',
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#1E293B',
-    overflow: 'hidden',
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 10,
   },
-  bannerImage: {
-    width: '100%',
-    height: 140,
-  },
-  bannerPlaceholder: {
-    width: '100%',
-    height: 110,
-    backgroundColor: '#0F172A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-    gap: 6,
-  },
-  bannerPlaceholderText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-    letterSpacing: 0.3,
-  },
-  statsRow: {
+  challengeTitleHeaderRow: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#0E1626',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  statIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  statLabel: {
+  challengeBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  challengeBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
+  },
+  challengeActiveDayText: {
     fontSize: 11,
     color: '#94A3B8',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  statLabelSub: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '500',
-    marginTop: -2,
-  },
-  statValue: {
-    fontSize: 17,
+  challengeTitleText: {
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginTop: 4,
+    letterSpacing: 0.2,
+  },
+  compactStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  compactStatBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#151E33',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  compactStatIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactStatTextCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  compactStatLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  compactStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 2,
   },
   phaseHeaderCard: {
     backgroundColor: '#151F38',
@@ -1549,8 +1526,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   challengeTabsContainer: {
-    marginTop: 0,
-    marginBottom: 16,
+    marginTop: 4,
+    marginBottom: 12,
   },
   challengeTabsContent: {
     flexDirection: 'row',

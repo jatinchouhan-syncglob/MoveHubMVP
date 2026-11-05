@@ -252,7 +252,7 @@ export const ArenasScreen: React.FC = () => {
             <FocusTrackersGrid config={activeConfig} />
 
             {/* 7. Standings / Tournament Knockout Bracket */}
-            <SegmentStandingsCard config={activeConfig} />
+            {/* <SegmentStandingsCard config={activeConfig} /> */}
 
             {/* 8. Primary Segment Action CTAs */}
             <SegmentActionButtons

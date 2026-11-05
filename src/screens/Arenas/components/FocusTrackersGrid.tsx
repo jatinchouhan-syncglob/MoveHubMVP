@@ -14,6 +14,16 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
   const currentDate = new Date().toLocaleDateString('en-GB');
 
   const renderTracker = (tracker: IFocusTracker, index: number) => {
+    const isDummy =
+      Boolean(tracker.isDummy) ||
+      /\(dummy\)/i.test(tracker.value) ||
+      /\bdummy\b/i.test(tracker.value);
+
+    const displayValue = tracker.value
+      .replace(/\s*\(dummy\)/i, '')
+      .replace(/\s*dummy/i, '')
+      .trim();
+
     return (
       <View
         key={`tracker-${index}`}
@@ -36,14 +46,24 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
         </Text>
 
         <View style={styles.focusTrackerValueGroup}>
-          <Text
-            style={[
-              styles.focusTrackerValue,
-              { color: config.theme.coreAccent },
-            ]}
-          >
-            {tracker.value}
-          </Text>
+          <View style={styles.focusTrackerValueRow}>
+            <Text
+              style={[
+                styles.focusTrackerValue,
+                { color: config.theme.coreAccent },
+              ]}
+              numberOfLines={1}
+            >
+              {displayValue}
+            </Text>
+
+            {isDummy && (
+              <View style={styles.focusTrackerDummyPill}>
+                <View style={styles.focusTrackerDummyDot} />
+                <Text style={styles.focusTrackerDummyText}>DUMMY</Text>
+              </View>
+            )}
+          </View>
 
           <Text
             style={[
@@ -57,26 +77,28 @@ export const FocusTrackersGrid: React.FC<FocusTrackersGridProps> = ({
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.focusTrackerBadge,
-            {
-              backgroundColor: config.theme.badgeBg,
-              borderColor: config.theme.mutedBorders,
-            },
-          ]}
-        >
-          <Text
+        {Boolean(tracker.statusBadge && tracker.statusBadge.trim()) && (
+          <View
             style={[
-              styles.focusTrackerBadgeText,
-              { color: config.theme.coreAccent },
+              styles.focusTrackerBadge,
+              {
+                backgroundColor: config.theme.badgeBg,
+                borderColor: config.theme.mutedBorders,
+              },
             ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
           >
-            {tracker.statusBadge}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.focusTrackerBadgeText,
+                { color: config.theme.coreAccent },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {tracker.statusBadge}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };

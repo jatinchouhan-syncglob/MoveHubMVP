@@ -15,8 +15,6 @@ export const SegmentActionButtons: React.FC<SegmentActionButtonsProps> = ({
   onOpenReferralModal,
   onOpenPlaybookModal,
 }) => {
-  const [action1, action2] = config.actions;
-
   const handleActionPress = async (action: ISegmentAction) => {
     switch (action.type) {
       case 'share': {
@@ -113,23 +111,25 @@ export const SegmentActionButtons: React.FC<SegmentActionButtonsProps> = ({
   };
 
   if (config.key === 'MASS_INDIVIDUALS') {
-    const innerCircleAction = action2 || {
-      id: 'share_corporate',
-      label: 'Create Your Inner Circle',
-      icon: '👥',
-      type: 'share',
-    };
-    return (
-      <View style={styles.actionsSection}>
-        {renderButton(innerCircleAction, true)}
-      </View>
-    );
+    return null;
+  }
+
+  const validActions = (config.actions || []).filter(
+    action =>
+      action.label !== 'Create Your Inner Circle' &&
+      action.id !== 'share_corporate',
+  );
+
+  const [act1, act2] = validActions;
+
+  if (!act1 && !act2) {
+    return null;
   }
 
   return (
     <View style={styles.actionsSection}>
-      {action1 && renderButton(action1, true)}
-      {action2 && renderButton(action2, false)}
+      {act1 && renderButton(act1, true)}
+      {act2 && renderButton(act2, false)}
     </View>
   );
 };

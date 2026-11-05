@@ -12,17 +12,6 @@ export const ArenasHeroHeader: React.FC<ArenasHeroHeaderProps> = ({ config }) =>
 
   return (
     <View style={styles.heroHeaderSection}>
-      <View style={styles.eyebrowRow}>
-        <Text
-          style={[
-            styles.eyebrowText,
-            { color: config.theme.coreAccent },
-          ]}
-        >
-          THE ARENA • {config.name.toUpperCase()}
-        </Text>
-      </View>
-
       <Text style={styles.mainHeadline}>{headline}</Text>
 
       <Text style={[styles.subHeadline, { color: config.theme.textSecondary }]}>

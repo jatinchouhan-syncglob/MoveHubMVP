@@ -21,30 +21,30 @@ export const CoreQuadrantsBar: React.FC<CoreQuadrantsBarProps> = ({
   onOpenDisclaimer,
 }) => {
   const quadrants = [
-    {
-      id: 'playbook',
-      label: 'Tournament Playbook',
-      icon: '📖',
-      onPress: onOpenPlaybook,
-    },
-    {
-      id: 'sandbox',
-      label: 'Metric Sandbox',
-      icon: '⚡',
-      onPress: onOpenSandbox,
-    },
-    {
-      id: 'referral',
-      label: '4-Way Referral Node',
-      icon: '🔗',
-      onPress: onOpenReferral,
-    },
-    {
-      id: 'calibration',
-      label: 'Biophysical Calibration',
-      icon: '🔬',
-      onPress: onOpenCalibration,
-    },
+    // {
+    //   id: 'playbook',
+    //   label: 'Tournament Playbook',
+    //   icon: '📖',
+    //   onPress: onOpenPlaybook,
+    // },
+    // {
+    //   id: 'sandbox',
+    //   label: 'Metric Sandbox',
+    //   icon: '⚡',
+    //   onPress: onOpenSandbox,
+    // },
+    // {
+    //   id: 'referral',
+    //   label: '4-Way Referral Node',
+    //   icon: '🔗',
+    //   onPress: onOpenReferral,
+    // },
+    // {
+    //   id: 'calibration',
+    //   label: 'Biophysical Calibration',
+    //   icon: '🔬',
+    //   onPress: onOpenCalibration,
+    // },
     {
       id: 'disclaimer',
       label: 'Medical Disclaimer',

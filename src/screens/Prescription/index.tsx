@@ -164,11 +164,153 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
     return String(val);
   };
 
+  const formatAdaptiveMetricTitle = (name?: string) => {
+    if (!name || name.trim() === '') return 'BIO SYNC EFFICIENCY';
+    if (/bse(\s*efficiency)?/i.test(name)) {
+      return 'BIO SYNC EFFICIENCY';
+    }
+    return name.toUpperCase();
+  };
+
+  const formatTargetName = (name?: string) => {
+    if (!name || name.trim() === '') return 'Target';
+    if (/^bse\s*efficiency$/i.test(name.trim()) || name.trim().toUpperCase() === 'BSE') {
+      return 'Bio Sync Efficiency';
+    }
+    return name;
+  };
+
+  const formatMetricValue = (val: any, unit?: string) => {
+    if (val === undefined || val === null || String(val).trim() === '') {
+      return '-';
+    }
+    const str = String(val).trim();
+    if (str.toLowerCase() === 'n/a') return '-';
+    return unit && unit.trim() !== '' ? `${str} ${unit}` : str;
+  };
+
+  const hasValidMetricValue = (val: any): boolean => {
+    if (val === undefined || val === null) return false;
+    const s = String(val).trim();
+    if (
+      s === '' ||
+      s.toLowerCase() === 'n/a' ||
+      s.toLowerCase() === 'null' ||
+      s.toLowerCase() === 'undefined' ||
+      s === '-'
+    ) {
+      return false;
+    }
+    const num = parseFloat(s);
+    if (!isNaN(num)) {
+      return num > 0;
+    }
+    return true;
+  };
+
+  const isTargetItemValid = (item: ICoreTarget): boolean => {
+    return hasValidMetricValue(item.target);
+  };
+
+  const renderComingSoonCard = (
+    title: string,
+    desc = 'Data will appear here once assessment calibration is completed.',
+    icon = '⏳'
+  ) => {
+    return (
+      <View style={styles.comingSoonCard}>
+        <View style={styles.comingSoonIconCircle}>
+          <Text style={styles.comingSoonIcon}>{icon}</Text>
+        </View>
+        <View style={styles.comingSoonTextCol}>
+          <Text style={styles.comingSoonTitle}>{title}</Text>
+          <Text style={styles.comingSoonDesc}>{desc}</Text>
+        </View>
+        <View style={styles.comingSoonBadge}>
+          <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderTargetsTable = (items?: ICoreTarget[]) => {
+    const validItems = (items || []).filter(isTargetItemValid);
+
+    if (validItems.length === 0) {
+      return renderComingSoonCard(
+        'Core Targets & Pacing',
+        'Targets are being calibrated and will appear once your baseline assessment is complete.',
+        '🎯'
+      );
+    }
+
+    return (
+      <View style={styles.targetTableCard}>
+        {/* Table Header: Name, Base, Target */}
+        <View style={styles.targetTableHeader}>
+          <View style={styles.targetTableColName}>
+            <Text style={styles.targetTableColHeaderText}>NAME</Text>
+          </View>
+          <View style={styles.targetTableColBase}>
+            <Text style={[styles.targetTableColHeaderText, styles.textCenter]}>BASE</Text>
+          </View>
+          <View style={styles.targetTableColTarget}>
+            <Text style={[styles.targetTableColHeaderText, styles.textRight]}>TARGET</Text>
+          </View>
+        </View>
+
+        {/* Table Rows - Only for items with valid values */}
+        {validItems.map((item, idx) => {
+          const isLast = idx === validItems.length - 1;
+          const formattedBase = hasValidMetricValue(item.base)
+            ? (item.unit && item.unit.trim() !== '' ? `${item.base} ${item.unit}` : String(item.base))
+            : '-';
+          const formattedTarget = hasValidMetricValue(item.target)
+            ? (item.unit && item.unit.trim() !== '' ? `${item.target} ${item.unit}` : String(item.target))
+            : '-';
+
+          return (
+            <View
+              key={item.key || `target-row-${idx}`}
+              style={[
+                styles.targetTableRow,
+                isLast && styles.targetTableRowLast,
+                idx % 2 === 1 && styles.targetTableRowAlt,
+              ]}
+            >
+              {/* Column 1: Name */}
+              <View style={[styles.targetTableColName, styles.targetNameRow]}>
+                <Text style={styles.targetRowIcon}>{item.icon || '📊'}</Text>
+                <Text style={styles.targetRowNameText} numberOfLines={2}>
+                  {formatTargetName(item.name)}
+                </Text>
+              </View>
+
+              {/* Column 2: Base */}
+              <View style={styles.targetTableColBase}>
+                <Text style={styles.targetBaseText} numberOfLines={1}>
+                  {formattedBase}
+                </Text>
+              </View>
+
+              {/* Column 3: Target */}
+              <View style={styles.targetTableColTarget}>
+                <Text style={styles.targetTargetText} numberOfLines={1}>
+                  {formattedTarget}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#070B14" />
       <CustomHeader
-        title="PRESCRIPTION"
+        title="EXERCISE STRATEGIES"
         showDrawerButton={showDrawer}
         containerStyle={styles.headerContainer}
         titleStyle={styles.headerTitle}
@@ -292,7 +434,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                     </Text>
                   </View>
                   <Text style={styles.bioCardMainTitle}>
-                    Biometric Lifestyle Prescription
+                    Biometric Exercise Strategies
                   </Text>
                 </View>
 
@@ -386,7 +528,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                       </Text>
                       <Text style={styles.bioTargetSublabel}>ADAPTIVE TARGET</Text>
                       <Text style={styles.bioTargetMetricTitle}>
-                        {renderValueOrNA(baseline?.adaptiveTarget?.metricName, 'BSE EFFICIENCY')}
+                        {formatAdaptiveMetricTitle(baseline?.adaptiveTarget?.metricName)}
                       </Text>
                       <View style={styles.bioTargetStatusPill}>
                         <View
@@ -416,46 +558,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                   </Text>
                 </View>
 
-                {baseline?.coreTargets && baseline.coreTargets.length > 0 ? (
-                  <View style={styles.bioTargetsList}>
-                    {baseline.coreTargets.map((item, idx) => {
-                      const targetStr =
-                        item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
-                          ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
-                          : 'N/A';
-                      const baseStr =
-                        item.base !== undefined && item.base !== null && String(item.base).trim() !== ''
-                          ? `Base: ${item.base}${item.unit ? ` ${item.unit}` : ''}`
-                          : 'Base: N/A';
-
-                      return (
-                        <View key={item.key || `core-${idx}`} style={styles.bioTargetRow}>
-                          <View style={styles.bioTargetRowLeft}>
-                            <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
-                            <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
-                          </View>
-                          <View style={styles.bioTargetRowRight}>
-                            <Text style={styles.bioTargetValues}>{targetStr}</Text>
-                            <View style={styles.bioTargetBaseChip}>
-                              <Text style={styles.bioTargetBase}>{baseStr}</Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <View style={styles.bioEmptySectionBox}>
-                    <Text style={styles.bioEmptySectionIcon}>📊</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.bioEmptySectionTitle}>Core Targets</Text>
-                      <Text style={styles.bioEmptySectionDesc}>Data not available</Text>
-                    </View>
-                    <View style={styles.naBadge}>
-                      <Text style={styles.naBadgeText}>N/A</Text>
-                    </View>
-                  </View>
-                )}
+                {renderTargetsTable(baseline?.coreTargets)}
 
                 {/* Weekly Foundational Checklist */}
                 <View style={styles.bioSectionTitleRow}>
@@ -465,94 +568,115 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                   </Text>
                 </View>
 
-                {baseline?.checklist && baseline.checklist.length > 0 ? (
-                  <View style={styles.bioChecklistContainer}>
-                    {baseline.checklist.map((item, idx) => (
-                      <View key={item.id ?? `checklist-${idx}`} style={styles.bioChecklistItem}>
-                        <View style={styles.bioChecklistHeaderRow}>
-                          <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={styles.bioChecklistTitle}>
-                              {item.id ? `${item.id}. ` : ''}{renderValueOrNA(item.name, 'Protocol Step')}
-                            </Text>
-                            <Text style={styles.bioChecklistSchedule}>
-                              ⏱️ {renderValueOrNA(item.duration)} • {renderValueOrNA(item.schedule)}
-                            </Text>
+                {(() => {
+                  const validChecklist = (baseline?.checklist || []).filter(
+                    item => item && item.name && item.name.trim() !== '' && !item.name.toLowerCase().includes('n/a')
+                  );
+                  if (validChecklist.length === 0) {
+                    return renderComingSoonCard(
+                      'Protocol Checklist',
+                      'Personalized protocol checklist will be unlocked once assessment is completed.',
+                      '📋'
+                    );
+                  }
+                  return (
+                    <View style={styles.bioChecklistContainer}>
+                      {validChecklist.map((item, idx) => (
+                        <View key={item.id ?? `checklist-${idx}`} style={styles.bioChecklistItem}>
+                          <View style={styles.bioChecklistHeaderRow}>
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                              <Text style={styles.bioChecklistTitle}>
+                                {item.id ? `${item.id}. ` : ''}{renderValueOrNA(item.name, 'Protocol Step')}
+                              </Text>
+                              <Text style={styles.bioChecklistSchedule}>
+                                ⏱️ {renderValueOrNA(item.duration)} • {renderValueOrNA(item.schedule)}
+                              </Text>
+                            </View>
+                            <View style={styles.protocolBadgePill}>
+                              <Text style={styles.protocolBadgeText}>Active Guideline</Text>
+                            </View>
                           </View>
-                          <View style={styles.protocolBadgePill}>
-                            <Text style={styles.protocolBadgeText}>Active Guideline</Text>
-                          </View>
+                          <Text style={styles.bioChecklistRuleDesc}>
+                            {renderValueOrNA(item.ruleDescription, 'Data not available')}
+                          </Text>
                         </View>
-                        <Text style={styles.bioChecklistRuleDesc}>
-                          {renderValueOrNA(item.ruleDescription, 'Data not available')}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={styles.bioEmptySectionBox}>
-                    <Text style={styles.bioEmptySectionIcon}>📋</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.bioEmptySectionTitle}>Protocol Checklist</Text>
-                      <Text style={styles.bioEmptySectionDesc}>
-                        Data not available (Checklist protocol formulation pending assessment)
-                      </Text>
+                      ))}
                     </View>
-                    <View style={styles.naBadge}>
-                      <Text style={styles.naBadgeText}>N/A</Text>
-                    </View>
-                  </View>
-                )}
+                  );
+                })()}
 
                 {/* Bounding Safety Ceilings */}
-                <View style={styles.bioSafetyBox}>
-                  <View style={styles.bioSafetyHeaderRow}>
-                    <Text style={styles.bioSafetyIcon}>🛑</Text>
-                    <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
-                    {(!baseline?.safetyCeilings || baseline.safetyCeilings.length === 0) && (
-                      <View style={[styles.naBadge, styles.naBadgeRed]}>
-                        <Text style={[styles.naBadgeText, { color: '#F87171' }]}>N/A</Text>
-                      </View>
-                    )}
-                  </View>
+                {(() => {
+                  const validCeilings = (baseline?.safetyCeilings || []).filter(
+                    ceiling =>
+                      ceiling &&
+                      ceiling.label &&
+                      ceiling.label.trim() !== '' &&
+                      ceiling.value &&
+                      hasValidMetricValue(ceiling.value)
+                  );
 
-                  {baseline?.safetyCeilings && baseline.safetyCeilings.length > 0 ? (
-                    baseline.safetyCeilings.map((ceiling, idx) => (
-                      <React.Fragment key={ceiling.label || `ceiling-${idx}`}>
-                        <View style={styles.bioSafetyItem}>
-                          <Text style={styles.bioSafetyLabel}>{renderValueOrNA(ceiling.label)}</Text>
-                          <Text style={styles.bioSafetyValue}>{renderValueOrNA(ceiling.value)}</Text>
-                        </View>
-                        {idx < (baseline?.safetyCeilings?.length ?? 0) - 1 && (
-                          <View style={styles.bioSafetyDivider} />
-                        )}
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    <Text style={styles.bioEmptySectionDesc}>
-                      Data not available (Standard physiological safety boundaries apply)
-                    </Text>
-                  )}
-                </View>
+                  if (validCeilings.length === 0) {
+                    return renderComingSoonCard(
+                      'Bounding Safety Ceilings',
+                      'Physiological safety limits will be established based on your clinical assessment.',
+                      '🛑'
+                    );
+                  }
+
+                  return (
+                    <View style={styles.bioSafetyBox}>
+                      <View style={styles.bioSafetyHeaderRow}>
+                        <Text style={styles.bioSafetyIcon}>🛑</Text>
+                        <Text style={styles.bioSafetyTitle}>Bounding Safety Ceilings</Text>
+                      </View>
+                      {validCeilings.map((ceiling, idx) => (
+                        <React.Fragment key={ceiling.label || `ceiling-${idx}`}>
+                          <View style={styles.bioSafetyItem}>
+                            <Text style={styles.bioSafetyLabel}>{ceiling.label}</Text>
+                            <Text style={styles.bioSafetyValue}>{ceiling.value}</Text>
+                          </View>
+                          {idx < validCeilings.length - 1 && (
+                            <View style={styles.bioSafetyDivider} />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </View>
+                  );
+                })()}
 
                 {/* Physiological Rationale & Citation */}
-                <View style={styles.bioRationaleBox}>
-                  <View style={styles.bioRationaleHeaderRow}>
-                    <Text style={styles.bioRationaleIcon}>🔬</Text>
-                    <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
-                    {(!baseline?.clinicalRationale || baseline.clinicalRationale.trim() === '') && (
-                      <View style={styles.naBadge}>
-                        <Text style={styles.naBadgeText}>N/A</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.bioRationaleText}>
-                    {baseline?.clinicalRationale && baseline.clinicalRationale.trim() !== ''
-                      ? baseline.clinicalRationale
-                      : 'Clinical rationale data not available at this stage.'}
-                  </Text>
-                </View>
+                {(() => {
+                  const rationaleText = baseline?.clinicalRationale?.trim();
+                  const hasValidRationale =
+                    rationaleText &&
+                    rationaleText !== '' &&
+                    !rationaleText.toLowerCase().includes('data not available') &&
+                    !rationaleText.toLowerCase().includes('n/a');
 
-                {/* Action Button: Proceed to Activity Tracker */}
+                  if (!hasValidRationale) {
+                    return renderComingSoonCard(
+                      'Physiological Rationale & Citation',
+                      'Evidence-based clinical rationale will appear here upon prescription formulation.',
+                      '🔬'
+                    );
+                  }
+
+                  return (
+                    <View style={styles.bioRationaleBox}>
+                      <View style={styles.bioRationaleHeaderRow}>
+                        <Text style={styles.bioRationaleIcon}>🔬</Text>
+                        <Text style={styles.bioRationaleTitle}>Physiological Rationale & Citation</Text>
+                      </View>
+                      <Text style={styles.bioRationaleText}>
+                        {rationaleText}
+                      </Text>
+                    </View>
+                  );
+                })()}
+
+                {/* Action Button: Proceed to Activity Tracker - Commented out until data comes in core targets */}
+                {/*
                 <TouchableOpacity
                   style={styles.actionBtn}
                   activeOpacity={0.85}
@@ -567,6 +691,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                     <Text style={styles.actionBtnText}>PROCEED TO WORKOUT LOGS 🏃‍♂️</Text>
                   </LinearGradient>
                 </TouchableOpacity>
+                */}
               </View>
             )}
 
@@ -575,72 +700,21 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                 ========================================================================= */}
             {activeTab === 'CURRENT' && (
               <>
-                {current?.isLocked ? (
-                  <View style={styles.lockedContainer}>
-                    {/* Formulation Locked Hero Card */}
-                    <View style={styles.emptyCard}>
-                      <View style={[styles.emptyIconCircle, styles.lockedIconCircle]}>
-                        <Text style={styles.emptyIcon}>🔒</Text>
-                      </View>
-                      <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION FORMULATION</Text>
-                      <Text style={styles.emptySubhead}>Formulation Locked</Text>
-
-                      {/* Lock Reason Notice Pill */}
-                      <View style={styles.lockReasonBox}>
-                        <Text style={styles.lockReasonIcon}>⚠️</Text>
-                        <Text style={styles.lockReasonText}>
-                          {current.lockReason || 'Save the real lifestyle, nutrition and recovery assessment first'}
-                        </Text>
-                      </View>
-
-                      <Text style={styles.emptyDesc}>
-                        Your individualized clinical exercise prescription will be formulated and unlocked here once your real lifestyle, nutrition, and recovery assessment is completed.
-                      </Text>
-
-                      <View style={styles.emptyNoticePill}>
-                        <Text style={styles.emptyNoticePillText}>
-                          {current.weekLabel || 'Week 0 (Locked)'} • Resets in {current.resetsInDays ?? 0}d
-                        </Text>
-                      </View>
+                {(!current || current.isLocked) ? (
+                  <View style={styles.emptyCard}>
+                    <View style={styles.emptyIconCircle}>
+                      <Text style={styles.emptyIcon}>⚡</Text>
                     </View>
-
-                    {/* Preview Targets Strip (if available) */}
-                    {current.coreTargets && current.coreTargets.length > 0 && (
-                      <View style={[styles.biometricMainCard, { marginTop: 14 }]}>
-                        <View style={styles.bioSectionTitleRow}>
-                          <Text style={styles.bioSectionHeaderIcon}>🎯</Text>
-                          <Text style={styles.bioSectionHeader}>
-                            Baseline Target Telemetry (Preview)
-                          </Text>
-                        </View>
-                        <View style={styles.bioTargetsList}>
-                          {current.coreTargets.map((item, idx) => (
-                            <View key={item.key || `curr-core-${idx}`} style={styles.bioTargetRow}>
-                              <View style={styles.bioTargetRowLeft}>
-                                <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
-                                <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
-                              </View>
-                              <View style={styles.bioTargetRowRight}>
-                                <Text style={styles.bioTargetValues}>
-                                  {item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
-                                    ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
-                                    : 'N/A'}
-                                </Text>
-                                <View style={styles.bioTargetBaseChip}>
-                                  <Text style={styles.bioTargetBase}>
-                                    Base: {item.base !== undefined && item.base !== null && String(item.base).trim() !== ''
-                                      ? `${item.base}${item.unit ? ` ${item.unit}` : ''}`
-                                      : 'N/A'}
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
+                    <Text style={styles.emptyTitle}>CURRENT EXERCISE STRATEGIES</Text>
+                    <Text style={styles.emptySubhead}>Coming Soon</Text>
+                    <Text style={styles.emptyDesc}>
+                      Your individualized clinical exercise strategies will be formulated and updated here once your baseline assessment completes.
+                    </Text>
+                    <View style={[styles.comingSoonBadge, { marginTop: 14 }]}>
+                      <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+                    </View>
                   </View>
-                ) : current ? (
+                ) : (
                   /* Active Current Prescription when unlocked */
                   <View style={styles.biometricMainCard}>
                     <View style={styles.bioTopHeader}>
@@ -650,7 +724,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                           {current.weekLabel || current.cycleTitle || 'CURRENT ACTIVE PRESCRIPTION'}
                         </Text>
                       </View>
-                      <Text style={styles.bioCardMainTitle}>Active Lifestyle Prescription</Text>
+                      <Text style={styles.bioCardMainTitle}>Active Exercise Strategies</Text>
                     </View>
 
                     {/* Weekly Window */}
@@ -685,70 +759,51 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                           </Text>
                           <Text style={styles.bioTargetSublabel}>ACTIVE TARGET</Text>
                           <Text style={styles.bioTargetMetricTitle}>
-                            {renderValueOrNA(current.adaptiveTarget?.metricName, 'BSE EFFICIENCY')}
+                            {formatAdaptiveMetricTitle(current.adaptiveTarget?.metricName)}
                           </Text>
                         </View>
                       </View>
                     </View>
 
                     {/* Core Targets */}
-                    {current.coreTargets && current.coreTargets.length > 0 ? (
-                      <View style={styles.bioTargetsList}>
-                        {current.coreTargets.map((item, idx) => (
-                          <View key={item.key || `curr-act-${idx}`} style={styles.bioTargetRow}>
-                            <View style={styles.bioTargetRowLeft}>
-                              <Text style={styles.bioTargetRowIcon}>{item.icon || '📊'}</Text>
-                              <Text style={styles.bioTargetName}>{renderValueOrNA(item.name, 'Target')}</Text>
-                            </View>
-                            <View style={styles.bioTargetRowRight}>
-                              <Text style={styles.bioTargetValues}>
-                                {item.target !== undefined && item.target !== null && String(item.target).trim() !== ''
-                                  ? `${item.target}${item.unit ? ` ${item.unit}` : ''}`
-                                  : 'N/A'}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    ) : (
-                      <View style={styles.bioEmptySectionBox}>
-                        <Text style={styles.bioEmptySectionIcon}>📊</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.bioEmptySectionTitle}>Core Targets</Text>
-                          <Text style={styles.bioEmptySectionDesc}>Data not available</Text>
-                        </View>
-                        <View style={styles.naBadge}>
-                          <Text style={styles.naBadgeText}>N/A</Text>
-                        </View>
-                      </View>
-                    )}
+                    <View style={styles.bioSectionTitleRow}>
+                      <Text style={styles.bioSectionHeaderIcon}>📋</Text>
+                      <Text style={styles.bioSectionHeader}>
+                        Core Targets & Lifestyle Pacing
+                      </Text>
+                    </View>
+
+                    {renderTargetsTable(current.coreTargets)}
 
                     {/* Rationale */}
-                    <View style={styles.bioRationaleBox}>
-                      <View style={styles.bioRationaleHeaderRow}>
-                        <Text style={styles.bioRationaleIcon}>🔬</Text>
-                        <Text style={styles.bioRationaleTitle}>Clinical Rationale</Text>
-                      </View>
-                      <Text style={styles.bioRationaleText}>
-                        {renderValueOrNA(current.clinicalRationale, 'Clinical rationale data not available at this stage.')}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.emptyCard}>
-                    <View style={styles.emptyIconCircle}>
-                      <Text style={styles.emptyIcon}>⚡</Text>
-                    </View>
-                    <Text style={styles.emptyTitle}>CURRENT PRESCRIPTION</Text>
-                    <Text style={styles.emptySubhead}>Data not available</Text>
-                    <Text style={styles.emptyDesc}>
-                      Your individualized clinical exercise prescription will be formulated and updated here once your baseline telemetry completes.
-                    </Text>
-                    <View style={styles.emptyNoticePill}>
-                      <Text style={styles.emptyNoticePillText}>
-                        🔒 Formulation: Data not available
-                      </Text>
-                    </View>
+                    {(() => {
+                      const currRationale = current.clinicalRationale?.trim();
+                      const hasCurrRationale =
+                        currRationale &&
+                        currRationale !== '' &&
+                        !currRationale.toLowerCase().includes('data not available') &&
+                        !currRationale.toLowerCase().includes('n/a');
+
+                      if (!hasCurrRationale) {
+                        return renderComingSoonCard(
+                          'Clinical Rationale',
+                          'Clinical rationale data will be available upon formulation.',
+                          '🔬'
+                        );
+                      }
+
+                      return (
+                        <View style={styles.bioRationaleBox}>
+                          <View style={styles.bioRationaleHeaderRow}>
+                            <Text style={styles.bioRationaleIcon}>🔬</Text>
+                            <Text style={styles.bioRationaleTitle}>Clinical Rationale</Text>
+                          </View>
+                          <Text style={styles.bioRationaleText}>
+                            {currRationale}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
                 )}
               </>
@@ -764,9 +819,9 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                     <View style={styles.bioTopHeader}>
                       <View style={styles.bioBadgePill}>
                         <Text style={styles.bioBadgeIcon}>📂</Text>
-                        <Text style={styles.bioBadgeText}>PRESCRIPTION ARCHIVES</Text>
+                        <Text style={styles.bioBadgeText}>STRATEGY ARCHIVES</Text>
                       </View>
-                      <Text style={styles.bioCardMainTitle}>Historical Prescriptions</Text>
+                      <Text style={styles.bioCardMainTitle}>Historical Exercise Strategies</Text>
                     </View>
                     {archive.map((archItem, idx) => (
                       <View key={`archive-item-${idx}`} style={styles.archiveCycleItem}>
@@ -794,15 +849,13 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                     <View style={styles.emptyIconCircle}>
                       <Text style={styles.emptyIcon}>📂</Text>
                     </View>
-                    <Text style={styles.emptyTitle}>ARCHIVED FORMULATIONS</Text>
-                    <Text style={styles.emptySubhead}>Data not available</Text>
+                    <Text style={styles.emptyTitle}>STRATEGY ARCHIVES</Text>
+                    <Text style={styles.emptySubhead}>Coming Soon</Text>
                     <Text style={styles.emptyDesc}>
-                      Historical 7-day rolling prescriptions and clinical assessments will be archived here sequentially after each weekly cycle completes.
+                      Historical 7-day rolling exercise strategies will be archived here sequentially after each weekly cycle completes.
                     </Text>
-                    <View style={styles.emptyNoticePill}>
-                      <Text style={styles.emptyNoticePillText}>
-                        📁 Archive Repository: N/A (Cycle 01 in progress)
-                      </Text>
+                    <View style={[styles.comingSoonBadge, { marginTop: 14 }]}>
+                      <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
                     </View>
                   </View>
                 )}
@@ -1177,11 +1230,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bioTargetMetricTitle: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '900',
     color: '#F8FAFC',
     letterSpacing: 0.6,
     marginTop: 1,
+    textAlign: 'center',
+    maxWidth: 124,
   },
   bioTargetStatusPill: {
     flexDirection: 'row',
@@ -1222,6 +1277,144 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     letterSpacing: 0.4,
   },
+  // Targets Table (Name, Base, Target)
+  targetTableCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  targetTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#151E33',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  targetTableColHeaderText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.6,
+  },
+  targetTableColName: {
+    flex: 1.8,
+  },
+  targetTableColBase: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetTableColTarget: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  targetTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  targetTableRowLast: {
+    borderBottomWidth: 0,
+  },
+  targetTableRowAlt: {
+    backgroundColor: 'rgba(255, 255, 255, 0.015)',
+  },
+  targetNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 6,
+  },
+  targetRowIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  targetRowNameText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#F1F5F9',
+    flex: 1,
+  },
+  targetBaseText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#CBD5E1',
+    textAlign: 'center',
+  },
+  targetTargetText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#38BDF8',
+    textAlign: 'right',
+  },
+  textCenter: {
+    textAlign: 'center',
+  },
+  textRight: {
+    textAlign: 'right',
+  },
+
+  // Coming Soon Cards
+  comingSoonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 14,
+    gap: 12,
+  },
+  comingSoonIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  comingSoonIcon: {
+    fontSize: 18,
+  },
+  comingSoonTextCol: {
+    flex: 1,
+  },
+  comingSoonTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F1F5F9',
+    marginBottom: 2,
+  },
+  comingSoonDesc: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 15,
+  },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  comingSoonBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
+  },
+
   bioTargetsList: {
     gap: 8,
     marginBottom: 10,

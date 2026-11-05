@@ -253,10 +253,40 @@ export const styles = StyleSheet.create({
   focusTrackerValueGroup: {
     marginVertical: 4,
   },
+  focusTrackerValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
   focusTrackerValue: {
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  focusTrackerDummyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.38)',
+  },
+  focusTrackerDummyDot: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.5,
+    backgroundColor: '#F59E0B',
+  },
+  focusTrackerDummyText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   focusTrackerSubLabel: {
     fontSize: 9.5,
@@ -1011,16 +1041,18 @@ export const styles = StyleSheet.create({
   },
   mainHeadline: {
     color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '800',
+    letterSpacing: 0.2,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   subHeadline: {
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
 
   // Enhanced Horizontal Segment Selector Tabs
@@ -1579,17 +1611,45 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bracketsStageTabBtnDisabled: {
+    opacity: 0.45,
+    borderColor: '#1E293B',
+    backgroundColor: '#0B0F19',
+  },
   bracketsStageTabTitle: {
     fontSize: 11,
     fontWeight: '900',
     color: '#94A3B8',
     letterSpacing: 0.5,
   },
+  bracketsStageTabTitleDisabled: {
+    color: '#64748B',
+  },
   bracketsStageTabSub: {
     fontSize: 9.5,
     fontWeight: '700',
     color: '#64748B',
     marginTop: 2,
+  },
+  bracketsStageTabSubDisabled: {
+    color: '#475569',
+  },
+  bracketsStageTabHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bracketsStageActivePill: {
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  bracketsStageActivePillText: {
+    fontSize: 7.5,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
 
   // Comparison Section (Top Leader vs Your Standing)

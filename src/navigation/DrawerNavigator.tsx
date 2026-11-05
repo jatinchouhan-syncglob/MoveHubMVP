@@ -563,7 +563,7 @@ const DrawerNavigatorContent: React.FC = () => {
       */
       {
         screen: 'Prescription',
-        label: 'Prescription',
+        label: 'Exercise Strategies',
         icon: '📑',
       },
       { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },

@@ -13,9 +13,15 @@ interface ArenasWarRoomViewProps {
 type MetricCategoryFilter = 'all' | 'cardiovascular' | 'metabolic';
 
 const CATEGORY_TABS: Array<{ key: MetricCategoryFilter; label: string }> = [
-  { key: 'all', label: 'ALL (3)' },
-  { key: 'cardiovascular', label: 'Cardio (1)' },
-  { key: 'metabolic', label: 'Metabolic (2)' },
+  { key: 'all', label: `ALL (${METRIC_STRATEGIES.length})` },
+  {
+    key: 'cardiovascular',
+    label: `Cardio (${METRIC_STRATEGIES.filter(m => m.category === 'cardiovascular').length})`,
+  },
+  {
+    key: 'metabolic',
+    label: `Metabolic (${METRIC_STRATEGIES.filter(m => m.category === 'metabolic').length})`,
+  },
 ];
 
 export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
@@ -76,7 +82,7 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
           🏆 THE GAUNTLET: PHASE 1 (BEHAVIORAL FOUNDATION)
         </Text>
         <Text style={[styles.warRoomDirectiveBody, { color: theme.textSecondary }]}>
-          The primary goal of Phase 1 is to build your foundational cardiovascular shield and eliminate the hidden dangers of physical stagnation. By measuring your daily CMAS™ (Cardio-Metabolic Activation Score), the system evaluates the real-time quality, quantity, and hourly consistency of your movements completely through your smartphone. The core objective is to break up continuous 60-minute immobility blocks, up-regulate your muscle glucose vacuums, and optimize active insulin sensitivity—whether you are working at an office desk, moving across a retail floor, or operating on a factory line. It establishes the un-gameable behavioural discipline required to protect your blood vessels and secure your rank safely above the high-stakes Tournament Axe Line.
+          The primary goal of Phase 1 is to build your foundational cardiovascular shield and eliminate the hidden dangers of physical stagnation. By measuring your daily CMAS™ (Cardio-Metabolic Alignment Score), the system evaluates the real-time quality, quantity, and hourly consistency of your movements completely through your smartphone. The core objective is to break up continuous 60-minute immobility blocks, up-regulate your muscle glucose vacuums, and optimize active insulin sensitivity—whether you are working at an office desk, moving across a retail floor, or operating on a factory line. It establishes the un-gameable behavioural discipline required to protect your blood vessels and secure your rank safely above the high-stakes Tournament Axe Line.
         </Text>
       </View>
 
@@ -158,7 +164,7 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
       ))}
 
       {/* Biophysical Sensor Calibration Action */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[styles.warRoomActionBtn, { backgroundColor: theme.coreAccent }]}
         activeOpacity={0.8}
         onPress={onOpenCalibration}
@@ -166,7 +172,7 @@ export const ArenasWarRoomView: React.FC<ArenasWarRoomViewProps> = ({
         <Text style={[styles.warRoomActionBtnText, { color: '#080C15', fontWeight: '900' }]}>
           ⚙️ Calibrate Biophysical Sensors (Drift Audit)
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Medical Disclaimer Action */}
       <TouchableOpacity
