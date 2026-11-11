@@ -47,12 +47,26 @@ export const SplashScreen: React.FC = () => {
         const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
         const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
         const effectiveToken = token || cachedProfile?.token;
-        if (effectiveToken && cachedProfile?.isSetupComplete) {
+        const isProfileComplete = Boolean(
+          cachedProfile?.isSetupComplete ||
+          (cachedProfile?.age && Number(cachedProfile.age) > 0)
+        );
+
+        if (effectiveToken && isProfileComplete) {
           if (!token && cachedProfile?.token) {
             await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
           }
+          if (cachedProfile?.uhid) {
+            if (cachedProfile?.uhid) {
           prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
-          navigation.replace(ROUTES.DRAWER);
+        }
+          }
+          navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
+        } else if (effectiveToken) {
+          if (!token && cachedProfile?.token) {
+            await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
+          }
+          navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
         } else {
           navigation.replace(ROUTES.LOGIN);
         }
@@ -74,12 +88,24 @@ export const SplashScreen: React.FC = () => {
       const token = await storageHelper.getItem<string>(STORAGE_KEYS.TOKEN);
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
       const effectiveToken = token || cachedProfile?.token;
-      if (effectiveToken && cachedProfile?.isSetupComplete) {
+      const isProfileComplete = Boolean(
+        cachedProfile?.isSetupComplete ||
+        (cachedProfile?.age && Number(cachedProfile.age) > 0)
+      );
+
+      if (effectiveToken && isProfileComplete) {
         if (!token && cachedProfile?.token) {
           await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
         }
-        prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
-        navigation.replace(ROUTES.DRAWER);
+        if (cachedProfile?.uhid) {
+          prefetchStepsLogsData(cachedProfile.uhid).catch(() => {});
+        }
+        navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
+      } else if (effectiveToken) {
+        if (!token && cachedProfile?.token) {
+          await storageHelper.setItem(STORAGE_KEYS.TOKEN, cachedProfile.token);
+        }
+        navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
       } else {
         navigation.replace(ROUTES.LOGIN);
       }

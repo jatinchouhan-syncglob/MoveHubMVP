@@ -20,6 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { IMAGES } from '../../assets/images';
 import { useDrawer } from '../../navigation/DrawerContext';
+import { setGlobalDashboardTab } from '../../navigation/navigationRef';
 
 export interface IActiveChallenge {
   id: number;
@@ -396,11 +397,14 @@ export const FitnessChallengesScreen: React.FC = () => {
                   Your step telemetry is streaming directly to the tournament engine. Keep your device in your pocket during daily movement.
                 </Text>
 
-                {/* Disabled Button showing Challenge Already Joined */}
+                {/* Button showing Challenge Already Joined & allows going to Step Tracking */}
                 <TouchableOpacity
-                  style={[styles.joinPrimaryBtn, { opacity: 0.85, marginBottom: 12 }]}
-                  disabled={true}
-                  activeOpacity={1}
+                  style={[styles.joinPrimaryBtn, { opacity: 0.95 }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setGlobalDashboardTab('steps');
+                    setActiveScreen('Dashboard');
+                  }}
                 >
                   <LinearGradient
                     colors={['#1E293B', '#0F172A']}
@@ -413,24 +417,6 @@ export const FitnessChallengesScreen: React.FC = () => {
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
-
-                <View style={styles.enrolledActionsRow}>
-                  <TouchableOpacity
-                    style={styles.enrolledLeaderboardBtn}
-                    activeOpacity={0.85}
-                    onPress={handleGoToLeaderboard}
-                  >
-                    <Text style={styles.enrolledLeaderboardBtnText}>🏆 Leaderboard</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.enrolledTelemetryBtn}
-                    activeOpacity={0.85}
-                    onPress={handleGoToTelemetry}
-                  >
-                    <Text style={styles.enrolledTelemetryBtnText}>📊 Telemetry Logs</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             ) : (
               <View style={styles.ctaWrapper}>
@@ -769,13 +755,21 @@ export const FitnessChallengesScreen: React.FC = () => {
         animationType="fade"
         transparent={true}
         visible={successModalVisible}
-        onRequestClose={() => setSuccessModalVisible(false)}
+        onRequestClose={() => {
+          setSuccessModalVisible(false);
+          setGlobalDashboardTab('steps');
+          setActiveScreen('Dashboard');
+        }}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
-            onPress={() => setSuccessModalVisible(false)}
+            onPress={() => {
+              setSuccessModalVisible(false);
+              setGlobalDashboardTab('steps');
+              setActiveScreen('Dashboard');
+            }}
           />
           <View style={styles.successModalCard}>
             <View style={styles.successBadgeCircle}>
@@ -796,7 +790,11 @@ export const FitnessChallengesScreen: React.FC = () => {
             <TouchableOpacity
               style={styles.successCloseBtn}
               activeOpacity={0.85}
-              onPress={() => setSuccessModalVisible(false)}
+              onPress={() => {
+                setSuccessModalVisible(false);
+                setGlobalDashboardTab('steps');
+                setActiveScreen('Dashboard');
+              }}
             >
               <LinearGradient
                 colors={['#10B981', '#059669']}

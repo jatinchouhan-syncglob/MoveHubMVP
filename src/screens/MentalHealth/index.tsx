@@ -107,7 +107,7 @@ export const MentalHealthScreen: React.FC = () => {
 
       {/* Header with Drawer toggle and Reset button */}
       <CustomHeader
-        title="Mental Health"
+        title="The Lifestyle Sustainability Audit"
         showDrawerButton
         containerStyle={styles.headerContainer}
         titleStyle={styles.headerTitle}
@@ -195,8 +195,9 @@ export const MentalHealthScreen: React.FC = () => {
               styles.tabButtonText,
               currentPart === 1 && styles.tabButtonTextActive,
             ]}
+            numberOfLines={1}
           >
-            Part 1: Symptoms ({part1Answered}/18)
+            Symptoms ({part1Answered}/18)
           </Text>
         </TouchableOpacity>
 
@@ -228,8 +229,9 @@ export const MentalHealthScreen: React.FC = () => {
               styles.tabButtonText,
               currentPart === 2 && styles.tabButtonTextActive,
             ]}
+            numberOfLines={1}
           >
-            Part 2: Lifestyle ({part2Answered}/18)
+            Lifestyle ({part2Answered}/18)
           </Text>
         </TouchableOpacity>
       </View>
@@ -245,7 +247,7 @@ export const MentalHealthScreen: React.FC = () => {
           <Text style={styles.confidentialIcon}>🧠</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.confidentialTitle}>
-              Digital Self-Reported Mental Health Screening
+              Digital Self-Reported Lifestyle Sustainability Audit
             </Text>
             <Text style={styles.confidentialDesc}>
               This self-administered screening uses a 5-point Likert scale (Always to Never) to identify mental wellness indicators, stress triggers, and habit patterns.
@@ -375,9 +377,9 @@ export const MentalHealthScreen: React.FC = () => {
             <View style={styles.modalIconCircle}>
               <Text style={styles.modalIcon}>🎉</Text>
             </View>
-            <Text style={styles.modalTitle}>Mental Health Profile Saved!</Text>
+            <Text style={styles.modalTitle}>Lifestyle Sustainability Audit Saved!</Text>
             <Text style={styles.modalSubtitle}>
-              Your self-reported mental health assessment has been recorded. Once your comprehensive wellness analytics are ready, your risk category and clinical insights will appear in your Health Hub.
+              Your self-reported lifestyle sustainability audit has been recorded. Once your comprehensive wellness analytics are ready, your risk category and clinical insights will appear in your Health Hub.
             </Text>
             <TouchableOpacity
               style={styles.modalCloseBtn}

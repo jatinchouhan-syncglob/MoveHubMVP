@@ -61,6 +61,7 @@ export interface Phase1LeaderboardItem {
 
 export interface Phase1ChallengeData {
   status?: string;
+  message?: string;
   challenge_id?: string;
   active_challenge_day?: number;
   cutoff_at?: string;
@@ -86,6 +87,7 @@ export interface Phase1LeaderboardResponse {
 
   // Backwards compatibility with previous flat response
   status?: string;
+  message?: string;
   challenge_id?: string;
   active_challenge_day?: number;
   cutoff_at?: string;

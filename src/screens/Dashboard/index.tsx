@@ -26,6 +26,7 @@ import {
 import {
   subscribeDashboardTab,
   setGlobalDashboardTab,
+  getGlobalDashboardTab,
 } from '../../navigation/navigationRef';
 
 export const DashboardScreen: React.FC = () => {
@@ -34,9 +35,10 @@ export const DashboardScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [celebrationVisible, setCelebrationVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<'activities' | 'steps'>('activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'steps'>(getGlobalDashboardTab());
 
   useEffect(() => {
+    setActiveTab(getGlobalDashboardTab());
     const unsubscribe = subscribeDashboardTab(tab => {
       setActiveTab(tab);
     });
@@ -309,6 +311,7 @@ export const DashboardScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
+      setActiveTab(getGlobalDashboardTab());
     }, []),
   );
 

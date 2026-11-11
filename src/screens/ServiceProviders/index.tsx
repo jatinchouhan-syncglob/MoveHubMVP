@@ -38,8 +38,10 @@ import {
 } from './types';
 import { CATEGORIES_CONFIG } from './mockData';
 import { styles } from './styles';
+import { useDrawer } from '../../navigation/DrawerContext';
 
 export const ServiceProvidersScreen: React.FC = () => {
+  const { setActiveScreen } = useDrawer();
   // Phase 1 vs Phase 2 State
   const [activePhase, setActivePhase] = useState<PhaseType>('general');
 
@@ -74,6 +76,8 @@ export const ServiceProvidersScreen: React.FC = () => {
   const [alertTitle, setAlertTitle] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<string>('');
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [alertButtonText, setAlertButtonText] = useState<string>('');
+  const [alertSuccessTarget, setAlertSuccessTarget] = useState<'providers' | 'fitness_challenges' | null>(null);
 
   // Selected Providers State (In-memory, dynamic)
   const [selectedProviders, setSelectedProviders] = useState<IServiceProvider[]>([]);
@@ -505,12 +509,14 @@ export const ServiceProvidersScreen: React.FC = () => {
     setIsAddModalVisible(false);
   };
 
-  // HANDLE NEXT: GENERAL INFORMATION -> SERVICE PROVIDERS
+  // HANDLE SUBMIT: GENERAL INFORMATION -> SUCCESS MODAL -> SERVICE PROVIDERS
   const handleNextToServiceProviders = async () => {
     if (!age.trim() || !weight.trim() || !height.trim()) {
       setAlertTitle('Missing Information');
       setAlertMessage('Please enter your age, weight, and height to proceed.');
       setAlertType('warning');
+      setAlertButtonText('Dismiss');
+      setAlertSuccessTarget(null);
       setAlertModalVisible(true);
       return;
     }
@@ -520,9 +526,9 @@ export const ServiceProvidersScreen: React.FC = () => {
       const payload = {
         uhid,
         name,
-        age: parseInt(age, 10) || 30,
-        weight: parseFloat(weight) || 70,
-        height: parseFloat(height) || 170,
+        age: parseInt(age, 10) || 0,
+        weight: parseFloat(weight) || 0,
+        height: parseFloat(height) || 0,
         calorieGoal: 2400,
         occupation,
         universityName: occupation === 'Student' ? universityName.trim() : undefined,
@@ -533,7 +539,7 @@ export const ServiceProvidersScreen: React.FC = () => {
       };
 
       console.log('[ServiceProviders] Saving setupProfile:', payload);
-      await apiService.setupProfile(payload);
+      const res = await apiService.setupProfile(payload);
 
       const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
       const updatedProfile: UserProfile = {
@@ -554,7 +560,17 @@ export const ServiceProvidersScreen: React.FC = () => {
       };
       await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, updatedProfile);
 
-      setActivePhase('providers');
+      const successMsg =
+        res?.message ||
+        res?.data?.message ||
+        res?.msg ||
+        'Profile information saved successfully.';
+      setAlertTitle('Profile Updated');
+      setAlertMessage(successMsg);
+      setAlertType('success');
+      setAlertButtonText('Go to Service Providers');
+      setAlertSuccessTarget('providers');
+      setAlertModalVisible(true);
     } catch (error: any) {
       console.error('[ServiceProviders] setupProfile error:', error);
       setAlertTitle('Save Error');
@@ -563,6 +579,8 @@ export const ServiceProvidersScreen: React.FC = () => {
           'Failed to update general information. Please check your network and try again.'
       );
       setAlertType('error');
+      setAlertButtonText('Dismiss');
+      setAlertSuccessTarget(null);
       setAlertModalVisible(true);
     } finally {
       setIsSavingProfile(false);
@@ -616,8 +634,18 @@ export const ServiceProvidersScreen: React.FC = () => {
           `Successfully registered ${selectedProviders.length} service provider(s) with MoveHub.`,
       );
       setAlertType('success');
+      setAlertButtonText("Let's Move");
+      setAlertSuccessTarget('fitness_challenges');
       setAlertModalVisible(true);
       setServerRegisteredProviders(selectedProviders);
+
+      const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      if (cachedProf) {
+        await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, {
+          ...cachedProf,
+          isSetupComplete: true,
+        });
+      }
 
       // Re-fetch to keep prefilled and UI state synchronized with backend
       await fetchProviders(activeUhid);
@@ -703,7 +731,7 @@ export const ServiceProvidersScreen: React.FC = () => {
         iconStyle={styles.headerIcon}
       />
 
-      {/* Two-Phase Stepper */}
+      {/* Two-Phase Tabs */}
       <View style={styles.phaseStepperContainer}>
         <TouchableOpacity
           style={[
@@ -713,21 +741,6 @@ export const ServiceProvidersScreen: React.FC = () => {
           onPress={() => setActivePhase('general')}
           activeOpacity={0.8}
         >
-          <View
-            style={[
-              styles.phaseStepNumberBox,
-              activePhase === 'general' && styles.phaseStepNumberBoxActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.phaseStepNumberText,
-                activePhase === 'general' && styles.phaseStepNumberTextActive,
-              ]}
-            >
-              1
-            </Text>
-          </View>
           <Text
             style={[
               styles.phaseStepLabel,
@@ -739,10 +752,6 @@ export const ServiceProvidersScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <View style={styles.phaseArrowContainer}>
-          <Text style={styles.phaseArrowText}>→</Text>
-        </View>
-
         <TouchableOpacity
           style={[
             styles.phaseStepTab,
@@ -751,21 +760,6 @@ export const ServiceProvidersScreen: React.FC = () => {
           onPress={() => setActivePhase('providers')}
           activeOpacity={0.8}
         >
-          <View
-            style={[
-              styles.phaseStepNumberBox,
-              activePhase === 'providers' && styles.phaseStepNumberBoxActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.phaseStepNumberText,
-                activePhase === 'providers' && styles.phaseStepNumberTextActive,
-              ]}
-            >
-              2
-            </Text>
-          </View>
           <Text
             style={[
               styles.phaseStepLabel,
@@ -773,7 +767,7 @@ export const ServiceProvidersScreen: React.FC = () => {
             ]}
             numberOfLines={1}
           >
-            Service Providers
+            Service Provider
           </Text>
         </TouchableOpacity>
       </View>
@@ -975,7 +969,7 @@ export const ServiceProvidersScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Next Button */}
+              {/* Submit Button */}
               <TouchableOpacity
                 style={styles.nextPhaseBtn}
                 activeOpacity={0.85}
@@ -985,10 +979,7 @@ export const ServiceProvidersScreen: React.FC = () => {
                 {isSavingProfile ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <>
-                    <Text style={styles.nextPhaseBtnText}>Next: Service Providers</Text>
-                    <Text style={styles.nextPhaseBtnArrow}>→</Text>
-                  </>
+                  <Text style={styles.nextPhaseBtnText}>Submit</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1028,6 +1019,9 @@ export const ServiceProvidersScreen: React.FC = () => {
           <Text style={styles.heroTitle}>Health Service Providers</Text>
           <Text style={styles.heroSubtitle}>
             Select or list your preferred hospitals, diagnostic labs, attending physicians, and gyms to sync with MoveHub.
+          </Text>
+           <Text style={styles.heroSubtitle}>
+            This is not mandatory but highly recommended.
           </Text>
 
           {/* Quick Metrics Row showing live directory counts */}
@@ -1667,11 +1661,20 @@ export const ServiceProvidersScreen: React.FC = () => {
         title={alertTitle}
         message={alertMessage}
         type={alertType}
-        buttonText={alertType === 'success' ? 'Great!' : 'Dismiss'}
+        buttonText={alertButtonText || (alertType === 'success' ? 'Great!' : 'Dismiss')}
         onClose={() => {
           setAlertModalVisible(false);
-          if (alertType === 'success' && alertTitle === 'Registration Successful') {
-            setActivePhase('general');
+          const target = alertSuccessTarget;
+          setAlertSuccessTarget(null);
+          setAlertButtonText('');
+
+          if (alertType === 'success') {
+            if (target === 'providers') {
+              setActivePhase('providers');
+            } else if (target === 'fitness_challenges' || alertTitle === 'Registration Successful') {
+              setActivePhase('general');
+              setActiveScreen('FitnessChallenges');
+            }
           }
         }}
       />

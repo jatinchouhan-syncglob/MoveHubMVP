@@ -12,9 +12,9 @@ export const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#F8FAFC',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   headerButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
   // 2-Part Interactive Tabs
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: '#0F172A',
     gap: 8,
@@ -94,7 +94,7 @@ export const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     paddingVertical: 9,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 10,
     backgroundColor: '#1E293B',
     borderWidth: 1,
@@ -115,6 +115,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   tabBadgeActive: {
     backgroundColor: '#38BDF8',
@@ -128,9 +129,10 @@ export const styles = StyleSheet.create({
     color: '#0F172A',
   },
   tabButtonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#94A3B8',
+    flexShrink: 1,
   },
   tabButtonTextActive: {
     color: '#38BDF8',

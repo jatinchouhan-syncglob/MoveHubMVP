@@ -196,11 +196,9 @@ export const mapApiLeaderboardToPlayers = (
   return apiItems.map((item, idx) => {
     const rawUserId = (item.USER_ID && typeof item.USER_ID === 'string') ? item.USER_ID.trim() : '';
     const userId = rawUserId || 'N/A';
-    const isCurrentUser =
-      (currentUhid && rawUserId && rawUserId.toUpperCase() === currentUhid.toUpperCase()) ||
-      rawUserId === 'JATCHO5525' ||
-      rawUserId === 'ANJROY3773' ||
-      apiItems.length === 1;
+    const isCurrentUser = Boolean(
+      currentUhid && rawUserId && rawUserId.toUpperCase() === currentUhid.toUpperCase()
+    );
 
     const rawRank = (item.RANK && typeof item.RANK === 'string') ? item.RANK.trim() : '';
     const parsedRank = rawRank && !isNaN(parseInt(rawRank, 10)) ? parseInt(rawRank, 10) : (idx + 1);
@@ -303,10 +301,9 @@ export const mapPhase2ApiLeaderboardToPlayers = (
   currentUserName?: string,
 ): PhasePlayer[] => {
   return apiItems.map((item, idx) => {
-    const isCurrentUser =
-      (currentUhid && item.USER_ID.toUpperCase() === currentUhid.toUpperCase()) ||
-      item.USER_ID === 'ANJROY3773' ||
-      apiItems.length === 1;
+    const isCurrentUser = Boolean(
+      currentUhid && item.USER_ID && item.USER_ID.toUpperCase() === currentUhid.toUpperCase()
+    );
 
     const compoundScore = parseFloat(item.MASTER_COMPOUND_SCORE) || 0;
     const rawStatus = (item.STATUS || '').toUpperCase();
@@ -475,7 +472,7 @@ export const LeaderboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Active Day & Phase Selection State
-  const [selectedDay, setSelectedDay] = useState<number>(7); // Default to Day 7 as returned by API
+  const [selectedDay, setSelectedDay] = useState<number>(3); // Default to active day 3 as returned by API
   const activePhase: TournamentPhase = selectedDay <= 7 ? 1 : selectedDay <= 14 ? 2 : 3;
   const activePhaseConfig = PHASE_CONFIGS[activePhase];
 
@@ -514,7 +511,13 @@ export const LeaderboardScreen: React.FC = () => {
       }
 
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const targetUhid = profileData?.uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = profileData?.uhid || cachedProfile?.uhid;
+
+      if (!targetUhid) {
+        console.warn('[Leaderboard] No UHID found for logged in user');
+        setLoading(false);
+        return;
+      }
 
       console.log(`[Leaderboard] Fetching Leaderboards for UHID: ${targetUhid}`);
       const [p1Result, p2Result] = await Promise.allSettled([
@@ -633,8 +636,7 @@ export const LeaderboardScreen: React.FC = () => {
     const query = searchQuery.toLowerCase().trim();
     return (
       player.userId.toLowerCase().includes(query) ||
-      player.name.toLowerCase().includes(query) ||
-      player.department.toLowerCase().includes(query)
+      player.name.toLowerCase().includes(query)
     );
   });
 
@@ -678,13 +680,13 @@ export const LeaderboardScreen: React.FC = () => {
     if (activePhase === 1) {
       const activeP1 = getActiveP1Challenge();
       const p1Day = activeP1?.data?.active_challenge_day ?? leaderboardData?.active_challenge_day;
-      if (p1Day !== undefined) return `${p1Day}/7`;
-      return `${selectedDay}/7`;
+      if (p1Day !== undefined && p1Day !== null) return `${p1Day}`;
+      return `${selectedDay}`;
     }
-    if (activePhase === 2 && phase2LeaderboardData?.active_challenge_day !== undefined) {
-      return `${phase2LeaderboardData.active_challenge_day}/14`;
+    if (activePhase === 2 && phase2LeaderboardData?.active_challenge_day !== undefined && phase2LeaderboardData.active_challenge_day !== null) {
+      return `${phase2LeaderboardData.active_challenge_day}`;
     }
-    return `${selectedDay}/21`;
+    return `${selectedDay}`;
   };
 
   const getActiveCrewCount = (): string => {
@@ -720,19 +722,41 @@ export const LeaderboardScreen: React.FC = () => {
     return 'N/A';
   };
 
-  const getBenchmarkAvgScore = (): string => {
+  const getCmasScore = (): string => {
     if (activePhase === 1) {
       const activeP1 = getActiveP1Challenge();
-      const avgScore = activeP1?.data?.benchmark_avg_score ?? leaderboardData?.benchmark_avg_score;
-      if (avgScore !== undefined && avgScore !== null) {
-        return typeof avgScore === 'number' ? avgScore.toFixed(1) : String(avgScore);
+      const data = activeP1?.data || leaderboardData;
+      if (data?.benchmark_avg_score !== undefined && data?.benchmark_avg_score !== null && data.benchmark_avg_score > 0) {
+        return typeof data.benchmark_avg_score === 'number'
+          ? data.benchmark_avg_score.toFixed(1)
+          : String(data.benchmark_avg_score);
       }
-      return 'N/A';
+      const items = activeP1?.data?.leaderboard || leaderboardData?.leaderboard || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const scores = items
+          .map(item => parseFloat(item.CUMULATIVE_CMAS_100 || item.BEHAVIORAL_TRACK_CUM_CMAS || '0'))
+          .filter(s => !isNaN(s) && s > 0);
+        if (scores.length > 0) {
+          const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
+          return avg.toFixed(1);
+        }
+      }
+      return '0.0';
     }
     if (activePhase === 2) {
-      return 'N/A';
+      const items = phase2LeaderboardData?.leaderboard || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const scores = items
+          .map(item => parseFloat(item.BEHAVIORAL_TRACK_CUM_CMAS || item.MASTER_COMPOUND_SCORE || '0'))
+          .filter(s => !isNaN(s) && s > 0);
+        if (scores.length > 0) {
+          const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
+          return avg.toFixed(1);
+        }
+      }
+      return '0.0';
     }
-    return 'N/A';
+    return '0.0';
   };
 
   const themeColors = {
@@ -1052,10 +1076,10 @@ export const LeaderboardScreen: React.FC = () => {
             </View>
             <View style={styles.compactStatTextCol}>
               <Text style={styles.compactStatLabel} numberOfLines={1}>
-                Benchmark
+                CMAS
               </Text>
               <Text style={styles.compactStatValue}>
-                {getBenchmarkAvgScore()}
+                {getCmasScore()}
               </Text>
             </View>
           </View>
@@ -1066,7 +1090,7 @@ export const LeaderboardScreen: React.FC = () => {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search participant ID or department..."
+            placeholder="Search participant ID..."
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -1115,16 +1139,23 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         ) : filteredPlayers.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>No Participants Found</Text>
-            <Text style={styles.emptySub}>
-              {apiError ? `Error: ${apiError}` : 'No participants available for this search criteria.'}
+            <Text style={styles.emptyIcon}>
+              {leaderboardData?.status === 'pending' ? '⏳' : '📋'}
             </Text>
-            {apiError && (
-              <TouchableOpacity style={styles.retryButton} onPress={loadData}>
-                <Text style={styles.retryButtonText}>Retry ⟳</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.emptyTitle}>
+              {leaderboardData?.status === 'pending'
+                ? 'Awaiting Scoring'
+                : 'No Participants Found'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {leaderboardData?.message ||
+                (apiError
+                  ? `Error: ${apiError}`
+                  : 'No participants available for this search criteria.')}
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadData}>
+              <Text style={styles.retryButtonText}>Refresh ⟳</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           filteredPlayers.map((player, index) => {
@@ -1188,9 +1219,6 @@ export const LeaderboardScreen: React.FC = () => {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.deptText} numberOfLines={1}>
-                        Dept: {player.department}
-                      </Text>
                     </View>
 
                     {/* Master Score */}

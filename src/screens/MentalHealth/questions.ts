@@ -12,12 +12,12 @@ export const MENTAL_HEALTH_PARTS: IMentalHealthPart[] = [
   {
     partNumber: 1,
     partTitle: 'Symptom Screening',
-    partSubtitle: 'Baseline screening for Anxiety, Depression, and Stress',
+    partSubtitle: 'Baseline screening for Mind-Body Comfort, Daily Drive, and Life Load Dynamics',
     badge: 'PART 1 OF 2',
     categories: [
       {
         id: 'anxiety',
-        title: 'Anxiety',
+        title: 'Mind-Body Restoration & Comfort Check',
         icon: '⚡',
         subtitle: 'Assessing patterns of worry, restlessness, and anticipation',
         questions: [
@@ -61,7 +61,7 @@ export const MENTAL_HEALTH_PARTS: IMentalHealthPart[] = [
       },
       {
         id: 'depression',
-        title: 'Depression',
+        title: 'Daily Drive & Energy Initiative',
         icon: '🌧️',
         subtitle: 'Evaluating emotional flatness, withdrawal, and self-criticism',
         questions: [
@@ -105,7 +105,7 @@ export const MENTAL_HEALTH_PARTS: IMentalHealthPart[] = [
       },
       {
         id: 'stress',
-        title: 'Stress',
+        title: 'Daily Life Load & Focus Dynamics',
         icon: '🔥',
         subtitle: 'Monitoring physical tension, exhaustion, and workload reaction',
         questions: [
@@ -152,12 +152,12 @@ export const MENTAL_HEALTH_PARTS: IMentalHealthPart[] = [
   {
     partNumber: 2,
     partTitle: 'Lifestyle & Coping',
-    partSubtitle: 'Assessing Sleep Patterns, Substance Habits, and Emotional Regulation',
+    partSubtitle: 'Assessing Circadian Sleep Architecture, Substance Habits, and Tournament Adaptability',
     badge: 'PART 2 OF 2',
     categories: [
       {
         id: 'sleep',
-        title: 'Sleep Patterns',
+        title: 'Circadian Sleep Architecture Profile',
         icon: '🌙',
         subtitle: 'Assessing sleep disruption, night waking, and daytime fatigue',
         questions: [
@@ -247,7 +247,7 @@ export const MENTAL_HEALTH_PARTS: IMentalHealthPart[] = [
       },
       {
         id: 'emotional',
-        title: 'Emotional Regulation',
+        title: 'Tournament Focus & Adaptability Slope',
         icon: '⚖️',
         subtitle: 'Evaluating emotional resilience, reactivity, and mood shifts',
         questions: [

@@ -30,6 +30,7 @@ import FitnessChallengesScreen from '../screens/FitnessChallenges';
 import TelemetryLogScreen from '../screens/TelemetryLog';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
 import MentalHealthScreen from '../screens/MentalHealth';
+import QualityOfLifeScreen from '../screens/QualityOfLife';
 import WorkplaceStressorsScreen from '../screens/WorkplaceStressors';
 import NutritionalProfilerScreen from '../screens/NutritionalProfiler';
 import ExercisePrescriptionScreen from '../screens/ExercisePrescription';
@@ -71,7 +72,7 @@ import {
   OccupationalSafetyScreen,
 } from '../screens/ShieldHub';
 
-const DRAWER_WIDTH = 290;
+const DRAWER_WIDTH = 315;
 
 const DrawerNavigatorContent: React.FC = () => {
   const { isOpen, activeScreen, closeDrawer, setActiveScreen } = useDrawer();
@@ -138,24 +139,30 @@ const DrawerNavigatorContent: React.FC = () => {
       try {
         const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
         const userPromo = (cachedProf?.promocode || cachedProf?.promoCode || cachedProf?.referralCode || '').toString().trim().toUpperCase();
+        const isProfileFilled = Boolean(
+          cachedProf?.isSetupComplete ||
+          (cachedProf?.age && Number(cachedProf.age) > 0)
+        );
+        const defaultScreen: DrawerScreenType = isProfileFilled
+          ? 'FitnessChallenges'
+          : 'ServiceProviders';
+
         if (userPromo === 'MASS01') {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setWellnessModalVisible(false);
           setIsHomeHubExpanded(true);
           if (!route.params?.screen && !initialPromoScreenSetRef.current) {
-            setActiveScreen('ServiceProviders');
+            setActiveScreen(defaultScreen);
             initialPromoScreenSetRef.current = true;
-          } else if (
-            activeScreen !== 'Arenas' &&
-            activeScreen !== 'ServiceProviders' &&
-            activeScreen !== 'FitnessChallenges'
-          ) {
-            setActiveScreen('ServiceProviders');
           }
         } else {
           setPromoCode(null);
           await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
+          if (!route.params?.screen && !initialPromoScreenSetRef.current) {
+            setActiveScreen(defaultScreen);
+            initialPromoScreenSetRef.current = true;
+          }
         }
       } catch (e) {
         console.warn('Error checking promo in Drawer:', e);
@@ -193,51 +200,14 @@ const DrawerNavigatorContent: React.FC = () => {
   };
 
   const checkAndTriggerWellnessModal = async () => {
-    try {
-      const storedPromo = await storageHelper.getItem<string>(STORAGE_KEYS.PROMO_CODE);
-      const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const effectivePromo = (storedPromo || cachedProf?.promocode || cachedProf?.promoCode || cachedProf?.referralCode || promoCode || '').toString().trim().toUpperCase();
-
-      if (effectivePromo === 'MASS01' || isMassPromo) {
-        setWellnessModalVisible(false);
-        return;
-      }
-
-      const cycleDate = getCheckinCycleDate();
-      if (!cycleDate) return;
-
-      const lastSubmittedDate = await storageHelper.getItem<string>(
-        STORAGE_KEYS.LAST_WELLNESS_CHECKIN_DATE,
-      );
-
-      if (lastSubmittedDate === cycleDate) {
-        // Already submitted for today's cycle -> do not show again
-        setWellnessModalVisible(false);
-        return;
-      }
-
-      // Not yet submitted for today -> trigger modal
-      setWellnessModalVisible(true);
-    } catch (err) {
-      console.warn('[WellnessCheckIn] Error checking last submission:', err);
-    }
+    // Daily wellness/sleep check-in modal disabled per user instruction
+    setWellnessModalVisible(false);
+    return;
   };
 
   useEffect(() => {
-    // 1. Initial trigger 1.5 seconds after app opens (if after 6 AM and not submitted)
-    const initialTimer = setTimeout(() => {
-      checkAndTriggerWellnessModal();
-    }, 1500);
-
-    // 2. Retry every 1 minute if user cancelled/skipped without submitting
-    const retryInterval = setInterval(() => {
-      checkAndTriggerWellnessModal();
-    }, 60 * 1000); // 1 minute (60,000 ms)
-
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(retryInterval);
-    };
+    // Daily wellness/sleep modal disabled per user instruction
+    setWellnessModalVisible(false);
   }, []);
 
   useEffect(() => {
@@ -249,14 +219,16 @@ const DrawerNavigatorContent: React.FC = () => {
       'MealPlanner',
       'DailyCompliance',
       'WeeklyCompliance',
+      'FitnessTraining',
+      'MentalHealth',
+      'QualityOfLife',
     ];
     const moveHubScreens = [
       'Assessment',
       'Arena',
-            'Prescription',
+      'Prescription',
       'TelemetryLog',
       'ActivityTracking',
-      'MentalHealth',
       'WorkplaceStressors',
       'NutritionalProfiler',
       'ExercisePrescription',
@@ -265,7 +237,6 @@ const DrawerNavigatorContent: React.FC = () => {
       'Dashboard',
       'Insights',
       'Awards',
-      'FitnessTraining',
     ];
     const homeHubScreens = [
       'ServiceProviders',
@@ -385,24 +356,33 @@ const DrawerNavigatorContent: React.FC = () => {
           ''
         ).toString().trim().toUpperCase();
 
+        const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+        const isProfileFilled = Boolean(
+          profileData?.isSetupComplete ||
+          (profileData?.age && Number(profileData.age) > 0) ||
+          cachedProf?.isSetupComplete ||
+          (cachedProf?.age && Number(cachedProf.age) > 0)
+        );
+        const defaultScreen: DrawerScreenType = isProfileFilled
+          ? 'FitnessChallenges'
+          : 'ServiceProviders';
+
         if (userPromo === 'MASS01') {
           setPromoCode('MASS01');
           await storageHelper.setItem(STORAGE_KEYS.PROMO_CODE, 'MASS01');
           setWellnessModalVisible(false);
           setIsHomeHubExpanded(true);
           if (!route.params?.screen && !initialPromoScreenSetRef.current) {
-            setActiveScreen('ServiceProviders');
+            setActiveScreen(defaultScreen);
             initialPromoScreenSetRef.current = true;
-          } else if (
-            activeScreen !== 'Arenas' &&
-            activeScreen !== 'ServiceProviders' &&
-            activeScreen !== 'FitnessChallenges'
-          ) {
-            setActiveScreen('ServiceProviders');
           }
         } else {
           setPromoCode(null);
           await storageHelper.removeItem(STORAGE_KEYS.PROMO_CODE);
+          if (!route.params?.screen && !initialPromoScreenSetRef.current) {
+            setActiveScreen(defaultScreen);
+            initialPromoScreenSetRef.current = true;
+          }
         }
 
         const total = activitiesData.reduce(
@@ -437,15 +417,6 @@ const DrawerNavigatorContent: React.FC = () => {
   });
 
   const renderActiveScreen = () => {
-    if (
-      isMassPromo &&
-      activeScreen !== 'ServiceProviders' &&
-      activeScreen !== 'FitnessChallenges' &&
-      activeScreen !== 'Arenas'
-    ) {
-      return <ServiceProvidersScreen />;
-    }
-
     switch (activeScreen) {
       case 'Assessment':
         return <AssessmentScreen />;
@@ -475,6 +446,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <ActivityTrackingScreen />;
       case 'MentalHealth':
         return <MentalHealthScreen />;
+      case 'QualityOfLife':
+        return <QualityOfLifeScreen />;
       case 'WorkplaceStressors':
         return <WorkplaceStressorsScreen />;
       case 'NutritionalProfiler':
@@ -490,7 +463,6 @@ const DrawerNavigatorContent: React.FC = () => {
       case 'Insights':
         return <InsightsScreen />;
       case 'Profile':
-        return <ProfileScreen />;
       case 'ServiceProviders':
         return <ServiceProvidersScreen />;
       case 'DailyQuest':
@@ -531,29 +503,22 @@ const DrawerNavigatorContent: React.FC = () => {
     }
   };
 
-  const homeMenuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
+  const displayedHomeItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
       { screen: 'ServiceProviders', label: 'Profile', icon: '👤' },
       { screen: 'FitnessChallenges', label: 'Fitness Challenge', icon: '🎯' },
       { screen: 'Arenas', label: 'Arenas', icon: '⚡' },
-      { screen: 'MyQuests', label: 'My Quests', icon: '🎯' },
     ];
-
-  const displayedHomeItems = isMassPromo
-    ? [
-        { screen: 'ServiceProviders' as DrawerScreenType, label: 'Profile', icon: '👤' },
-        { screen: 'FitnessChallenges' as DrawerScreenType, label: 'Fitness Challenge', icon: '🎯' },
-        { screen: 'Arenas' as DrawerScreenType, label: 'Arenas', icon: '⚡' },
-      ]
-    : homeMenuItems;
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
+      /*
       {
         screen: 'Assessment',
         label: 'Assessment',
         icon: '📝',
       },
+      */
       /*
       {
         screen: 'Arena',
@@ -568,12 +533,16 @@ const DrawerNavigatorContent: React.FC = () => {
       },
       { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
-      { screen: 'MentalHealth', label: 'Mental Health', icon: '🧠' },
+      /*
+      { screen: 'MentalHealth', label: 'Mental Health', icon: '🧠' }, // Moved to Nourish Hub
+      */
       { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
       { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
       { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       { screen: 'Awards', label: 'Rewards', icon: '🏆' },
-      { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' },
+      /*
+      { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' }, // Moved to Nourish Hub
+      */
     ];
 
   const displayedMoveItems = menuItems;
@@ -692,6 +661,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -701,8 +671,6 @@ const DrawerNavigatorContent: React.FC = () => {
                 </View>
               )}
 
-              {!isMassPromo && (
-              <>
               {/* Move Hub Accordion Trigger */}
               {(() => {
                 const isMoveHubActive =
@@ -710,27 +678,9 @@ const DrawerNavigatorContent: React.FC = () => {
                     ? [
                         'Assessment',
                         'Arena',
-                                                'Prescription',
-                        'TelemetryLog',
-                        'ActivityTracking',
-                        'MentalHealth',
-      'WorkplaceStressors',
-                        'NutritionalProfiler',
-                        'ExercisePrescription',
-                        'LifestyleProfiler',
-                        'Leaderboard',
-                        'Dashboard',
-                        'Insights',
-                        'Awards',
-                        'FitnessTraining',
-                      ].includes(pendingScreen)
-                    : [
-                        'Assessment',
-                        'Arena',
                         'Prescription',
                         'TelemetryLog',
                         'ActivityTracking',
-                        'MentalHealth',
                         'WorkplaceStressors',
                         'NutritionalProfiler',
                         'ExercisePrescription',
@@ -739,7 +689,21 @@ const DrawerNavigatorContent: React.FC = () => {
                         'Dashboard',
                         'Insights',
                         'Awards',
-                        'FitnessTraining',
+                      ].includes(pendingScreen as any)
+                    : [
+                        'Assessment',
+                        'Arena',
+                        'Prescription',
+                        'TelemetryLog',
+                        'ActivityTracking',
+                        'WorkplaceStressors',
+                        'NutritionalProfiler',
+                        'ExercisePrescription',
+                        'LifestyleProfiler',
+                        'Leaderboard',
+                        'Dashboard',
+                        'Insights',
+                        'Awards',
                       ].includes(activeScreen);
                 return (
                   <TouchableOpacity
@@ -802,6 +766,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -810,23 +775,28 @@ const DrawerNavigatorContent: React.FC = () => {
                   })}
                 </View>
               )}
-              </>
-              )}
 
-              {!isMassPromo && (
+              {/* Nourish Hub (Temporarily commented out per user request) */}
+              {false && (
               <>
               {/* Nourish Hub Accordion Trigger */}
               {(() => {
                 const isNutritionActive =
                   pendingScreen !== null
                     ? [
+                        'MentalHealth',
+                        'QualityOfLife',
+                        'FitnessTraining',
                         'MealLog',
                         'MealAnalysis',
                         'MealPlanner',
                         'DailyCompliance',
                         'WeeklyCompliance',
-                      ].includes(pendingScreen)
+                      ].includes(pendingScreen as any)
                     : [
+                        'MentalHealth',
+                        'QualityOfLife',
+                        'FitnessTraining',
                         'MealLog',
                         'MealAnalysis',
                         'MealPlanner',
@@ -873,6 +843,21 @@ const DrawerNavigatorContent: React.FC = () => {
               {isNutritionExpanded && (
                 <View style={styles.subMenuContainer}>
                   {[
+                    {
+                      screen: 'MentalHealth' as const,
+                      label: 'The Lifestyle Sustainability Audit',
+                      icon: '🧠',
+                    },
+                    {
+                      screen: 'QualityOfLife' as const,
+                      label: 'HR-Quality of Life (QoL)',
+                      icon: '🩺',
+                    },
+                    {
+                      screen: 'FitnessTraining' as const,
+                      label: 'Fitness Training',
+                      icon: '🏋️‍♂️',
+                    },
                     {
                       screen: 'MealLog' as const,
                       label: 'Daily Meal Log',
@@ -922,6 +907,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -933,7 +919,8 @@ const DrawerNavigatorContent: React.FC = () => {
               </>
               )}
 
-              {!isMassPromo && (
+              {/* Vault Hub (Hidden per user request) */}
+              {false && (
               <>
               {/* Vault Hub Accordion Trigger */}
               {(() => {
@@ -944,7 +931,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'DigitalWallet',
                         'CaseHistory',
                         'HealthPassport',
-                      ].includes(pendingScreen)
+                      ].includes(pendingScreen as any)
                     : [
                         'UploadReports',
                         'DigitalWallet',
@@ -1035,6 +1022,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -1046,7 +1034,8 @@ const DrawerNavigatorContent: React.FC = () => {
               </>
               )}
 
-              {!isMassPromo && (
+              {/* Vitality Hub (Hidden per user request) */}
+              {false && (
               <>
               {/* Vitality Hub Accordion Trigger */}
               {(() => {
@@ -1057,7 +1046,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'Wellness',
                         'HealthReportCard',
                         'MindsetHub',
-                      ].includes(pendingScreen)
+                      ].includes(pendingScreen as any)
                     : [
                         'DailyLog',
                         'Wellness',
@@ -1148,6 +1137,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -1159,7 +1149,8 @@ const DrawerNavigatorContent: React.FC = () => {
               </>
               )}
 
-              {!isMassPromo && (
+              {/* Shield Hub (Hidden per user request) */}
+              {false && (
               <>
               {/* Shield Hub Accordion Trigger */}
               {(() => {
@@ -1172,7 +1163,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'RiskTracker',
                         'RiskTools',
                         'MyConsultations',
-                      ].includes(pendingScreen)
+                      ].includes(pendingScreen as any)
                     : [
                         'OccupationalSafety',
                         'RiskAssessment',
@@ -1275,6 +1266,7 @@ const DrawerNavigatorContent: React.FC = () => {
                             styles.subMenuLabel,
                             isSubActive && styles.activeSubMenuLabel,
                           ]}
+                          numberOfLines={2}
                         >
                           {subItem.label}
                         </Text>
@@ -1352,7 +1344,8 @@ const DrawerNavigatorContent: React.FC = () => {
         </View>
       </Modal>
 
-      {!isMassPromo && (
+      {/* Wellness modal completely disabled per user instruction */}
+      {false && (
         <WellnessModal
           visible={wellnessModalVisible}
           onClose={() => setWellnessModalVisible(false)}
@@ -1656,8 +1649,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subMenuContainer: {
-    marginLeft: 55,
-    marginRight: theme.spacing.sm,
+    marginLeft: 48,
+    marginRight: 6,
     borderLeftWidth: 2,
     borderLeftColor: 'rgba(99, 102, 241, 0.22)',
     paddingLeft: 10,
@@ -1666,8 +1659,8 @@ const styles = StyleSheet.create({
   subMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     marginVertical: 2,
     borderRadius: theme.spacing.borderRadiusMd,
     position: 'relative',
@@ -1686,12 +1679,14 @@ const styles = StyleSheet.create({
   },
   subMenuIcon: {
     fontSize: 16,
-    marginRight: theme.spacing.sm,
+    marginRight: 8,
     width: 20,
     textAlign: 'center',
   },
   subMenuLabel: {
-    fontSize: 13,
+    flex: 1,
+    fontSize: 12.5,
+    lineHeight: 16,
     color: theme.colors.textSecondary,
     fontWeight: theme.fonts.weights.medium as any,
   },

@@ -154,7 +154,6 @@ export const LeaderboardDetailsScreen: React.FC = () => {
                   </View>
                 )}
               </View>
-              <Text style={styles.deptText}>{player.department}</Text>
             </View>
 
             {/* Master Score */}

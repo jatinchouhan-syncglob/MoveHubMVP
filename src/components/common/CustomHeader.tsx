@@ -43,7 +43,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
 
   const handleProfilePress = () => {
     if (drawer) {
-      drawer.setActiveScreen('Profile');
+      drawer.setActiveScreen('ServiceProviders');
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type DrawerScreenType = 'Assessment' | 'Arena' | 'Arenas' | 'Prescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'TelemetryLog' | 'ActivityTracking' | 'MentalHealth' | 'WorkplaceStressors' | 'NutritionalProfiler' | 'ExercisePrescription' | 'LifestyleProfiler' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'ServiceProviders' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'MyQuests' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
+export type DrawerScreenType = 'Assessment' | 'Arena' | 'Arenas' | 'Prescription' | 'Dashboard' | 'Awards' | 'FitnessChallenges' | 'TelemetryLog' | 'ActivityTracking' | 'MentalHealth' | 'QualityOfLife' | 'WorkplaceStressors' | 'NutritionalProfiler' | 'ExercisePrescription' | 'LifestyleProfiler' | 'Leaderboard' | 'FitnessTraining' | 'Insights' | 'Profile' | 'ServiceProviders' | 'MealLog' | 'MealAnalysis' | 'MealPlanner' | 'DailyCompliance' | 'WeeklyCompliance' | 'DailyQuest' | 'MyQuests' | 'UploadReports' | 'DigitalWallet' | 'CaseHistory' | 'HealthPassport' | 'DailyLog' | 'Wellness' | 'HealthReportCard' | 'MindsetHub' | 'RiskAssessment' | 'PreventiveCare' | 'RiskTracker' | 'RiskTools' | 'MyConsultations' | 'OccupationalSafety';
 
 interface DrawerContextProps {
   isOpen: boolean;
@@ -17,7 +17,7 @@ const DrawerContext = createContext<DrawerContextProps | undefined>(undefined);
 
 export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState<DrawerScreenType>('Prescription');
+  const [activeScreen, setActiveScreen] = useState<DrawerScreenType>('FitnessChallenges');
   const [targetCardTime, setTargetCardTime] = useState<string | null>(null);
 
   const openDrawer = () => setIsOpen(true);

@@ -166,11 +166,11 @@ export const SignupScreen: React.FC = () => {
         const userProfile: UserProfile = {
           uhid: userData.uhid || '',
           name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : `${firstName.trim()} ${lastName.trim()}`.trim()),
-          age: userData?.age || 30,
-          weight: userData?.weight || 70,
-          height: userData?.height || 170,
-          calorieGoal: userData?.calorieGoal || 2400,
-          isSetupComplete: true,
+          age: userData?.age ? Number(userData.age) : 0,
+          weight: userData?.weight ? Number(userData.weight) : 0,
+          height: userData?.height ? Number(userData.height) : 0,
+          calorieGoal: userData?.calorieGoal ? Number(userData.calorieGoal) : 2400,
+          isSetupComplete: false,
           email: userData.email || email.trim(),
           token: authToken,
           referralCode: userData.referralCode || referralCode.trim() || undefined,
@@ -195,8 +195,8 @@ export const SignupScreen: React.FC = () => {
         syncHealthConnectAnalytics().catch(() => {});
         prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
-        // Navigate directly to the main app (Drawer), bypassing General Information
-        navigation.replace(ROUTES.DRAWER);
+        // Navigate directly to the main app (Drawer), opening Profile/General Information
+        navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
       } else {
         setAlertTitle('Registration Failed');
         setAlertMessage(response?.message || 'Failed to create account. Please try again.');

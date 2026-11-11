@@ -185,9 +185,9 @@ export const LoginScreen: React.FC = () => {
             prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
             if (userProfile.isSetupComplete) {
-              navigation.replace(ROUTES.DRAWER);
+              navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
             } else {
-              navigation.replace(ROUTES.DRAWER);
+              navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
             }
           } else {
             setAlertType('error');
@@ -267,11 +267,11 @@ export const LoginScreen: React.FC = () => {
         }
 
         const userProfile: UserProfile = {
-          uhid: userData.uhid || 'SAUSHA9775',
-          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Saurabh Sharma'),
-          age: userData.age || 30,
-          weight: userData.weight || 70,
-          height: userData.height || 170,
+          uhid: userData.uhid || '',
+          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : ''),
+          age: userData.age ? Number(userData.age) : 0,
+          weight: userData.weight ? Number(userData.weight) : 0,
+          height: userData.height ? Number(userData.height) : 0,
           calorieGoal: userData.calorieGoal || 2400,
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || email.trim(),
@@ -297,9 +297,9 @@ export const LoginScreen: React.FC = () => {
           }
 
           if (userProfile.isSetupComplete) {
-            navigation.replace(ROUTES.DRAWER);
+            navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
           } else {
-            navigation.replace(ROUTES.DRAWER);
+            navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
           }
         }
       } else {
@@ -422,11 +422,11 @@ export const LoginScreen: React.FC = () => {
         }
 
         const userProfile: UserProfile = {
-          uhid: userData.uhid || 'JATCHO5525',
-          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'User'),
-          age: userData.age || 30,
-          weight: userData.weight || 70,
-          height: userData.height || 170,
+          uhid: userData.uhid || '',
+          name: userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : ''),
+          age: userData.age ? Number(userData.age) : 0,
+          weight: userData.weight ? Number(userData.weight) : 0,
+          height: userData.height ? Number(userData.height) : 0,
           calorieGoal: userData.calorieGoal || 2400,
           isSetupComplete: userData.isSetupComplete !== undefined ? userData.isSetupComplete : true,
           email: userData.email || '',
@@ -439,9 +439,9 @@ export const LoginScreen: React.FC = () => {
         prefetchStepsLogsData(userProfile.uhid).catch(() => {});
 
         if (userProfile.isSetupComplete) {
-          navigation.replace(ROUTES.DRAWER);
+          navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
         } else {
-          navigation.replace(ROUTES.DRAWER);
+          navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
         }
       } else {
         setAlertType('error');
@@ -470,9 +470,9 @@ export const LoginScreen: React.FC = () => {
         password: tempPlainPassword,
       });
       if (tempProfileData.isSetupComplete) {
-        navigation.replace(ROUTES.DRAWER);
+        navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
       } else {
-        navigation.replace(ROUTES.DRAWER);
+        navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
       }
     }
   };
@@ -481,9 +481,9 @@ export const LoginScreen: React.FC = () => {
     setBiometricConsentVisible(false);
     if (tempProfileData) {
       if (tempProfileData.isSetupComplete) {
-        navigation.replace(ROUTES.DRAWER);
+        navigation.replace(ROUTES.DRAWER, { screen: 'FitnessChallenges' });
       } else {
-        navigation.replace(ROUTES.DRAWER);
+        navigation.replace(ROUTES.DRAWER, { screen: 'ServiceProviders' });
       }
     }
   };

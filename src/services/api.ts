@@ -230,13 +230,16 @@ export const apiService = {
 
         const merged: UserProfile = {
           uhid: apiData.uhid || targetUhid,
-          name: apiData.name || cachedProfile?.name || 'Robert D.',
-          age: apiData.age || cachedProfile?.age || 55,
-          weight: apiData.weight !== undefined ? apiData.weight : (cachedProfile?.weight || 75.0),
-          height: apiData.height !== undefined ? apiData.height : (cachedProfile?.height || 178),
+          name: apiData.name || cachedProfile?.name,
+          age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
+          weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
+          height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
           calorieGoal:
             apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
-          isSetupComplete: cachedProfile?.isSetupComplete || false,
+          isSetupComplete: Boolean(
+            cachedProfile?.isSetupComplete ||
+            (apiData.age && Number(apiData.age) > 0)
+          ),
           email: apiData.email || cachedProfile?.email || 'sam@gmail.com',
           userId: apiData.userId || cachedProfile?.userId,
           occupation: apiData.occupation || cachedProfile?.occupation,
@@ -301,11 +304,14 @@ export const apiService = {
         const profile: UserProfile = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name || 'Living Scope',
-          age: apiData.age !== undefined ? apiData.age : (cachedProfile?.age || 30),
-          weight: apiData.weight !== undefined ? apiData.weight : (cachedProfile?.weight || 70.0),
-          height: apiData.height !== undefined ? apiData.height : (cachedProfile?.height || 170.0),
+          age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
+          weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
+          height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
           calorieGoal: apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
-          isSetupComplete: true,
+          isSetupComplete: Boolean(
+            cachedProfile?.isSetupComplete ||
+            (apiData.age && Number(apiData.age) > 0)
+          ),
           occupation: apiData.occupation || cachedProfile?.occupation || '',
           universityName: apiData.universityName || cachedProfile?.universityName || '',
           department: apiData.department || cachedProfile?.department || '',
@@ -1588,7 +1594,10 @@ export const apiService = {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+    const targetUhid = uhid || cachedProfile?.uhid;
+    if (!targetUhid) {
+      throw new Error('User UHID not available');
+    }
     const url = 'http://13.204.123.149:8001/health/api/phase1leaderboard';
     console.log(
       `[apiService] POST getPhase1Leaderboard: ${url} for UHID: ${targetUhid}`,
@@ -1605,33 +1614,14 @@ export const apiService = {
       });
       console.log(
         `[apiService] POST getPhase1Leaderboard SUCCESS for UHID: ${targetUhid}`,
+        response.data,
       );
       return response.data;
     } catch (error: any) {
-      console.warn(
+      console.error(
         `[apiService] POST getPhase1Leaderboard with UHID ${targetUhid} failed:`,
         error?.response?.data || error?.message,
       );
-      // Fallback: if the user's specific UHID does not have test records (e.g. "No common daily_summaries dates exist"),
-      // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
-      if (targetUhid !== 'JATCHO5525') {
-        try {
-          console.log(
-            `[apiService] Fallback to JATCHO5525 for phase1leaderboard...`,
-          );
-          const fallbackForm = new FormData();
-          fallbackForm.append('uhid', 'JATCHO5525');
-          const fallbackRes = await axios.post(url, fallbackForm, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          return fallbackRes.data;
-        } catch (fbErr: any) {
-          console.error(
-            `[apiService] Fallback also failed:`,
-            fbErr?.response?.data || fbErr?.message,
-          );
-        }
-      }
       throw error;
     }
   },
@@ -1642,7 +1632,10 @@ export const apiService = {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const targetUhid = uhid || cachedProfile?.uhid || 'ANJROY3773';
+    const targetUhid = uhid || cachedProfile?.uhid;
+    if (!targetUhid) {
+      throw new Error('User UHID not available');
+    }
     const url = 'http://13.204.123.149:8001/health/api/phase2leaderboard';
     console.log(
       `[apiService] POST getPhase2Leaderboard: ${url} for UHID: ${targetUhid}`,
@@ -1659,33 +1652,14 @@ export const apiService = {
       });
       console.log(
         `[apiService] POST getPhase2Leaderboard SUCCESS for UHID: ${targetUhid}`,
+        response.data,
       );
       return response.data;
     } catch (error: any) {
-      console.warn(
+      console.error(
         `[apiService] POST getPhase2Leaderboard with UHID ${targetUhid} failed:`,
         error?.response?.data || error?.message,
       );
-      // Fallback: if the user's specific UHID does not have test records,
-      // fallback to ANJROY3773 so the screen can still display valid API leaderboard data
-      if (targetUhid !== 'ANJROY3773') {
-        try {
-          console.log(
-            `[apiService] Fallback to ANJROY3773 for phase2leaderboard...`,
-          );
-          const fallbackForm = new FormData();
-          fallbackForm.append('uhid', 'ANJROY3773');
-          const fallbackRes = await axios.post(url, fallbackForm, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          return fallbackRes.data;
-        } catch (fbErr: any) {
-          console.error(
-            `[apiService] Phase 2 Fallback also failed:`,
-            fbErr?.response?.data || fbErr?.message,
-          );
-        }
-      }
       throw error;
     }
   },

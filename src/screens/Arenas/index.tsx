@@ -1,31 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   ScrollView,
-  FlatList,
   RefreshControl,
   StatusBar,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomHeader } from '../../components/common/CustomHeader';
-import { storageHelper } from '../../storage/storageHelper';
-import { STORAGE_KEYS } from '../../storage/storageKeys';
-import { styles, SECTION_WIDTH } from './styles';
-import { SEGMENT_CONFIGS, SEGMENT_ORDERED_KEYS } from './constants';
-import { UserSegmentKey, ISegmentConfig } from './types';
+import { styles } from './styles';
+import { SEGMENT_CONFIGS } from './constants';
+import { UserSegmentKey } from './types';
 import { ArenasHeroHeader } from './components/ArenasHeroHeader';
-import { ArenasSelectorTabs } from './components/ArenasSelectorTabs';
 import { ArenasCarouselSlide } from './components/ArenasCarouselSlide';
 import { ArenasDetailsCard } from './components/ArenasDetailsCard';
 import { GlobalTicker } from './components/GlobalTicker';
 import { CoreQuadrantsBar } from './components/CoreQuadrantsBar';
 import { FocusTrackersGrid } from './components/FocusTrackersGrid';
-import { SegmentStandingsCard } from './components/SegmentStandingsCard';
 import { SegmentActionButtons } from './components/SegmentActionButtons';
-import { SegmentPickerModal } from './components/SegmentPickerModal';
 import { TournamentPlaybookModal } from './components/TournamentPlaybookModal';
 import { MetricSandboxModal } from './components/MetricSandboxModal';
 import { ThreeWayReferralModal } from './components/ThreeWayReferralModal';
@@ -37,11 +28,8 @@ import { ArenasBracketsView } from './components/ArenasBracketsView';
 import { ArenasRewardsView } from './components/ArenasRewardsView';
 
 export const ArenasScreen: React.FC = () => {
-  // Promo code condition state
-  const [isMassPromo, setIsMassPromo] = useState<boolean>(false);
-
-  // Segment Selection State (default to MASS_INDIVIDUALS 01, overrides from user profile if available)
-  const [selectedSegment, setSelectedSegment] = useState<UserSegmentKey>('MASS_INDIVIDUALS');
+  // Segment Selection State - Exclusively MASS_INDIVIDUALS per user instruction
+  const selectedSegment: UserSegmentKey = 'MASS_INDIVIDUALS';
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeViewportTab, setActiveViewportTab] = useState<ArenasDockTab>('arena');
 
@@ -54,91 +42,20 @@ export const ArenasScreen: React.FC = () => {
   const [isCalibrationVisible, setIsCalibrationVisible] = useState<boolean>(false);
   const [isDisclaimerVisible, setIsDisclaimerVisible] = useState<boolean>(false);
 
-  // Scroll & Carousel refs
+  // Scroll ref
   const scrollViewRef = useRef<ScrollView>(null);
-  const carouselRef = useRef<FlatList<ISegmentConfig>>(null);
-  const isUserInteractingRef = useRef<boolean>(false);
 
-  // Ordered segments: 01 Mass Individuals, 02 Friends & Family, 03 Residential, 04 College, 05 Gyms, 06 Clinics, 07 Retail
-  const segmentsList = isMassPromo
-    ? [SEGMENT_CONFIGS['MASS_INDIVIDUALS']]
-    : SEGMENT_ORDERED_KEYS.map(k => SEGMENT_CONFIGS[k]);
-  const activeConfig = SEGMENT_CONFIGS[selectedSegment];
+  // Exclusively Mass Individuals segment
+  const segmentsList = [SEGMENT_CONFIGS['MASS_INDIVIDUALS']];
+  const activeConfig = SEGMENT_CONFIGS['MASS_INDIVIDUALS'];
   const activeTheme = activeConfig.theme;
-
-  // Check stored user profile & promo code for segment
-  const checkStoredProfileSegment = useCallback(async () => {
-    try {
-      const rawProfile = await storageHelper.getItem(STORAGE_KEYS.USER_PROFILE);
-      const parsed = rawProfile
-        ? typeof rawProfile === 'string'
-          ? JSON.parse(rawProfile)
-          : rawProfile
-        : null;
-
-      const userPromo = (parsed?.promocode || parsed?.promoCode || parsed?.referralCode || '').toString().trim().toUpperCase();
-      const isMass = userPromo === 'MASS01';
-      setIsMassPromo(isMass);
-
-      if (isMass) {
-        setSelectedSegment('MASS_INDIVIDUALS');
-        return;
-      }
-
-      if (parsed?.segment && SEGMENT_CONFIGS[parsed.segment as UserSegmentKey]) {
-        const userSeg = parsed.segment as UserSegmentKey;
-        setSelectedSegment(userSeg);
-        const idx = SEGMENT_ORDERED_KEYS.indexOf(userSeg);
-        if (idx >= 0) {
-          carouselRef.current?.scrollToIndex({ index: idx, animated: false });
-        }
-      }
-    } catch {
-      // Fallback to default MASS_INDIVIDUALS (Segment 01)
-    }
-  }, []);
-
-  useEffect(() => {
-    checkStoredProfileSegment();
-  }, [checkStoredProfileSegment]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await checkStoredProfileSegment();
     setTimeout(() => {
       setRefreshing(false);
     }, 600);
-  }, [checkStoredProfileSegment]);
-
-  // Tab & Carousel Sync
-  const handleSelectSegment = (key: UserSegmentKey) => {
-    isUserInteractingRef.current = true;
-    setSelectedSegment(key);
-    const targetIndex = SEGMENT_ORDERED_KEYS.indexOf(key);
-    if (targetIndex >= 0) {
-      carouselRef.current?.scrollToIndex({
-        index: targetIndex,
-        animated: true,
-      });
-    }
-    setTimeout(() => {
-      isUserInteractingRef.current = false;
-    }, 3000);
-  };
-
-  const handleCarouselScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const contentOffsetX = e.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(contentOffsetX / SECTION_WIDTH);
-    if (newIndex >= 0 && newIndex < SEGMENT_ORDERED_KEYS.length) {
-      const newKey = SEGMENT_ORDERED_KEYS[newIndex];
-      if (newKey !== selectedSegment) {
-        setSelectedSegment(newKey);
-      }
-    }
-    setTimeout(() => {
-      isUserInteractingRef.current = false;
-    }, 3000);
-  };
+  }, []);
 
   // Handlers for action triggers
   const handleOpenReferralNode = (node: 'A' | 'B' | 'C' | 'D') => {
@@ -210,39 +127,12 @@ export const ArenasScreen: React.FC = () => {
             {/* 1. Main Hero Headline & Subhead */}
             <ArenasHeroHeader config={activeConfig} />
 
-            {/* 2. Horizontal Segment Selector Tabs (Ordered 01 to 07) - Hidden for MASS01 */}
-            {!isMassPromo && (
-              <ArenasSelectorTabs
-                segments={segmentsList}
-                selectedSegmentKey={selectedSegment}
-                onSelectSegment={handleSelectSegment}
-              />
-            )}
-
-            {/* 3. Hero Showcase Carousel Slide - Shows only Mass Individuals for MASS01 */}
+            {/* 2. Hero Showcase Slide - Exclusively Mass Individuals */}
             <View style={styles.carouselSection}>
-              {isMassPromo ? (
-                <ArenasCarouselSlide config={activeConfig} />
-              ) : (
-                <FlatList
-                  ref={carouselRef}
-                  data={segmentsList}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  keyExtractor={item => item.key}
-                  renderItem={({ item }) => <ArenasCarouselSlide config={item} />}
-                  onMomentumScrollEnd={handleCarouselScrollEnd}
-                  getItemLayout={(_, index) => ({
-                    length: SECTION_WIDTH,
-                    offset: SECTION_WIDTH * index,
-                    index,
-                  })}
-                />
-              )}
+              <ArenasCarouselSlide config={activeConfig} />
             </View>
 
-            {/* 4. Arena Details Card (Tagline, Title, Facts Pills & Summary) */}
+            {/* 3. Arena Details Card (Tagline, Title, Facts Pills & Summary) */}
             <ArenasDetailsCard config={activeConfig} />
 
             {/* 5. Global Live Ticker Stream */}
@@ -310,18 +200,6 @@ export const ArenasScreen: React.FC = () => {
         onPressRewards={() => setActiveViewportTab('rewards')}
       />
 
-      {/* 1-Click Segment Switcher Modal (Accessible via search / dropdown if needed) */}
-      {!isMassPromo && (
-        <SegmentPickerModal
-          visible={isPickerVisible}
-          activeSegment={selectedSegment}
-          onSelectSegment={(segment) => {
-            handleSelectSegment(segment);
-            setIsPickerVisible(false);
-          }}
-          onClose={() => setIsPickerVisible(false)}
-        />
-      )}
 
       {/* Quadrant 1: Tournament Ledger & Playbook Modal */}
       <TournamentPlaybookModal
