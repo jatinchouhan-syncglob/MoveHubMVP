@@ -36,6 +36,7 @@ import NutritionalProfilerScreen from '../screens/NutritionalProfiler';
 import ExercisePrescriptionScreen from '../screens/ExercisePrescription';
 import LifestyleProfilerScreen from '../screens/LifestyleProfiler';
 import LeaderboardScreen from '../screens/Leaderboard';
+import LiveMatchupScreen from '../screens/LiveMatchup';
 import InsightsScreen from '../screens/Insights';
 import ProfileScreen from '../screens/Profile';
 import ServiceProvidersScreen from '../screens/ServiceProviders';
@@ -234,6 +235,7 @@ const DrawerNavigatorContent: React.FC = () => {
       'ExercisePrescription',
       'LifestyleProfiler',
       'Leaderboard',
+      'LiveMatchup',
       'Dashboard',
       'Insights',
       'Awards',
@@ -458,6 +460,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <LifestyleProfilerScreen />;
       case 'Leaderboard':
         return <LeaderboardScreen />;
+      case 'LiveMatchup':
+        return <LiveMatchupScreen />;
       case 'FitnessTraining':
         return <FitnessTrainingScreen />;
       case 'Insights':
@@ -508,6 +512,7 @@ const DrawerNavigatorContent: React.FC = () => {
       { screen: 'ServiceProviders', label: 'Profile', icon: '👤' },
       { screen: 'FitnessChallenges', label: 'Fitness Challenge', icon: '🎯' },
       { screen: 'Arenas', label: 'Arenas', icon: '⚡' },
+      { screen: 'MyQuests', label: 'My Quests', icon: '🎯' },
     ];
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
@@ -526,20 +531,21 @@ const DrawerNavigatorContent: React.FC = () => {
         icon: '🏟️',
       },
       */
+      { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },
+      { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
+      { screen: 'LiveMatchup', label: 'Live Matchup', icon: '⚔️' },
+      { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
+      { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
       {
         screen: 'Prescription',
         label: 'Exercise Strategies',
         icon: '📑',
       },
-      { screen: 'TelemetryLog', label: 'Telemetry Logs', icon: '📡' },
       { screen: 'ActivityTracking', label: 'Activity Logger', icon: '🏃‍♂️' },
+      { screen: 'Awards', label: 'Rewards', icon: '🏆' },
       /*
       { screen: 'MentalHealth', label: 'Mental Health', icon: '🧠' }, // Moved to Nourish Hub
       */
-      { screen: 'Leaderboard', label: 'Leaderboard', icon: '🏅' },
-      { screen: 'Dashboard', label: 'Daily Dashboard', icon: '📊' },
-      { screen: 'Insights', label: 'Insights & Alerts', icon: '💡' },
-      { screen: 'Awards', label: 'Rewards', icon: '🏆' },
       /*
       { screen: 'FitnessTraining', label: 'Fitness Training', icon: '🏋️‍♂️' }, // Moved to Nourish Hub
       */
@@ -686,6 +692,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'ExercisePrescription',
                         'LifestyleProfiler',
                         'Leaderboard',
+                        'LiveMatchup',
                         'Dashboard',
                         'Insights',
                         'Awards',
@@ -701,6 +708,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'ExercisePrescription',
                         'LifestyleProfiler',
                         'Leaderboard',
+                        'LiveMatchup',
                         'Dashboard',
                         'Insights',
                         'Awards',
@@ -1293,7 +1301,7 @@ const DrawerNavigatorContent: React.FC = () => {
             </TouchableOpacity>
 
             <View style={styles.versionBadge}>
-              <Text style={styles.versionText}>🛡️ Uncurl: health v1.0.0</Text>
+              <Text style={styles.versionText}>🛡️ Uncurl: health v1.0.2</Text>
             </View>
           </View>
         </SafeAreaView>

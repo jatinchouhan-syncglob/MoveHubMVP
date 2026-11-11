@@ -98,7 +98,7 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
 
   const handleShareNodeA = async () => {
     try {
-      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Longevity Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
+      const inviteMessage = `Hey! 👋 I’ve just entered our team into the National ECFL™ Tournament, and I want YOU in my official Inner Circle! 🏆 \n\nInstead of basic tracking, this is an AI-powered tournament where we combine our daily habits to out-move the chair, and boost our health.\n\nLet’s smash this, showcase our collective athleticism, and bring home one of the Top 3 National Championship Trophies! 🥇🔥\n\n👇 Tap the link to register and join my team:\n👉 ${referralWebUrl}`;
 
       const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(inviteMessage)}`;
       const canOpen = await Linking.canOpenURL(whatsappUrl);

@@ -739,6 +739,41 @@ export const styles = StyleSheet.create({
   formCol: {
     flex: 1,
   },
+  genderChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  genderChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#131C31',
+    borderWidth: 1.5,
+    borderColor: '#1E2B45',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 5,
+  },
+  genderChipActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.16)',
+    borderColor: '#10B981',
+  },
+  genderChipIcon: {
+    fontSize: 13,
+    color: '#CBD5E1',
+  },
+  genderChipText: {
+    color: '#94A3B8',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  genderChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
   occupationChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

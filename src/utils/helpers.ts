@@ -43,3 +43,31 @@ export const getInitials = (name: string): string => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
+export type GenderOptionType = 'MALE' | 'FEMALE' | 'OTHER';
+
+export const GENDER_OPTIONS: {
+  id: GenderOptionType;
+  label: string;
+  icon: string;
+}[] = [
+  { id: 'MALE', label: 'Male', icon: '♂️' },
+  { id: 'FEMALE', label: 'Female', icon: '♀️' },
+  { id: 'OTHER', label: 'Other', icon: '⚧️' },
+];
+
+/**
+ * Normalize backend/cached gender string to supported option IDs.
+ */
+export const normalizeGender = (
+  value?: string | null,
+): GenderOptionType | '' => {
+  if (!value) return '';
+  const upper = value.toString().trim().toUpperCase();
+  if (upper === 'MALE' || upper === 'M') return 'MALE';
+  if (upper === 'FEMALE' || upper === 'F') return 'FEMALE';
+  if (upper === 'OTHER' || upper === 'NON_BINARY' || upper === 'NON-BINARY') {
+    return 'OTHER';
+  }
+  return '';
+};
+

@@ -228,7 +228,7 @@ export const FitnessChallengesScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#070B14" />
       <CustomHeader
-        title="Fitness Challenges"
+        title="Fitness Challenge"
         showDrawerButton
         containerStyle={styles.headerContainer}
         titleStyle={styles.headerTitle}
@@ -413,7 +413,7 @@ export const FitnessChallengesScreen: React.FC = () => {
                     style={[styles.joinBtnGradient, { borderWidth: 1, borderColor: '#10B981' }]}
                   >
                     <Text style={[styles.joinPrimaryBtnText, { color: '#10B981', fontWeight: '700' }]}>
-                      CHALLENGE ALREADY JOINED ✅
+                      TOURNAMENT ALREADY JOINED ✅
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -742,7 +742,7 @@ export const FitnessChallengesScreen: React.FC = () => {
                 style={styles.disclaimerAgreeGradient}
               >
                 <Text style={styles.disclaimerAgreeBtnText}>
-                  I AGREE & ENTER CHALLENGE ✅
+                  I AGREE & ENTER TOURNAMENT ✅
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -776,9 +776,9 @@ export const FitnessChallengesScreen: React.FC = () => {
               <Text style={styles.successBadgeEmoji}>🎉</Text>
             </View>
 
-            <Text style={styles.successModalTitle}>Challenge Joined Successfully!</Text>
+            <Text style={styles.successModalTitle}>Tournament Joined Successfully!</Text>
             <Text style={styles.successModalDesc}>
-              You are officially registered in the ECFL™ Longevity Challenge. Carry your phone in your pocket or hand during daily movement so sensor telemetry syncs directly with the national leaderboard.
+              You are officially registered in the ECFL™ Tournament. Carry your phone in your pocket or hand during daily movement so sensor telemetry syncs directly with the national leaderboard.
             </Text>
 
             <View style={styles.successPillNotice}>

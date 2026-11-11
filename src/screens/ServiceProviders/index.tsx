@@ -20,6 +20,11 @@ import { apiService } from '../../services/api';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
 import { UserProfile } from '../../types';
+import {
+  GENDER_OPTIONS,
+  GenderOptionType,
+  normalizeGender,
+} from '../../utils/helpers';
 
 type PhaseType = 'general' | 'providers';
 type OccupationOptionType = 'Working Professional' | 'Student' | 'Homemaker' | 'Retired';
@@ -50,6 +55,7 @@ export const ServiceProvidersScreen: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
   const [uhid, setUhid] = useState<string>('');
   const [name, setName] = useState<string>('');
+  const [gender, setGender] = useState<GenderOptionType | ''>('');
   const [age, setAge] = useState<string>('');
   const [weight, setWeight] = useState<string>('');
   const [height, setHeight] = useState<string>('');
@@ -137,6 +143,8 @@ export const ServiceProvidersScreen: React.FC = () => {
 
       if (cached?.uhid) setUhid(cached.uhid);
       if (cached?.name) setName(cached.name);
+      const cachedGender = normalizeGender(cached?.gender);
+      if (cachedGender) setGender(cachedGender);
       if (cached?.age && Number(cached.age) > 0) setAge(String(cached.age));
       if (cached?.weight && Number(cached.weight) > 0) setWeight(String(cached.weight));
       if (cached?.height && Number(cached.height) > 0) setHeight(String(cached.height));
@@ -155,6 +163,8 @@ export const ServiceProvidersScreen: React.FC = () => {
       if (data) {
         if (data.uhid) setUhid(data.uhid);
         if (data.name) setName(data.name);
+        const apiGender = normalizeGender(data.gender);
+        if (apiGender) setGender(apiGender);
         if (data.age && Number(data.age) > 0) {
           setAge(String(data.age));
         }
@@ -511,9 +521,17 @@ export const ServiceProvidersScreen: React.FC = () => {
 
   // HANDLE SUBMIT: GENERAL INFORMATION -> SUCCESS MODAL -> SERVICE PROVIDERS
   const handleNextToServiceProviders = async () => {
-    if (!age.trim() || !weight.trim() || !height.trim()) {
+    const missingFields: string[] = [];
+    if (!gender) missingFields.push('gender');
+    if (!age.trim()) missingFields.push('age');
+    if (!weight.trim()) missingFields.push('weight');
+    if (!height.trim()) missingFields.push('height');
+
+    if (missingFields.length > 0) {
       setAlertTitle('Missing Information');
-      setAlertMessage('Please enter your age, weight, and height to proceed.');
+      setAlertMessage(
+        `Please select/enter your ${missingFields.join(', ')} to proceed.`,
+      );
       setAlertType('warning');
       setAlertButtonText('Dismiss');
       setAlertSuccessTarget(null);
@@ -526,6 +544,7 @@ export const ServiceProvidersScreen: React.FC = () => {
       const payload = {
         uhid,
         name,
+        gender,
         age: parseInt(age, 10) || 0,
         weight: parseFloat(weight) || 0,
         height: parseFloat(height) || 0,
@@ -546,6 +565,7 @@ export const ServiceProvidersScreen: React.FC = () => {
         ...(cached || {}),
         uhid,
         name,
+        gender: payload.gender,
         age: payload.age,
         weight: payload.weight,
         height: payload.height,
@@ -820,6 +840,37 @@ export const ServiceProvidersScreen: React.FC = () => {
                   <View style={styles.lockBadge}>
                     <Text style={{ fontSize: 10 }}>🔒</Text>
                     <Text style={styles.lockBadgeText}>Read-only (Unchangeable)</Text>
+                  </View>
+                </View>
+
+                {/* Gender Selector */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Gender *</Text>
+                  <View style={styles.genderChipsRow}>
+                    {GENDER_OPTIONS.map(opt => {
+                      const isSelected = gender === opt.id;
+                      return (
+                        <TouchableOpacity
+                          key={opt.id}
+                          style={[
+                            styles.genderChip,
+                            isSelected && styles.genderChipActive,
+                          ]}
+                          activeOpacity={0.75}
+                          onPress={() => setGender(opt.id)}
+                        >
+                          <Text style={styles.genderChipIcon}>{opt.icon}</Text>
+                          <Text
+                            style={[
+                              styles.genderChipText,
+                              isSelected && styles.genderChipTextActive,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 

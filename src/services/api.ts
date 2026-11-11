@@ -13,6 +13,7 @@ import {
   Phase2LeaderboardResponse,
   IChallengeLeaderboardResponse,
   IChallengePodiumResponse,
+  IDailyQuestResponse,
 } from '../types';
 import {
   IReferralEntity,
@@ -24,6 +25,7 @@ import {
   IRegisterProvidersPayload,
 } from '../screens/ServiceProviders/types';
 import { getDynamicDeviceId } from '../utils/device';
+import { normalizeGender } from '../utils/helpers';
 
 // Future API Base URL (change in environment variables later)
 const BASE_URL = 'https://api.movehub.example.com/v1';
@@ -231,6 +233,10 @@ export const apiService = {
         const merged: UserProfile = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name,
+          gender:
+            normalizeGender(apiData.gender) ||
+            normalizeGender(cachedProfile?.gender) ||
+            undefined,
           age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
           weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
           height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
@@ -304,6 +310,10 @@ export const apiService = {
         const profile: UserProfile = {
           uhid: apiData.uhid || targetUhid,
           name: apiData.name || cachedProfile?.name || 'Living Scope',
+          gender:
+            normalizeGender(apiData.gender) ||
+            normalizeGender(cachedProfile?.gender) ||
+            undefined,
           age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
           weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
           height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
@@ -857,6 +867,7 @@ export const apiService = {
     uhid?: string;
     deviceId?: string;
     name: string;
+    gender?: string;
     age: number;
     weight: number;
     height: number;
@@ -880,6 +891,9 @@ export const apiService = {
         uhid: targetUhid,
         deviceId: devId,
         name: profileData.name,
+        gender: profileData.gender
+          ? profileData.gender.toString().trim().toUpperCase()
+          : undefined,
         age: profileData.age,
         weight: profileData.weight,
         height: profileData.height,
@@ -1658,6 +1672,42 @@ export const apiService = {
     } catch (error: any) {
       console.error(
         `[apiService] POST getPhase2Leaderboard with UHID ${targetUhid} failed:`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  },
+
+  async getDailyQuest(uhid?: string): Promise<IDailyQuestResponse> {
+    const cachedProfile = await storageHelper.getItem<UserProfile>(
+      STORAGE_KEYS.USER_PROFILE,
+    );
+    const targetUhid = uhid || cachedProfile?.uhid;
+    if (!targetUhid) {
+      throw new Error('User UHID not available');
+    }
+    const url = 'https://healthconnect.livingscopehealth.in/health/api/daily-quest';
+    console.log(
+      `[apiService] POST getDailyQuest: ${url} for UHID: ${targetUhid}`,
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append('uhid', targetUhid);
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log(
+        `[apiService] POST getDailyQuest SUCCESS for UHID: ${targetUhid}`,
+        response.data,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        `[apiService] POST getDailyQuest FAILED for UHID ${targetUhid}:`,
         error?.response?.data || error?.message,
       );
       throw error;

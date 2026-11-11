@@ -20,6 +20,11 @@ import { apiService } from '../../services/api';
 import { UserProfile } from '../../types';
 import { storageHelper } from '../../storage/storageHelper';
 import { STORAGE_KEYS } from '../../storage/storageKeys';
+import {
+  GENDER_OPTIONS,
+  GenderOptionType,
+  normalizeGender,
+} from '../../utils/helpers';
 
 export type OccupationType = 'Student' | 'Homemaker' | 'Working Professional' | 'Retired';
 
@@ -34,6 +39,7 @@ export const ProfileSetupScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<GenderOptionType | ''>('');
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
@@ -69,6 +75,10 @@ export const ProfileSetupScreen: React.FC = () => {
           // For biometric values (age, weight, height), if setup is not yet complete (new user after signup),
           // DO NOT autofill them! Let the user type their real details, only showing placeholders.
           if (cached.isSetupComplete) {
+            const cachedGender = normalizeGender(cached.gender);
+            if (cachedGender) {
+              setGender(cachedGender);
+            }
             if (
               cached.age &&
               cached.age > 0 &&
@@ -112,6 +122,7 @@ export const ProfileSetupScreen: React.FC = () => {
 
   const isFormValid =
     name.trim() !== '' &&
+    gender !== '' &&
     age.trim() !== '' &&
     weight.trim() !== '' &&
     height.trim() !== '';
@@ -128,6 +139,7 @@ export const ProfileSetupScreen: React.FC = () => {
       const profileData: UserProfile = {
         ...cached,
         name: name.trim() || cached?.name || '',
+        gender,
         age: parsedAge,
         weight: parsedWeight,
         height: parsedHeight,
@@ -158,6 +170,7 @@ export const ProfileSetupScreen: React.FC = () => {
       await apiService.setupProfile({
         uhid: cached?.uhid,
         name: profileData.name,
+        gender: profileData.gender,
         age: profileData.age,
         weight: profileData.weight,
         height: profileData.height,
@@ -230,6 +243,40 @@ export const ProfileSetupScreen: React.FC = () => {
                 value={name}
                 editable={false}
               />
+            </View>
+
+            {/* Gender Selector */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelIcon}>⚧️</Text>
+                <Text style={styles.label}>Gender *</Text>
+              </View>
+              <View style={styles.genderRow}>
+                {GENDER_OPTIONS.map(opt => {
+                  const isSelected = gender === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[
+                        styles.genderChip,
+                        isSelected && styles.genderChipActive,
+                      ]}
+                      activeOpacity={0.75}
+                      onPress={() => setGender(opt.id)}
+                    >
+                      <Text style={styles.genderIcon}>{opt.icon}</Text>
+                      <Text
+                        style={[
+                          styles.genderLabel,
+                          isSelected && styles.genderLabelActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             {/* Age Input */}
@@ -700,6 +747,42 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     color: '#475569',
     opacity: 0.8,
+  },
+
+  // Gender 3-Option Chips
+  genderRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  genderChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.spacing.borderRadiusMd,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    gap: 5,
+  },
+  genderChipActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight + '35',
+  },
+  genderIcon: {
+    fontSize: 15,
+    color: theme.colors.text,
+  },
+  genderLabel: {
+    fontSize: 13.5,
+    fontWeight: theme.fonts.weights.semibold as any,
+    color: theme.colors.textSecondary,
+  },
+  genderLabelActive: {
+    color: theme.colors.primary,
+    fontWeight: theme.fonts.weights.bold as any,
   },
 
   // 4 Occupation Choice Cards

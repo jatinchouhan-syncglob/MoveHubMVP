@@ -653,14 +653,14 @@ export const LeaderboardScreen: React.FC = () => {
     if (activePhase === 1) {
       const activeP1 = getActiveP1Challenge();
       const id = activeP1?.challenge_id || leaderboardData?.challenge_id || '';
-      if (id === 'ecfl_longevity_challenge') return 'ECFL Longevity Challenge';
-      if (id === 'ecfl_longevity_challenge_01') return 'ECFL Longevity Challenge 01';
+      if (id === 'ecfl_longevity_challenge') return 'ECFL Tournament';
+      if (id === 'ecfl_longevity_challenge_01') return 'ECFL Tournament 01';
       if (id) {
         return id
           .replace(/_/g, ' ')
           .replace(/\b\w/g, char => char.toUpperCase());
       }
-      return 'ECFL Longevity Challenge';
+      return 'ECFL Tournament';
     }
     if (activePhase === 2) {
       const p2Id = (phase2LeaderboardData as any)?.challenge_id;
@@ -986,9 +986,9 @@ export const LeaderboardScreen: React.FC = () => {
                 const activeP1 = getActiveP1Challenge();
                 const isSelected = (activeP1?.challenge_id === c.challenge_id);
                 const formattedName = c.challenge_id === 'ecfl_longevity_challenge'
-                  ? 'ECFL Longevity Challenge'
+                  ? 'ECFL Tournament'
                   : c.challenge_id === 'ecfl_longevity_challenge_01'
-                  ? 'ECFL Longevity Challenge 01'
+                  ? 'ECFL Tournament 01'
                   : c.challenge_id.replace(/_/g, ' ').toUpperCase();
 
                 return (

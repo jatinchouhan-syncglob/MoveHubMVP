@@ -2,6 +2,7 @@ import { ActivityType } from '../constants/activityTypes';
 
 export interface UserProfile {
   name: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | string;
   age: number;
   weight: number;
   height: number; 
@@ -335,4 +336,80 @@ export interface IBioSyncTabProps {
   status?: string;
   dailyInsightText?: string;
 }
+
+export interface IDailyQuestEvaluation {
+  status: string;
+  LAST_EVALUATION_TIMESTAMP: string | null;
+  CONTINUOUS_SITTING_MAX_MINS?: number;
+  MIDDAY_QUEST_ALERT?: string;
+}
+
+export interface IDailyQuestChallengeItem {
+  challenge_id: string;
+  title?: string;
+  subtitle?: string;
+  start_date: string;
+  end_date: string;
+  daily_quest: IDailyQuestEvaluation;
+}
+
+export interface IQuestScreenTabConfig {
+  label?: string;
+  icon?: string;
+  selected?: string | boolean;
+}
+
+export interface IQuestScreenSuggestedCard {
+  quest_id?: string;
+  icon?: string;
+  title?: string;
+  frequency?: string;
+  duration?: string;
+  description?: string;
+}
+
+export interface IDailyQuestScreenConfig {
+  title?: string;
+  subtitle?: string;
+  quests_hub?: {
+    label?: string;
+    icon?: string;
+  };
+  tabs?: {
+    daily_quest?: IQuestScreenTabConfig;
+    daily_gym?: IQuestScreenTabConfig;
+    ongoing_quest?: IQuestScreenTabConfig;
+    archive?: IQuestScreenTabConfig;
+  };
+  daily_quest_card?: {
+    icon?: string;
+    status?: string;
+    title?: string;
+    description?: string;
+    check_for_updates?: {
+      label?: string;
+      icon?: string;
+    };
+  };
+  daily_gym_card?: any;
+  ongoing_quest_card?: any;
+  archive_card?: any;
+  suggested_for_you?: {
+    title?: string;
+    subtitle?: string;
+    cards?: IQuestScreenSuggestedCard[];
+  };
+}
+
+export interface IDailyQuestResponse {
+  uhid: string;
+  date?: string;
+  challenges?: IDailyQuestChallengeItem[];
+  daily_quest?: IDailyQuestEvaluation;
+  daily_gym?: any;
+  ongoing_quests?: any[];
+  archive?: any[];
+  quest_screen?: IDailyQuestScreenConfig;
+}
+
 

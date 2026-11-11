@@ -17,7 +17,7 @@ export function getCurrentRouteName(): string | undefined {
 
 // Global Dashboard Tab Controller
 export type DashboardTab = 'activities' | 'steps';
-let currentDashboardTab: DashboardTab = 'activities';
+let currentDashboardTab: DashboardTab = 'steps';
 const dashboardTabListeners = new Set<(tab: DashboardTab) => void>();
 
 export function setGlobalDashboardTab(tab: DashboardTab) {

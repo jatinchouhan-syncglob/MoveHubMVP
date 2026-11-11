@@ -381,15 +381,6 @@ export const DashboardScreen: React.FC = () => {
       {/* Dashboard Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'activities' && styles.tabButtonActive]}
-          activeOpacity={0.8}
-          onPress={() => handleSelectTab('activities')}
-        >
-          <Text style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}>
-            All Activities
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.tabButton, activeTab === 'steps' && styles.tabButtonActive]}
           activeOpacity={0.8}
           onPress={() => handleSelectTab('steps')}
@@ -398,9 +389,50 @@ export const DashboardScreen: React.FC = () => {
             Steps Tracking
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'activities' && styles.tabButtonActive]}
+          activeOpacity={0.8}
+          onPress={() => handleSelectTab('activities')}
+        >
+          <Text style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}>
+            All Activities
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {activeTab === 'activities' ? (
+      {activeTab === 'steps' ? (
+        <StepsTrackingTab />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.comingSoonScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.comingSoonCard}>
+            <View style={styles.comingSoonIconCircle}>
+              <Text style={styles.comingSoonIcon}>🚀</Text>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+            </View>
+            <Text style={styles.comingSoonTitle}>All Activities Coming Soon</Text>
+            <Text style={styles.comingSoonDesc}>
+              Comprehensive workout summaries, daily fitness targets, and concentric quadrant balance insights will be available here soon.
+            </Text>
+            <TouchableOpacity
+              style={styles.comingSoonActionBtn}
+              activeOpacity={0.8}
+              onPress={() => handleSelectTab('steps')}
+            >
+              <Text style={styles.comingSoonActionBtnText}>
+                👣 Go to Steps Tracking
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Legacy All Activities View (Temporarily hidden per user instruction) */}
+      {false && activeTab === 'activities' && (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={
@@ -574,8 +606,6 @@ export const DashboardScreen: React.FC = () => {
           );
         })()}
       </ScrollView>
-      ) : (
-        <StepsTrackingTab />
       )}
 
       {/* Celebration Modal */}
@@ -1005,6 +1035,78 @@ const styles = StyleSheet.create({
     color: '#1e1b4b',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  comingSoonScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  comingSoonCard: {
+    backgroundColor: '#151f32',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  comingSoonIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  comingSoonIcon: {
+    fontSize: 30,
+  },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  comingSoonBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 0.9,
+  },
+  comingSoonTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  comingSoonDesc: {
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 19,
+    maxWidth: 280,
+    marginBottom: 20,
+  },
+  comingSoonActionBtn: {
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  comingSoonActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#60a5fa',
   },
 });
 
