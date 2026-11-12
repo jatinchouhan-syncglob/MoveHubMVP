@@ -88,7 +88,7 @@ export const ArenasRewardsView: React.FC<ArenasRewardsViewProps> = ({ config }) 
   const [commercialEmail, setCommercialEmail] = useState('');
   const [commercialPhone, setCommercialPhone] = useState('');
 
-  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || 'JATCHO5525';
+  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || '';
   const referralWebUrl = `https:/ecfl-reg-form.livingscope.in/${userUhid}`;
 
   const handleShareInnerCircle = async () => {

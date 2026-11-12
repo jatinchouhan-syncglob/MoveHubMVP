@@ -81,7 +81,11 @@ export const LifestyleProfilerScreen: React.FC<LifestyleProfilerProps> = ({
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        setIsLoading(false);
+        return;
+      }
       console.log(`[LifestyleProfiler] Loading latest questionnaire for UHID: ${targetUhid}...`);
 
       const res = await apiService.getLatestLifestyleQuestionnaire(targetUhid);
@@ -222,8 +226,11 @@ export const LifestyleProfilerScreen: React.FC<LifestyleProfilerProps> = ({
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
-      const userId = cachedProfile?.userId ? `USR_${cachedProfile.userId}` : 'USR_101';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
+      const userId = cachedProfile?.userId ? `USR_${cachedProfile.userId}` : '';
 
       const payload = {
         uhid: targetUhid,

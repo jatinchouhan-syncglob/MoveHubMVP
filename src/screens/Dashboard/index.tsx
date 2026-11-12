@@ -280,25 +280,6 @@ export const DashboardScreen: React.FC = () => {
       setProfile(profileData);
       setActivities(activitiesData);
       prefetchStepsLogsData(profileData?.uhid).catch(() => {});
-
-      // Check if target is achieved today (since midnight)
-      const today = new Date();
-      const startOfToday = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      ).getTime();
-      const todayCal = activitiesData
-        .filter(activity => {
-          const timestamp = new Date(activity.timestamp).getTime();
-          return timestamp >= startOfToday;
-        })
-        .reduce((sum, act) => sum + (act.caloriesBurned || 0), 0);
-
-      const target = profileData.calorieGoal || 2400;
-      if (todayCal >= target && todayCal > 0) {
-        setCelebrationVisible(true);
-      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -482,8 +463,7 @@ export const DashboardScreen: React.FC = () => {
             SECTION 2: DAILY FITNESS TARGETS & PROGRESS
             ========================================== */}
         {(() => {
-          const calorieGoal = profile?.calorieGoal || 2400;
-          const activeEnergyPct = Math.min(100, (todayCalories / calorieGoal) * 100);
+          const activeEnergyPct = Math.min(100, (todayCalories / 500) * 100);
           
           const todayGainPoints = todayActivities.reduce((sum, act) => {
             return sum + getActivityGainPoints(act, profile?.weight || 70);
@@ -513,7 +493,7 @@ export const DashboardScreen: React.FC = () => {
                   <View style={styles.colProgressBg}>
                     <View style={[styles.colProgressFill, { width: `${activeEnergyPct}%`, backgroundColor: '#f97316' }]} />
                   </View>
-                  <Text style={styles.colValueSub}>{todayCalories} kcal / {calorieGoal} kcal</Text>
+                  <Text style={styles.colValueSub}>{todayCalories} kcal burned</Text>
                 </View>
 
                 {/* Gain Points Column */}
@@ -621,10 +601,9 @@ export const DashboardScreen: React.FC = () => {
             <Text style={styles.celebrationTitle}>Target Achieved!</Text>
 
             <Text style={styles.celebrationSubtitle}>
-              Congratulations! You've successfully completed your daily active
-              burn goal of{' '}
+              Congratulations! You've logged{' '}
               <Text style={styles.celebrationHighlight}>
-                {profile?.calorieGoal || 2400} kcal
+                {todayCalories} kcal
               </Text>{' '}
               today!
             </Text>

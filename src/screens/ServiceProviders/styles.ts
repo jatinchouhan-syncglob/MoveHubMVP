@@ -832,4 +832,30 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
+  sleepQuestionTitle: {
+    color: '#F8FAFC',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  whyAskBox: {
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 4,
+  },
+  whyAskTitle: {
+    color: '#60A5FA',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  whyAskText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

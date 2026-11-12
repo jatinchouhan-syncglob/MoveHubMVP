@@ -78,7 +78,11 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
       if (cachedProfile) {
         setProfile(cachedProfile);
       }
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        setIsLoading(false);
+        return;
+      }
       console.log(`[NutritionalProfiler] Loading latest profiler for UHID: ${targetUhid}...`);
 
       const res = await apiService.getLatestNutritionalProfiler(targetUhid);
@@ -253,8 +257,11 @@ export const NutritionalProfilerScreen: React.FC<NutritionalProfilerProps> = ({
 
     setIsSubmitting(true);
     try {
-      const targetUhid = profile?.uhid || 'JATCHO5525';
-      const targetUserId = profile?.userId ? `USR_${profile.userId}` : 'USR_NUTR_01';
+      const targetUhid = profile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
+      const targetUserId = profile?.userId ? `USR_${profile.userId}` : '';
 
       const payload = {
         uhid: targetUhid,

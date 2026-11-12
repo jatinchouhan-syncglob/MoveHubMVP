@@ -372,7 +372,7 @@ export const DemoSearchHubScreen: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const activeUhid = cachedProfile?.uhid || 'SAMSUN9776';
+      const activeUhid = cachedProfile?.uhid?.trim() || '';
 
       const payload = {
         uhid: activeUhid,

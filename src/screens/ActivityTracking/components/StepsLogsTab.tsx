@@ -992,7 +992,11 @@ export const StepsLogsTab: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        setLoadingLogs(false);
+        return;
+      }
       setActiveUhid(targetUhid);
 
       try {

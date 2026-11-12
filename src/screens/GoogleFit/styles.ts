@@ -576,4 +576,70 @@ export const s = StyleSheet.create({
   statusIconText: {
     fontSize: 32,
   },
+  // Tournament Protocol Guide
+  rulesCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  sectionHeaderTitle: {
+    fontSize: 12,
+    color: '#38BDF8',
+    fontWeight: '800' as any,
+    letterSpacing: 1,
+  },
+  sectionHeaderSub: {
+    fontSize: 14,
+    fontWeight: '700' as any,
+    color: '#F8FAFC',
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  ruleStepsContainer: {
+    gap: 12,
+  },
+  ruleStepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  stepNumberBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepNumberText: {
+    color: '#38BDF8',
+    fontSize: 12.5,
+    fontWeight: '900' as any,
+  },
+  stepInfo: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '700' as any,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: '#94A3B8',
+    lineHeight: 17,
+  },
+  ruleStepDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
 });

@@ -324,7 +324,7 @@ export const InsightsScreen: React.FC = () => {
   const [fitnessTrend, setFitnessTrend] = useState<any>(null);
   const [bioSyncTrend, setBioSyncTrend] = useState<any>(null);
   const [loadingTrends, setLoadingTrends] = useState<boolean>(true);
-  const [targetUhid, setTargetUhid] = useState<string>('JATCHO5525');
+  const [targetUhid, setTargetUhid] = useState<string>('');
   const [targetDate, setTargetDate] = useState<string>('');
 
   // Interactive index for Activity Trends tooltip selection
@@ -378,7 +378,10 @@ export const InsightsScreen: React.FC = () => {
     setWeeklyReportLoading(true);
     try {
       const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
-      const activeUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const activeUhid = cachedProfile?.uhid?.trim() || '';
+      if (!activeUhid) {
+        return;
+      }
 
       const res = await apiService.getWeeklyReport(activeUhid);
       console.log('[InsightsScreen] getWeeklyReport Response:', JSON.stringify(res, null, 2));
@@ -402,7 +405,10 @@ export const InsightsScreen: React.FC = () => {
   const loadTrendsLogs = async () => {
     try {
       const cachedProfile = await storageHelper.getItem<any>(STORAGE_KEYS.USER_PROFILE);
-      const activeUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const activeUhid = cachedProfile?.uhid?.trim() || '';
+      if (!activeUhid) {
+        return;
+      }
       setTargetUhid(activeUhid);
 
       try {

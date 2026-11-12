@@ -7,7 +7,6 @@ export interface UserProfile {
   weight: number;
   height: number; 
   isSetupComplete: boolean;
-  calorieGoal?: number;
   uhid?: string;
   email?: string;
   userId?: number;
@@ -18,6 +17,8 @@ export interface UserProfile {
   companyName?: string;
   location?: string;
   city?: string;
+  bedtime?: string;
+  gentle_pacing_mode?: boolean;
   promocode?: string;
   promoCode?: string;
   referralCode?: string;

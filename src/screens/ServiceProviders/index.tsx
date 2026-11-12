@@ -24,7 +24,10 @@ import {
   GENDER_OPTIONS,
   GenderOptionType,
   normalizeGender,
+  DEFAULT_BEDTIME,
+  normalizeBedtime,
 } from '../../utils/helpers';
+import { ScrollableTimePicker } from '../../components/common/ScrollableTimePicker';
 
 type PhaseType = 'general' | 'providers';
 type OccupationOptionType = 'Working Professional' | 'Student' | 'Homemaker' | 'Retired';
@@ -65,6 +68,7 @@ export const ServiceProvidersScreen: React.FC = () => {
   const [companyName, setCompanyName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [city, setCity] = useState<string>('');
+  const [bedtime, setBedtime] = useState<string>(DEFAULT_BEDTIME);
 
   // Dynamic API Directory State
   const [directory, setDirectory] = useState<Record<ProviderCategory, IServiceProvider[]>>({
@@ -154,6 +158,8 @@ export const ServiceProvidersScreen: React.FC = () => {
       if (cached?.companyName) setCompanyName(cached.companyName);
       if (cached?.location) setLocation(cached.location);
       if (cached?.city) setCity(cached.city);
+      const cachedBedtime = normalizeBedtime(cached?.bedtime);
+      if (cachedBedtime) setBedtime(cachedBedtime);
 
       if (!targetUhid) {
         return;
@@ -182,6 +188,8 @@ export const ServiceProvidersScreen: React.FC = () => {
         if (data.companyName) setCompanyName(data.companyName);
         if (data.location) setLocation(data.location);
         if (data.city) setCity(data.city);
+        const apiBedtime = normalizeBedtime(data.bedtime);
+        if (apiBedtime) setBedtime(apiBedtime);
       }
     } catch (err) {
       console.warn('[ServiceProviders] Failed to load user profile:', err);
@@ -548,13 +556,13 @@ export const ServiceProvidersScreen: React.FC = () => {
         age: parseInt(age, 10) || 0,
         weight: parseFloat(weight) || 0,
         height: parseFloat(height) || 0,
-        calorieGoal: 2400,
         occupation,
         universityName: occupation === 'Student' ? universityName.trim() : undefined,
         department: occupation === 'Student' ? department.trim() : undefined,
         companyName: occupation === 'Working Professional' ? companyName.trim() : undefined,
         location: location.trim() || undefined,
         city: city.trim() || undefined,
+        bedtime: normalizeBedtime(bedtime) || DEFAULT_BEDTIME,
       };
 
       console.log('[ServiceProviders] Saving setupProfile:', payload);
@@ -569,7 +577,6 @@ export const ServiceProvidersScreen: React.FC = () => {
         age: payload.age,
         weight: payload.weight,
         height: payload.height,
-        calorieGoal: 2400,
         isSetupComplete: true,
         occupation: payload.occupation,
         universityName: payload.universityName,
@@ -577,6 +584,7 @@ export const ServiceProvidersScreen: React.FC = () => {
         companyName: payload.companyName,
         location: payload.location,
         city: payload.city,
+        bedtime: payload.bedtime,
       };
       await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, updatedProfile);
 
@@ -625,7 +633,10 @@ export const ServiceProvidersScreen: React.FC = () => {
       const activeUhid =
         uhid.trim() ||
         (await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE))?.uhid?.trim() ||
-        'LIVSCO4573';
+        '';
+      if (!activeUhid) {
+        throw new Error('User UHID is not available');
+      }
 
       // Format all selected providers into customProviders array as expected by the new API
       const customPayloadList: ICustomProviderPayload[] = selectedProviders.map(p => ({
@@ -796,6 +807,7 @@ export const ServiceProvidersScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -1017,6 +1029,38 @@ export const ServiceProvidersScreen: React.FC = () => {
                       placeholderTextColor="#64748B"
                     />
                   </View>
+                </View>
+              </View>
+
+              {/* Card 3: Profile Setup - Your Usual Sleep Schedule */}
+              <View style={styles.profileCard}>
+                <View style={styles.profileCardHeader}>
+                  <Text style={styles.profileCardIcon}>🛏️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.profileCardTitle}>
+                      Your Usual Sleep Schedule
+                    </Text>
+                    <Text style={styles.profileCardSubtitle}>
+                      Profile Setup: Bedtime & Score Protection
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.profileDivider} />
+
+                <Text style={styles.sleepQuestionTitle}>
+                  What time do you usually go to sleep on most nights?
+                </Text>
+
+                <ScrollableTimePicker
+                  value={bedtime}
+                  onChange={setBedtime}
+                />
+
+                <View style={styles.whyAskBox}>
+                  <Text style={styles.whyAskTitle}>💡 Why we ask this:</Text>
+                  <Text style={styles.whyAskText}>
+                    We use your bedtime to protect your sleep and your score. As soon as your usual bedtime arrives, our system automatically pauses all movement reminders so your phone never disturbs you at night—and ensures your sleeping hours are never counted as "inactive sitting time" against your leaderboard score.
+                  </Text>
                 </View>
               </View>
 

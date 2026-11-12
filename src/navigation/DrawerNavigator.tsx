@@ -13,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Polyline, Line } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme } from '../theme';
 import { useDrawer, DrawerProvider, DrawerScreenType } from './DrawerContext';
@@ -94,6 +95,10 @@ const DrawerNavigatorContent: React.FC = () => {
     (promoCode || profile?.promocode || profile?.promoCode || profile?.referralCode || '').toUpperCase() === 'MASS01';
   const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
   const [logoutLoading, setLogoutLoading] = React.useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = React.useState(false);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(0)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0)).current;
   const [isNutritionExpanded, setIsNutritionExpanded] = React.useState(false);
   const [isMoveHubExpanded, setIsMoveHubExpanded] = React.useState(false);
   const [isHomeHubExpanded, setIsHomeHubExpanded] = React.useState(false);
@@ -316,7 +321,8 @@ const DrawerNavigatorContent: React.FC = () => {
   const handleLogout = async () => {
     setLogoutLoading(true);
     try {
-      const email = profile?.email || 'saurabh.sharma@example.com';
+      const cachedProf = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const email = profile?.email || cachedProf?.email || '';
       await apiService.logout(email);
     } catch (err) {
       console.error('Logout API call failed:', err);
@@ -336,6 +342,65 @@ const DrawerNavigatorContent: React.FC = () => {
       closeDrawer();
 
       // Reset navigation stack to Login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: ROUTES.LOGIN }],
+      });
+    }
+  };
+
+  const showDeleteAlert = () => {
+    setDeleteModalVisible(true);
+    Animated.parallel([
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const hideDeleteAlert = () => {
+    Animated.parallel([
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setDeleteModalVisible(false);
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true);
+    try {
+      const cachedProf = await storageHelper.getItem<UserProfile>(
+        STORAGE_KEYS.USER_PROFILE,
+      );
+      const email = profile?.email || cachedProf?.email || '';
+      await apiService.deleteUser(email);
+    } catch (err) {
+      console.error('Delete account API failed:', err);
+    } finally {
+      await storageHelper.clear();
+      setPromoCode(null);
+
+      setDeleteLoading(false);
+      hideDeleteAlert();
+      closeDrawer();
+
       navigation.reset({
         index: 0,
         routes: [{ name: ROUTES.LOGIN }],
@@ -1290,18 +1355,114 @@ const DrawerNavigatorContent: React.FC = () => {
 
           {/* Footer Section */}
           <View style={styles.footer}>
-            {/* Logout Button */}
-            <TouchableOpacity
-              style={styles.logoutBtn}
-              activeOpacity={0.8}
-              onPress={() => setLogoutModalVisible(true)}
-            >
-              <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutLabel}> Logout</Text>
-            </TouchableOpacity>
+            <View style={styles.footerActionsCard}>
+              {/* Logout Button */}
+              <TouchableOpacity
+                style={styles.footerActionRow}
+                activeOpacity={0.75}
+                onPress={() => setLogoutModalVisible(true)}
+              >
+                <View style={styles.logoutIconBox}>
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+                      stroke="#475569"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Polyline
+                      points="16 17 21 12 16 7"
+                      stroke="#475569"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Line
+                      x1="21"
+                      y1="12"
+                      x2="9"
+                      y2="12"
+                      stroke="#475569"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+                <Text style={styles.logoutLabel}>Logout</Text>
+                <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                  <Polyline
+                    points="9 18 15 12 9 6"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+
+              <View style={styles.footerActionDivider} />
+
+              {/* Delete Account Button */}
+              <TouchableOpacity
+                style={[styles.footerActionRow, styles.deleteActionRow]}
+                activeOpacity={0.75}
+                onPress={showDeleteAlert}
+              >
+                <View style={styles.deleteIconBox}>
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                    <Polyline
+                      points="3 6 5 6 21 6"
+                      stroke="#DC2626"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Path
+                      d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      stroke="#DC2626"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Line
+                      x1="10"
+                      y1="11"
+                      x2="10"
+                      y2="17"
+                      stroke="#DC2626"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Line
+                      x1="14"
+                      y1="11"
+                      x2="14"
+                      y2="17"
+                      stroke="#DC2626"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+                <Text style={styles.deleteBtnLabel}>Delete Account</Text>
+                <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                  <Polyline
+                    points="9 18 15 12 9 6"
+                    stroke="#F87171"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.versionBadge}>
-              <Text style={styles.versionText}>🛡️ Uncurl: health v1.0.2</Text>
+              <Text style={styles.versionText}>🛡️ Uncurl: health v1.0.3</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -1349,6 +1510,79 @@ const DrawerNavigatorContent: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Confirmation Custom Animated Modal */}
+      <Modal
+        transparent
+        visible={deleteModalVisible}
+        animationType="none"
+        onRequestClose={() => {
+          if (!deleteLoading) {
+            hideDeleteAlert();
+          }
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <Animated.View
+            style={[styles.deleteModalBackdrop, { opacity: opacityAnim }]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={() => {
+                if (!deleteLoading) {
+                  hideDeleteAlert();
+                }
+              }}
+            />
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.deleteModalCard,
+              {
+                opacity: opacityAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.deleteAlertIconCircle}>
+              <Text style={styles.deleteAlertIconText}>🚨</Text>
+            </View>
+            <Text style={styles.deleteModalTitleText}>Delete Account?</Text>
+            <Text style={styles.deleteModalDescText}>
+              Are you sure you want to permanently delete your account? This will erase all your Profile ID like UHID, Health logs, profile data, assessments completed in the app, telemetry data collected from health connect, exercises logged, exercise and nutrition plans and any other data collected from you or insights, reports and recommendations generated by Uncurl: AI for you during your subscription to our services.
+            </Text>
+
+            <View style={styles.deleteModalButtonsRow}>
+              <TouchableOpacity
+                style={styles.deleteCancelModalBtn}
+                activeOpacity={0.8}
+                onPress={hideDeleteAlert}
+                disabled={deleteLoading}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.deleteConfirmModalBtn,
+                  deleteLoading && { opacity: 0.7 },
+                ]}
+                activeOpacity={0.8}
+                onPress={handleConfirmDelete}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </View>
       </Modal>
 
@@ -1537,7 +1771,9 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.bold as any,
   },
   footer: {
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 12,
+    paddingBottom: 14,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     alignItems: 'center',
@@ -1556,24 +1792,143 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     letterSpacing: 0.5,
   },
-  logoutBtn: {
+  footerActionsCard: {
+    width: '100%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  footerActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: theme.spacing.borderRadiusMd,
-    marginBottom: 12,
-    backgroundColor: 'rgba(244, 63, 94, 0.05)', // light rose tint
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  logoutIcon: {
-    fontSize: 18,
+  deleteActionRow: {
+    backgroundColor: 'rgba(254, 242, 242, 0.55)',
+  },
+  footerActionDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 12,
+  },
+  logoutIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   logoutLabel: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#e11d48', // rose-600 color
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  deleteIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  deleteBtnLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteModalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  deleteAlertIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fef2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  deleteAlertIconText: {
+    fontSize: 30,
+  },
+  deleteModalTitleText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  deleteModalDescText: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'justify',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  deleteModalButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  deleteCancelModalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  deleteConfirmModalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalOverlay: {
     flex: 1,

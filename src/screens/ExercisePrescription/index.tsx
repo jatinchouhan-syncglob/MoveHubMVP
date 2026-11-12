@@ -146,7 +146,11 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
         setProfile(cachedProfile);
       }
 
-      const targetUhid = cachedProfile?.uhid?.trim() || 'LIVSCO4573';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        setIsLoading(false);
+        return;
+      }
       console.log(`[ExercisePrescriptionScreen] Fetching latest prescription for UHID: ${targetUhid}`);
       const res = await apiService.getLatestExercisePrescription(targetUhid);
 
@@ -295,8 +299,11 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
 
     setIsSubmitting(true);
     try {
-      const targetUhid = profile?.uhid?.trim() || 'LIVSCO4573';
-      const targetUserId = profile?.userId ? `USR-${profile.userId}` : 'USR-9921';
+      const targetUhid = profile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
+      const targetUserId = profile?.userId ? `USR-${profile.userId}` : '';
 
       const payload = {
         uhid: targetUhid,

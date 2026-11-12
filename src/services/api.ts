@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { MOCK_PROFILE } from '../data/profile';
 import { MOCK_ACTIVITIES } from '../data/activities';
 import { MOCK_LEADERBOARD } from '../data/leaderboard';
 import { MOCK_INSIGHTS } from '../data/insights';
@@ -25,7 +24,7 @@ import {
   IRegisterProvidersPayload,
 } from '../screens/ServiceProviders/types';
 import { getDynamicDeviceId } from '../utils/device';
-import { normalizeGender } from '../utils/helpers';
+import { normalizeGender, normalizeBedtime, DEFAULT_BEDTIME } from '../utils/helpers';
 
 // Future API Base URL (change in environment variables later)
 const BASE_URL = 'https://api.movehub.example.com/v1';
@@ -200,6 +199,24 @@ const calculateDynamicStepTrends = (activities: Activity[]): TrendData => {
  * Currently returns local dummy data wrapped in Promises to simulate server responses.
  * Ready to be swapped with Axios requests (commented lines show example configurations).
  */
+const EMPTY_USER_PROFILE: UserProfile = {
+  name: '',
+  age: 0,
+  weight: 0,
+  height: 0,
+  isSetupComplete: false,
+};
+
+const resolveTargetUhid = async (uhid?: string): Promise<string> => {
+  if (uhid && uhid.trim()) {
+    return uhid.trim();
+  }
+  const cachedProfile = await storageHelper.getItem<UserProfile>(
+    STORAGE_KEYS.USER_PROFILE,
+  );
+  return cachedProfile?.uhid?.trim() || '';
+};
+
 export const apiService = {
   // --- Profile ---
   async getProfile(): Promise<UserProfile> {
@@ -207,9 +224,12 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid;
+      const targetUhid = cachedProfile?.uhid?.trim();
+      if (!targetUhid) {
+        return cachedProfile || EMPTY_USER_PROFILE;
+      }
       const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${targetUhid}`,
+        `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${encodeURIComponent(targetUhid)}`,
       );
 
       if (
@@ -240,13 +260,11 @@ export const apiService = {
           age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
           weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
           height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
-          calorieGoal:
-            apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
           isSetupComplete: Boolean(
             cachedProfile?.isSetupComplete ||
             (apiData.age && Number(apiData.age) > 0)
           ),
-          email: apiData.email || cachedProfile?.email || 'sam@gmail.com',
+          email: apiData.email || cachedProfile?.email || '',
           userId: apiData.userId || cachedProfile?.userId,
           occupation: apiData.occupation || cachedProfile?.occupation,
           universityName: apiData.universityName || cachedProfile?.universityName,
@@ -266,7 +284,7 @@ export const apiService = {
         }
         return merged;
       }
-      return cachedProfile || MOCK_PROFILE;
+      return cachedProfile || EMPTY_USER_PROFILE;
     } catch (err) {
       console.error(
         'Error fetching live profile in apiService.getProfile:',
@@ -275,7 +293,7 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      return cachedProfile || MOCK_PROFILE;
+      return cachedProfile || EMPTY_USER_PROFILE;
     }
   },
 
@@ -284,9 +302,12 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = uhid || cachedProfile?.uhid || 'LIVSCO4573';
+      const targetUhid = uhid?.trim() || cachedProfile?.uhid?.trim();
+      if (!targetUhid) {
+        return cachedProfile || EMPTY_USER_PROFILE;
+      }
       const response = await axios.get(
-        `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${targetUhid}`,
+        `${BACKEND_8081_URL}/backend/health-connect/userProfile?uhid=${encodeURIComponent(targetUhid)}`,
       );
 
       if (
@@ -309,7 +330,7 @@ export const apiService = {
 
         const profile: UserProfile = {
           uhid: apiData.uhid || targetUhid,
-          name: apiData.name || cachedProfile?.name || 'Living Scope',
+          name: apiData.name || cachedProfile?.name || '',
           gender:
             normalizeGender(apiData.gender) ||
             normalizeGender(cachedProfile?.gender) ||
@@ -317,7 +338,6 @@ export const apiService = {
           age: apiData.age !== undefined && apiData.age !== null ? apiData.age : (cachedProfile?.age || 0),
           weight: apiData.weight !== undefined && apiData.weight !== null ? apiData.weight : (cachedProfile?.weight || 0),
           height: apiData.height !== undefined && apiData.height !== null ? apiData.height : (cachedProfile?.height || 0),
-          calorieGoal: apiData.calorieGoal || cachedProfile?.calorieGoal || 2400,
           isSetupComplete: Boolean(
             cachedProfile?.isSetupComplete ||
             (apiData.age && Number(apiData.age) > 0)
@@ -328,6 +348,12 @@ export const apiService = {
           companyName: apiData.companyName || cachedProfile?.companyName || '',
           location: apiData.location || cachedProfile?.location || '',
           city: apiData.city || cachedProfile?.city || '',
+          bedtime:
+            normalizeBedtime(
+              apiData.bedtime || apiData.sleepTime || apiData.usualBedtime,
+            ) ||
+            normalizeBedtime(cachedProfile?.bedtime) ||
+            DEFAULT_BEDTIME,
           email: apiData.email || cachedProfile?.email,
           userId: apiData.userId || cachedProfile?.userId,
           referralCode: apiData.referralCode || cachedProfile?.referralCode,
@@ -342,11 +368,11 @@ export const apiService = {
         }
         return profile;
       }
-      return cachedProfile || MOCK_PROFILE;
+      return cachedProfile || EMPTY_USER_PROFILE;
     } catch (err) {
       console.error('[apiService] Error fetching getUserProfile:', err);
       const cached = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      return cached || MOCK_PROFILE;
+      return cached || EMPTY_USER_PROFILE;
     }
   },
 
@@ -355,7 +381,7 @@ export const apiService = {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const updated = { ...(cachedProfile || MOCK_PROFILE), ...profile };
+    const updated = { ...(cachedProfile || EMPTY_USER_PROFILE), ...profile };
     await storageHelper.setItem(STORAGE_KEYS.USER_PROFILE, updated);
     return simulateNetworkCall(updated);
   },
@@ -366,7 +392,10 @@ export const apiService = {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        return [];
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -532,7 +561,7 @@ export const apiService = {
     const cachedProfile = await storageHelper.getItem<UserProfile>(
       STORAGE_KEYS.USER_PROFILE,
     );
-    const profileName = cachedProfile?.name || MOCK_PROFILE.name;
+    const profileName = cachedProfile?.name || 'You';
     const mappedLeaderboard = MOCK_LEADERBOARD.map(entry => {
       if (entry.isCurrentUser) {
         return { ...entry, name: profileName };
@@ -607,10 +636,10 @@ export const apiService = {
   // --- Health Connect Integration ---
   async getHealthConnectActivities(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -634,10 +663,10 @@ export const apiService = {
 
   async getWorkoutLog(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/kafka_raw_workout_activity?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -658,10 +687,10 @@ export const apiService = {
 
   async getLatestWorkoutLog(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/get-latest-workout-log?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -678,14 +707,18 @@ export const apiService = {
     }
   },
 
-  async submitAssessment(uhid: string = 'JATCHO5525'): Promise<any> {
+  async submitAssessment(uhid?: string): Promise<any> {
+    const targetUhid = await resolveTargetUhid(uhid);
+    if (!targetUhid) {
+      throw new Error('User UHID is not available');
+    }
     const url = 'http://13.204.123.149:8000/api/v1/assessments/submit';
     console.log(
-      `[API Request] POST submitAssessment: ${url} for UHID: ${uhid}`,
+      `[API Request] POST submitAssessment: ${url} for UHID: ${targetUhid}`,
     );
     try {
       const formData = new FormData();
-      formData.append('uhid', uhid);
+      formData.append('uhid', targetUhid);
 
       const response = await axios.post(url, formData, {
         headers: {
@@ -693,7 +726,7 @@ export const apiService = {
         },
       });
       console.log(
-        `[API Response] POST submitAssessment SUCCESS for UHID: ${uhid}`,
+        `[API Response] POST submitAssessment SUCCESS for UHID: ${targetUhid}`,
         JSON.stringify(response.data, null, 2),
       );
       return response.data;
@@ -871,13 +904,13 @@ export const apiService = {
     age: number;
     weight: number;
     height: number;
-    calorieGoal: number;
     occupation?: string;
     universityName?: string;
     department?: string;
     companyName?: string;
     location?: string;
     city?: string;
+    bedtime?: string;
   }): Promise<any> {
     try {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
@@ -897,13 +930,13 @@ export const apiService = {
         age: profileData.age,
         weight: profileData.weight,
         height: profileData.height,
-        calorieGoal: profileData.calorieGoal,
         occupation: profileData.occupation,
         universityName: profileData.universityName,
         department: profileData.department,
         companyName: profileData.companyName,
         location: profileData.location,
         city: profileData.city,
+        bedtime: normalizeBedtime(profileData.bedtime) || DEFAULT_BEDTIME,
       };
       const response = await axios.post(
         `${BACKEND_8082_URL}/backend/health-connect/setupProfile`,
@@ -1075,10 +1108,10 @@ export const apiService = {
 
   async getPullStepsLogs(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `https://6r6hg7qfs3.execute-api.ap-south-1.amazonaws.com/api/v1/pull?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1093,10 +1126,10 @@ export const apiService = {
 
   async getWeeklyReport(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `http://13.204.123.149:8001/api/v1/reports/weekly?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1115,10 +1148,10 @@ export const apiService = {
 
   async getHealthTransformation(uhid?: string, month?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const targetMonth = month || 'July 2026';
 
       const url = `${BACKEND_8081_URL}/backend/health-connect/getHealthTransformation?uhid=${targetUhid}&month=${encodeURIComponent(
@@ -1414,10 +1447,10 @@ export const apiService = {
 
   async getLatestLifestyleQuestionnaire(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/lifestyle-questionnaire/latest?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1557,10 +1590,10 @@ export const apiService = {
    */
   async getActiveChallenges(uhid?: string): Promise<any> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/challenges/active?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1583,7 +1616,13 @@ export const apiService = {
   /**
    * Join/Enroll in a fitness challenge
    */
-  async joinChallenge(payload: { uhid: string; challengeId: string }): Promise<any> {
+  async joinChallenge(payload: {
+    uhid: string;
+    challengeId: string;
+    gentle_pacing_mode?: boolean;
+    physicalLimitation?: boolean;
+    healthSafetyAcknowledged?: boolean;
+  }): Promise<any> {
     try {
       const url = `${BACKEND_8081_URL}/backend/health-connect/challenge/join`;
       console.log(`[apiService] POST joinChallenge URL: ${url}`, JSON.stringify(payload));
@@ -1809,10 +1848,10 @@ export const apiService = {
     data: any;
   }> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url =
         'https://healthconnect.livingscopehealth.in/health/api/phase2prescription';
       const body = `uhid=${encodeURIComponent(targetUhid)}`;
@@ -1843,10 +1882,10 @@ export const apiService = {
     data: any;
   }> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'LIVSCO4573';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/exercise-prescription/latest?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1911,10 +1950,10 @@ export const apiService = {
     data: any;
   }> {
     try {
-      const cachedProfile = await storageHelper.getItem<UserProfile>(
-        STORAGE_KEYS.USER_PROFILE,
-      );
-      const targetUhid = uhid || cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = await resolveTargetUhid(uhid);
+      if (!targetUhid) {
+        throw new Error('User UHID is not available');
+      }
       const url = `${BACKEND_8081_URL}/backend/health-connect/nutritional-profiler/latest?uhid=${encodeURIComponent(
         targetUhid,
       )}`;
@@ -1992,10 +2031,10 @@ export const prefetchStepsLogsData = async (
   targetUhid?: string,
 ): Promise<void> => {
   try {
-    const cachedProfile = await storageHelper.getItem<UserProfile>(
-      STORAGE_KEYS.USER_PROFILE,
-    );
-    const uhid = targetUhid || cachedProfile?.uhid || 'JATCHO5525';
+    const uhid = await resolveTargetUhid(targetUhid);
+    if (!uhid) {
+      return;
+    }
 
     const sysDate = new Date();
     const sysY = sysDate.getFullYear();

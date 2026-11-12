@@ -50,10 +50,10 @@ export const JoinChallengeScreen: React.FC = () => {
     email: string;
     phone: string;
   }>({
-    uhid: 'SAUSHA9775',
-    name: 'Saurabh Sharma',
-    email: 's.saurabh@example.com',
-    phone: '9912345678',
+    uhid: '',
+    name: '',
+    email: '',
+    phone: '',
   });
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,13 +67,13 @@ export const JoinChallengeScreen: React.FC = () => {
         );
         if (cached) {
           setUserProfile({
-            uhid: cached.uhid || 'SAUSHA9775',
-            name: cached.name || 'Saurabh Sharma',
-            email: cached.email || 's.saurabh@example.com',
+            uhid: cached.uhid || '',
+            name: cached.name || '',
+            email: cached.email || '',
             phone:
               (cached as any).phoneNumber ||
               (cached as any).mobile ||
-              '9912345678',
+              '',
           });
         }
       } catch (err) {

@@ -169,7 +169,6 @@ export const SignupScreen: React.FC = () => {
           age: userData?.age ? Number(userData.age) : 0,
           weight: userData?.weight ? Number(userData.weight) : 0,
           height: userData?.height ? Number(userData.height) : 0,
-          calorieGoal: userData?.calorieGoal ? Number(userData.calorieGoal) : 2400,
           isSetupComplete: false,
           email: userData.email || email.trim(),
           token: authToken,

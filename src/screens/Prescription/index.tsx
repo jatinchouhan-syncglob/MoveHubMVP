@@ -119,7 +119,11 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
         setProfile(cachedProfile);
       }
 
-      const targetUhid = cachedProfile?.uhid?.trim() || 'JATCHO5525';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
+      if (!targetUhid) {
+        setError('User UHID not available');
+        return;
+      }
       const response = await apiService.getPhase2Prescription(targetUhid);
 
       if (response && response.status === 'Success' && response.data) {
@@ -150,7 +154,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
     }
   };
 
-  const displayUhid = prescriptionData?.uhid || profile?.uhid || 'JATCHO5525';
+  const displayUhid = prescriptionData?.uhid || profile?.uhid || 'N/A';
   const patientMeta = prescriptionData?.patientMeta;
   const baseline = prescriptionData?.baseline;
   const current = prescriptionData?.current;

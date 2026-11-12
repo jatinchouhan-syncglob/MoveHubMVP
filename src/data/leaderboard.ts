@@ -18,7 +18,7 @@ export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
   {
     id: 'lead-3',
     rank: 3,
-    name: 'Alex Rivera', // Current User
+    name: 'You', // Current User
     points: 2420,
     avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100',
     isCurrentUser: true,

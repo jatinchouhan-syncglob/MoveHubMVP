@@ -1369,7 +1369,7 @@ export const syncHealthConnectAnalytics = async (): Promise<boolean> => {
         // POST request to client telemetry endpoint with all original fields wrapped in array
         const clientPayload = {
           ...payload,
-          user_id: uhid || 'TEST001',
+          user_id: uhid || '',
           event_type: 'TELEMETRY_SYNC',
         };
         await axios.post(

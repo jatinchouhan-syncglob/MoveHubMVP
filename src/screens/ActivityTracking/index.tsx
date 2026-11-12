@@ -703,7 +703,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const activeUhid = cachedProfile?.uhid || 'SAMSUN9776';
+      const activeUhid = cachedProfile?.uhid?.trim() || '';
 
       const payload = {
         uhid: activeUhid,
@@ -1131,7 +1131,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       const cachedProfile = await storageHelper.getItem<UserProfile>(
         STORAGE_KEYS.USER_PROFILE,
       );
-      const targetUhid = cachedProfile?.uhid || 'JATCHO5525';
+      const targetUhid = cachedProfile?.uhid?.trim() || '';
 
       const deviceId = await getDynamicDeviceId();
       const savePayload = {

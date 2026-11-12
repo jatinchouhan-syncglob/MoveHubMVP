@@ -592,6 +592,54 @@ const StepsTrackingTab = () => {
           </View>
         </View>
 
+        {/* ==================== TOURNAMENT PROTOCOL GUIDE ==================== */}
+        <View style={s.rulesCard}>
+          <Text style={s.sectionHeaderTitle}>TOURNAMENT PROTOCOL</Text>
+          <Text style={s.sectionHeaderSub}>3 simple steps to compete & win</Text>
+
+          <View style={s.ruleStepsContainer}>
+            <View style={s.ruleStepRow}>
+              <View style={s.stepNumberBadge}>
+                <Text style={s.stepNumberText}>01</Text>
+              </View>
+              <View style={s.stepInfo}>
+                <Text style={s.stepTitle}>Carry Your Phone</Text>
+                <Text style={s.stepDesc}>
+                  Keep your smartphone in pocket during daily routines, office walks, and workouts.
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.ruleStepDivider} />
+
+            <View style={s.ruleStepRow}>
+              <View style={s.stepNumberBadge}>
+                <Text style={s.stepNumberText}>02</Text>
+              </View>
+              <View style={s.stepInfo}>
+                <Text style={s.stepTitle}>Stream Automated Telemetry</Text>
+                <Text style={s.stepDesc}>
+                  MoveHub syncs your step counts seamlessly via background sensor algorithms.
+                </Text>
+              </View>
+            </View>
+
+            <View style={s.ruleStepDivider} />
+
+            <View style={s.ruleStepRow}>
+              <View style={s.stepNumberBadge}>
+                <Text style={s.stepNumberText}>03</Text>
+              </View>
+              <View style={s.stepInfo}>
+                <Text style={s.stepTitle}>Climb The National Podium</Text>
+                <Text style={s.stepDesc}>
+                  Out-move sedentary hours to claim national championship trophies and awards.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
         {!showHealthData ? (
           <View style={s.onboardingContainer}>
             <View style={s.guideCard}>
@@ -695,7 +743,7 @@ const StepsTrackingTab = () => {
         ) : (
           <View>
             {/* Sync now trigger */}
-            <View style={s.syncSection}>
+            {/* <View style={s.syncSection}>
               <Text style={s.syncTitle}>
                 Ready to Sync Health Snapshot
               </Text>
@@ -709,7 +757,7 @@ const StepsTrackingTab = () => {
                 loading={syncing}
                 style={s.syncButton}
               />
-            </View>
+            </View> */}
 
             {/* Daily Metrics Dashboard Grid */}
             <Text style={s.metricsSectionTitle}>TODAY'S METRICS</Text>

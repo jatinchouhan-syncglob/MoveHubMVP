@@ -93,7 +93,7 @@ export const ThreeWayReferralModal: React.FC<ThreeWayReferralModalProps> = ({
   const [commercialName, setCommercialName] = useState('');
   const [commercialContact, setCommercialContact] = useState('');
 
-  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || 'JATCHO5525';
+  const userUhid = userProfile?.uhid?.trim() || (circleId !== 'MOVEHUB-SQUAD' ? circleId?.trim() : '') || '';
   const referralWebUrl = `https:/ecfl-reg-form.livingscope.in/${userUhid}`;
 
   const handleShareNodeA = async () => {
