@@ -15,17 +15,17 @@ import { useDrawer } from '../../navigation/DrawerContext';
 import {
   IMentalHealthPayload,
   LikertValue,
-  IMentalHealthPart,
 } from './types';
-import { MENTAL_HEALTH_OPTIONS, MENTAL_HEALTH_PARTS } from './questions';
+import { MENTAL_HEALTH_OPTIONS, MINDFULNESS_CATEGORIES } from './questions';
 import { styles } from './styles';
 
 export const MentalHealthScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Current active step/part: 1 or 2
-  const [currentPart, setCurrentPart] = useState<1 | 2>(1);
+  // Pre-assessment Data Notice gate state
+  const [isNoticeAccepted, setIsNoticeAccepted] = useState<boolean>(false);
+  const [isAgreed, setIsAgreed] = useState<boolean>(false);
 
   // Form answers state
   const [answers, setAnswers] = useState<IMentalHealthPayload>({});
@@ -33,8 +33,8 @@ export const MentalHealthScreen: React.FC = () => {
   // Success Confirmation Modal
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
 
-  // Calculate answered count across all 36 questions
-  const totalQuestions = 36;
+  // Calculate answered count across all 30 questions (5 categories x 6 questions)
+  const totalQuestions = 30;
   const answeredKeys = Object.keys(answers).filter(
     k => answers[k as keyof IMentalHealthPayload] !== undefined && answers[k as keyof IMentalHealthPayload] !== null
   );
@@ -49,34 +49,58 @@ export const MentalHealthScreen: React.FC = () => {
     }));
   };
 
-  // Switch part handler
-  const handleSwitchPart = (part: 1 | 2) => {
-    setCurrentPart(part);
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-  };
-
   // Reset form handler
   const handleReset = () => {
     Alert.alert(
       'Reset Assessment',
-      'Are you sure you want to clear all your answers and start over?',
+      'What would you like to reset?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Clear Answers',
           style: 'destructive',
           onPress: () => {
             setAnswers({});
-            setCurrentPart(1);
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          },
+        },
+        {
+          text: 'Return to Notice',
+          onPress: () => {
+            setAnswers({});
+            setIsNoticeAccepted(false);
           },
         },
       ]
     );
   };
 
+  // Activate sync profile from notice screen
+  const handleActivate = () => {
+    if (!isAgreed) {
+      Alert.alert(
+        'Agreement Required',
+        'Please check the agreement box acknowledging the data processing and behavioral notice before activating your sync profile.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setIsNoticeAccepted(true);
+  };
+
   // Submit handler
   const handleSubmit = () => {
+    if (answeredCount < totalQuestions) {
+      Alert.alert(
+        'Incomplete Assessment',
+        `You have answered ${answeredCount} of ${totalQuestions} questions. Do you want to submit now?`,
+        [
+          { text: 'Continue Survey', style: 'cancel' },
+          { text: 'Submit Anyway', onPress: () => setShowSuccessModal(true) },
+        ]
+      );
+      return;
+    }
     setShowSuccessModal(true);
   };
 
@@ -85,29 +109,148 @@ export const MentalHealthScreen: React.FC = () => {
     setActiveScreen('Dashboard');
   };
 
-  const activePartData: IMentalHealthPart =
-    currentPart === 1 ? MENTAL_HEALTH_PARTS[0] : MENTAL_HEALTH_PARTS[1];
+  // Pre-assessment Data Notice Screen
+  if (!isNoticeAccepted) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />
+        <CustomHeader
+          title="Mindfulness Sync Profile"
+          showDrawerButton
+          containerStyle={styles.headerContainer}
+          titleStyle={styles.headerTitle}
+          buttonStyle={styles.headerButton}
+          iconStyle={styles.headerIcon}
+        />
 
-  // Check how many questions answered in part 1 vs part 2
-  const part1Answered = [
-    'anx1', 'anx2', 'anx3', 'anx4', 'anx5', 'anx6',
-    'dep1', 'dep2', 'dep3', 'dep4', 'dep5', 'dep6',
-    'str1', 'str2', 'str3', 'str4', 'str5', 'str6',
-  ].filter(k => answers[k as keyof IMentalHealthPayload] !== undefined).length;
+        <ScrollView
+          contentContainerStyle={styles.noticeScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.noticeMainCard}>
+            {/* Top Badge Icon Circle */}
+            <View style={styles.noticeIconCircle}>
+              <Text style={styles.noticeIconText}>🧘</Text>
+            </View>
 
-  const part2Answered = [
-    'sle1', 'sle2', 'sle3', 'sle4', 'sle5', 'sle6',
-    'sub1', 'sub2', 'sub3', 'sub4', 'sub5', 'sub6',
-    'emo1', 'emo2', 'emo3', 'emo4', 'emo5', 'emo6',
-  ].filter(k => answers[k as keyof IMentalHealthPayload] !== undefined).length;
+            {/* Governing Authority Tag */}
+            <View style={styles.authorityPill}>
+              <View style={styles.authorityDot} />
+              <Text style={styles.authorityText}>
+                GOVERNING AUTHORITY: MEDICAL & RESEARCH BOARD MANAGEMENT
+              </Text>
+            </View>
+
+            {/* Main Heading */}
+            <Text style={styles.noticeTitle}>
+              Mindfulness Sync Profile & Data Notice
+            </Text>
+
+            {/* Scope / Purpose Box */}
+            <View style={styles.noticeScopeBox}>
+              <Text style={styles.noticeScopeText}>
+                This module tracks lifestyle rest, behavioral focus, and environmental friction parameters to compute your tournament's recovery multipliers.
+              </Text>
+            </View>
+
+            {/* Key Pillars */}
+            <View style={styles.noticePillarsRow}>
+              <View style={styles.noticePillarChip}>
+                <Text style={styles.noticePillarIcon}>🌙</Text>
+                <Text style={styles.noticePillarLabel}>Lifestyle Rest</Text>
+              </View>
+              <View style={styles.noticePillarChip}>
+                <Text style={styles.noticePillarIcon}>🎯</Text>
+                <Text style={styles.noticePillarLabel}>Behavioral Focus</Text>
+              </View>
+              <View style={styles.noticePillarChip}>
+                <Text style={styles.noticePillarIcon}>⚡</Text>
+                <Text style={styles.noticePillarLabel}>Recovery Multipliers</Text>
+              </View>
+            </View>
+
+            {/* Checkbox & Legal Notice Box */}
+            <TouchableOpacity
+              style={[
+                styles.consentBox,
+                isAgreed && styles.consentBoxActive,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => setIsAgreed(!isAgreed)}
+            >
+              <View style={styles.checkboxRow}>
+                <View
+                  style={[
+                    styles.checkboxSquare,
+                    isAgreed && styles.checkboxSquareChecked,
+                  ]}
+                >
+                  {isAgreed && (
+                    <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M20 6L9 17l-5-5"
+                        stroke="#FFFFFF"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  )}
+                </View>
+
+                <Text style={styles.consentStatementText}>
+                  I explicitly agree to the processing of my lifestyle focus parameters. I understand that this survey is strictly a behavioral self-reflection tool and does not provide clinical mental health diagnostics, anxiety indexes, or therapeutic counseling. I acknowledge that my raw inputs are secured using enterprise-grade database encryption and are isolated from the public tournament leaderboards. I will not use this wellness feature as a substitute for professional clinical psychological or psychiatric medical support.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Activate Sync Profile Button */}
+            <TouchableOpacity
+              style={[
+                styles.activateButton,
+                !isAgreed && styles.activateButtonDisabled,
+              ]}
+              activeOpacity={0.85}
+              onPress={handleActivate}
+            >
+              <Text
+                style={[
+                  styles.activateButtonText,
+                  !isAgreed && styles.activateButtonTextDisabled,
+                ]}
+              >
+                ACTIVATE SYNC PROFILE
+              </Text>
+            </TouchableOpacity>
+
+            {/* Security Footnote */}
+            <View style={styles.securityFootnoteRow}>
+              <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                  stroke="#38BDF8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+              <Text style={styles.securityFootnoteText}>
+                Enterprise-grade 256-bit encrypted • Isolated from public leaderboards
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0A0E17" />
 
       {/* Header with Drawer toggle and Reset button */}
       <CustomHeader
-        title="The Lifestyle Sustainability Audit"
+        title="Mindfulness Sync Profile"
         showDrawerButton
         containerStyle={styles.headerContainer}
         titleStyle={styles.headerTitle}
@@ -151,7 +294,7 @@ export const MentalHealthScreen: React.FC = () => {
       <View style={styles.progressContainer}>
         <View style={styles.progressTopRow}>
           <Text style={styles.stepCounterText}>
-            STEP {currentPart} OF 2 • {answeredCount}/{totalQuestions} ANSWERED
+            {answeredCount}/{totalQuestions} QUESTIONS ANSWERED
           </Text>
           <Text style={styles.progressPercentage}>{progressPercent}%</Text>
         </View>
@@ -165,78 +308,7 @@ export const MentalHealthScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Interactive 2-Part Switcher Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            currentPart === 1 && styles.tabButtonActive,
-          ]}
-          activeOpacity={0.85}
-          onPress={() => handleSwitchPart(1)}
-        >
-          <View
-            style={[
-              styles.tabBadge,
-              currentPart === 1 && styles.tabBadgeActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabBadgeText,
-                currentPart === 1 && styles.tabBadgeTextActive,
-              ]}
-            >
-              1
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.tabButtonText,
-              currentPart === 1 && styles.tabButtonTextActive,
-            ]}
-            numberOfLines={1}
-          >
-            Symptoms ({part1Answered}/18)
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            currentPart === 2 && styles.tabButtonActive,
-          ]}
-          activeOpacity={0.85}
-          onPress={() => handleSwitchPart(2)}
-        >
-          <View
-            style={[
-              styles.tabBadge,
-              currentPart === 2 && styles.tabBadgeActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.tabBadgeText,
-                currentPart === 2 && styles.tabBadgeTextActive,
-              ]}
-            >
-              2
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.tabButtonText,
-              currentPart === 2 && styles.tabButtonTextActive,
-            ]}
-            numberOfLines={1}
-          >
-            Lifestyle ({part2Answered}/18)
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Assessment Question Stream */}
+      {/* Assessment Question Stream (Unified Single Screen) */}
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
@@ -244,28 +316,26 @@ export const MentalHealthScreen: React.FC = () => {
       >
         {/* Intro / Clinical Disclaimer Box */}
         <View style={styles.confidentialCard}>
-          <Text style={styles.confidentialIcon}>🧠</Text>
+          <Text style={styles.confidentialIcon}>🧘</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.confidentialTitle}>
-              Digital Self-Reported Lifestyle Sustainability Audit
+              Mindfulness Sync Profile
             </Text>
             <Text style={styles.confidentialDesc}>
-              This self-administered screening uses a 5-point Likert scale (Always to Never) to identify mental wellness indicators, stress triggers, and habit patterns.
+              This module tracks lifestyle rest, behavioral focus, and environmental friction parameters to compute your tournament's recovery multipliers.
             </Text>
+            <TouchableOpacity
+              style={styles.noticeLinkRow}
+              activeOpacity={0.7}
+              onPress={() => setIsNoticeAccepted(false)}
+            >
+              <Text style={styles.noticeLinkText}>📋 View Data Notice & Agreement</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Part Header Title */}
-        <View style={styles.blockHeaderRow}>
-          <View style={styles.blockBadgeContainer}>
-            <Text style={styles.blockBadgeText}>{activePartData.badge}</Text>
-          </View>
-          <Text style={styles.blockHeading}>{activePartData.partTitle}</Text>
-          <Text style={styles.blockSubheading}>{activePartData.partSubtitle}</Text>
-        </View>
-
-        {/* Categories & Questions Stream */}
-        {activePartData.categories.map(category => (
+        {/* All 5 Categories Stream */}
+        {MINDFULNESS_CATEGORIES.map(category => (
           <View key={category.id} style={styles.categorySection}>
             <View style={styles.categoryHeader}>
               <Text style={styles.categoryIcon}>{category.icon}</Text>
@@ -273,7 +343,7 @@ export const MentalHealthScreen: React.FC = () => {
             </View>
             <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
 
-            {/* Informational Callout Banner (e.g. Substance Use definitions) */}
+            {/* Informational Callout Banner if present */}
             {category.noticeBanner && (
               <View style={styles.noticeCard}>
                 <Text style={styles.noticeIcon}>ℹ️</Text>
@@ -336,33 +406,13 @@ export const MentalHealthScreen: React.FC = () => {
 
       {/* Sticky Bottom Navigation Footer */}
       <View style={styles.footerNav}>
-        {currentPart > 1 ? (
-          <TouchableOpacity
-            style={styles.backNavButton}
-            activeOpacity={0.85}
-            onPress={() => handleSwitchPart(1)}
-          >
-            <Text style={styles.backNavButtonText}>⬅ Back</Text>
-          </TouchableOpacity>
-        ) : null}
-
-        {currentPart < 2 ? (
-          <TouchableOpacity
-            style={styles.nextNavButton}
-            activeOpacity={0.85}
-            onPress={() => handleSwitchPart(2)}
-          >
-            <Text style={styles.nextNavButtonText}>Next: Part 2 ➔</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.submitNavButton}
-            activeOpacity={0.85}
-            onPress={handleSubmit}
-          >
-            <Text style={styles.submitNavButtonText}>Submit Assessment ✅</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.submitNavButton}
+          activeOpacity={0.85}
+          onPress={handleSubmit}
+        >
+          <Text style={styles.submitNavButtonText}>Submit Sync Profile ✅</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Success Confirmation Modal */}
@@ -377,9 +427,9 @@ export const MentalHealthScreen: React.FC = () => {
             <View style={styles.modalIconCircle}>
               <Text style={styles.modalIcon}>🎉</Text>
             </View>
-            <Text style={styles.modalTitle}>Lifestyle Sustainability Audit Saved!</Text>
+            <Text style={styles.modalTitle}>Mindfulness Sync Profile Saved!</Text>
             <Text style={styles.modalSubtitle}>
-              Your self-reported lifestyle sustainability audit has been recorded. Once your comprehensive wellness analytics are ready, your risk category and clinical insights will appear in your Health Hub.
+              Your mindfulness sync profile has been recorded. Once your comprehensive wellness analytics are ready, your recovery multipliers and insights will appear in your Health Hub.
             </Text>
             <TouchableOpacity
               style={styles.modalCloseBtn}

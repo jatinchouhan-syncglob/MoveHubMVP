@@ -80,7 +80,7 @@ export const HealthConnectPermissionModal: React.FC<HealthConnectPermissionModal
               end={{ x: 1, y: 0 }}
               style={styles.primaryButtonGradient}
             >
-              <Text style={styles.primaryButtonText}>Go to Steps Tracking ➔</Text>
+              <Text style={styles.primaryButtonText}>Go to Google Sync ➔</Text>
             </LinearGradient>
           </TouchableOpacity>
 

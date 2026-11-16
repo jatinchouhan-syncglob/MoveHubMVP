@@ -93,7 +93,7 @@ export const styles = StyleSheet.create({
 
   scrollContent: {
     padding: 16,
-    paddingBottom: 48,
+    paddingBottom: 72,
   },
 
   // --- Intake Intro Banner ---
@@ -344,16 +344,17 @@ export const styles = StyleSheet.create({
   actionsBar: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 10,
-    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 24,
+    alignItems: 'stretch',
   },
   resetBtn: {
-    paddingVertical: 14,
+    minHeight: 52,
     paddingHorizontal: 18,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    backgroundColor: '#1E293B',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -364,22 +365,37 @@ export const styles = StyleSheet.create({
   },
   generateBtn: {
     flex: 1,
-    borderRadius: 12,
+    minHeight: 52,
+    borderRadius: 14,
     backgroundColor: '#10B981',
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 4,
+  },
+  generateBtnContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   generateBtnText: {
     fontSize: 14,
     fontWeight: '800',
     color: '#0A0E17',
+    textAlign: 'center',
     letterSpacing: 0.3,
+  },
+  generateBtnSubText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(10, 14, 23, 0.75)',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
 
   // --- Tab 2: Biometric Reset Card Styles ---

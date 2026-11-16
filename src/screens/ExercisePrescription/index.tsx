@@ -573,12 +573,19 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 onPress={handleSaveAndSubmit}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color="#0A0E17" />
+                ) : isEmbedded ? (
+                  <View style={styles.generateBtnContent}>
+                    <Text style={styles.generateBtnText}>
+                      Submit & Next ➔
+                    </Text>
+                    <Text style={styles.generateBtnSubText}>
+                      Nutritional Profiler
+                    </Text>
+                  </View>
                 ) : (
                   <Text style={styles.generateBtnText}>
-                    {isEmbedded
-                      ? 'Submit & Next: Nutritional Profiler ➡️'
-                      : 'Save & Generate Prescriptions ⚡'}
+                    Save & Generate Prescriptions ⚡
                   </Text>
                 )}
               </TouchableOpacity>
@@ -603,42 +610,6 @@ export const ExercisePrescriptionScreen: React.FC<ExercisePrescriptionProps> = (
                 <Text style={styles.bioCardMainTitle}>
                   Biometric Reset Blueprint
                 </Text>
-              </View>
-
-              {/* Patient Meta Strip */}
-              <View style={styles.bioPatientMetaBox}>
-                <View style={styles.bioMetaChipsRow}>
-                  <View style={styles.bioMetaChip}>
-                    <Text style={styles.bioMetaChipLabel}>
-                      UHID:{' '}
-                      <Text style={styles.bioMetaChipValue}>
-                        {profile?.uhid || INITIAL_BIOMETRIC_RESET_CARD.uhid}
-                      </Text>
-                    </Text>
-                  </View>
-                  <View style={styles.bioMetaChip}>
-                    <Text style={styles.bioMetaChipLabel}>
-                      Age:{' '}
-                      <Text style={styles.bioMetaChipValue}>
-                        {INITIAL_BIOMETRIC_RESET_CARD.age} yrs
-                      </Text>
-                    </Text>
-                  </View>
-                  <View style={styles.bioMetaChip}>
-                    <Text style={styles.bioMetaChipLabel}>
-                      Sex:{' '}
-                      <Text style={styles.bioMetaChipValue}>
-                        {INITIAL_BIOMETRIC_RESET_CARD.sex}
-                      </Text>
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.bioProfileModeRow}>
-                  <View style={styles.bioProfileDot} />
-                  <Text style={styles.bioProfileModeText}>
-                    Profile: {INITIAL_BIOMETRIC_RESET_CARD.profileMode}
-                  </Text>
-                </View>
               </View>
 
               {/* Weekly Tracking Window */}

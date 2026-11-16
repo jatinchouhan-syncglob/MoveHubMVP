@@ -8,8 +8,6 @@ import {
   LeaderboardEntry,
   TrendData,
   Insight,
-  Phase1LeaderboardResponse,
-  Phase2LeaderboardResponse,
   IChallengeLeaderboardResponse,
   IChallengePodiumResponse,
   IDailyQuestResponse,
@@ -1636,82 +1634,6 @@ export const apiService = {
       console.error(
         '[apiService] Error in joinChallenge:',
         error.response?.data || error.message,
-      );
-      throw error;
-    }
-  },
-
-  async getPhase1Leaderboard(
-    uhid?: string,
-  ): Promise<Phase1LeaderboardResponse> {
-    const cachedProfile = await storageHelper.getItem<UserProfile>(
-      STORAGE_KEYS.USER_PROFILE,
-    );
-    const targetUhid = uhid || cachedProfile?.uhid;
-    if (!targetUhid) {
-      throw new Error('User UHID not available');
-    }
-    const url = 'http://13.204.123.149:8001/health/api/phase1leaderboard';
-    console.log(
-      `[apiService] POST getPhase1Leaderboard: ${url} for UHID: ${targetUhid}`,
-    );
-
-    try {
-      const formData = new FormData();
-      formData.append('uhid', targetUhid);
-
-      const response = await axios.post(url, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      console.log(
-        `[apiService] POST getPhase1Leaderboard SUCCESS for UHID: ${targetUhid}`,
-        response.data,
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error(
-        `[apiService] POST getPhase1Leaderboard with UHID ${targetUhid} failed:`,
-        error?.response?.data || error?.message,
-      );
-      throw error;
-    }
-  },
-
-  async getPhase2Leaderboard(
-    uhid?: string,
-  ): Promise<Phase2LeaderboardResponse> {
-    const cachedProfile = await storageHelper.getItem<UserProfile>(
-      STORAGE_KEYS.USER_PROFILE,
-    );
-    const targetUhid = uhid || cachedProfile?.uhid;
-    if (!targetUhid) {
-      throw new Error('User UHID not available');
-    }
-    const url = 'http://13.204.123.149:8001/health/api/phase2leaderboard';
-    console.log(
-      `[apiService] POST getPhase2Leaderboard: ${url} for UHID: ${targetUhid}`,
-    );
-
-    try {
-      const formData = new FormData();
-      formData.append('uhid', targetUhid);
-
-      const response = await axios.post(url, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      console.log(
-        `[apiService] POST getPhase2Leaderboard SUCCESS for UHID: ${targetUhid}`,
-        response.data,
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error(
-        `[apiService] POST getPhase2Leaderboard with UHID ${targetUhid} failed:`,
-        error?.response?.data || error?.message,
       );
       throw error;
     }

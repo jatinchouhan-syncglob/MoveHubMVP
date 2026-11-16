@@ -81,7 +81,7 @@ export const MealPlannerScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <CustomHeader
         title="Meal Planner"
         showDrawerButton

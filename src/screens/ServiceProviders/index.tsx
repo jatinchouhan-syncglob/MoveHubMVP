@@ -748,7 +748,7 @@ export const ServiceProvidersScreen: React.FC = () => {
   const categoryKeys: ProviderCategory[] = ['hospital', 'lab', 'physician', 'gym'];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       {/* Dark Status Bar */}
       <StatusBar barStyle="light-content" backgroundColor="#080C15" />
 

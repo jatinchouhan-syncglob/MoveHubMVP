@@ -21,6 +21,8 @@ import {
   IQuestScreenSuggestedCard,
 } from '../../../types';
 import { styles } from './styles';
+import { DeskStagnationWarningModal } from '../../../components/modals';
+import { useQuestArena } from '../../../context/QuestArenaContext';
 
 type QuestTabType = 'daily' | 'gym' | 'ongoing' | 'archive';
 
@@ -164,6 +166,12 @@ const StatusStateCard: React.FC<StatusCardProps> = ({
 export const MyQuestsScreen: React.FC = () => {
   const { openDrawer } = useDrawer();
   const [activeTab, setActiveTab] = useState<QuestTabType>('daily');
+  const [stagnationModalVisible, setStagnationModalVisible] = useState<boolean>(true);
+  const {
+    data: sseData,
+    isConnected: isSSEConnected,
+    reconnect: reconnectSSE,
+  } = useQuestArena();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -371,10 +379,11 @@ export const MyQuestsScreen: React.FC = () => {
         hasText(gymQuestPayload.description)),
   );
 
-  // Check if daily quest evaluation is active vs NOT_AVAILABLE
+  // Check if daily quest evaluation is active vs NOT_AVAILABLE (or SSE stream is active)
   const isDailyQuestAvailable = Boolean(
-    (dailyQuest?.status &&
-      dailyQuest.status.toUpperCase() !== 'NOT_AVAILABLE') ||
+    Boolean(sseData) ||
+      (dailyQuest?.status &&
+        dailyQuest.status.toUpperCase() !== 'NOT_AVAILABLE') ||
       hasText(dailyQuestCardCfg?.title),
   );
 
@@ -387,46 +396,94 @@ export const MyQuestsScreen: React.FC = () => {
       : 'Check for Updates';
 
     const dailyMetaPills: string[] = [];
-    if (dailyQuest?.CONTINUOUS_SITTING_MAX_MINS !== undefined) {
+    if (
+      sseData?.PENALTY_LIMIT_MINS !== undefined ||
+      dailyQuest?.CONTINUOUS_SITTING_MAX_MINS !== undefined
+    ) {
       dailyMetaPills.push(
-        `🪑 Max Sitting Limit: ${dailyQuest.CONTINUOUS_SITTING_MAX_MINS} mins`,
+        `🪑 Max Sitting Limit: ${
+          sseData?.PENALTY_LIMIT_MINS ?? dailyQuest?.CONTINUOUS_SITTING_MAX_MINS
+        } mins`,
       );
     }
-    if (dailyQuest?.LAST_EVALUATION_TIMESTAMP) {
+    const evalTimestamp =
+      sseData?.EVALUATED_AT_IST || dailyQuest?.LAST_EVALUATION_TIMESTAMP;
+    if (evalTimestamp) {
       dailyMetaPills.push(
-        `🕒 Checked: ${formatTimestamp(dailyQuest.LAST_EVALUATION_TIMESTAMP)}`,
+        `🕒 Checked: ${formatTimestamp(evalTimestamp)}`,
       );
     }
     if (questData?.date) {
       dailyMetaPills.push(`📅 ${formatDateShort(questData.date)}`);
     }
 
+    const currentStatus =
+      sseData?.STATUS ||
+      (hasText(dailyQuestCardCfg?.status)
+        ? dailyQuestCardCfg!.status
+        : dailyQuest?.status || 'ACTIVE');
+
+    const isPenaltyActive =
+      currentStatus?.toUpperCase() === 'PENALTY_ACTIVE';
+
     return (
       <View>
         {isDailyQuestAvailable ? (
           <View style={styles.questCard}>
             <View style={styles.questCardHeader}>
-              <View style={styles.questCategoryBadge}>
-                <Text style={styles.questCategoryText}>
-                  {hasText(dailyQuestCardCfg?.icon)
+              <View
+                style={[
+                  styles.questCategoryBadge,
+                  isPenaltyActive && {
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.questCategoryText,
+                    isPenaltyActive && { color: '#F87171' },
+                  ]}
+                >
+                  {isPenaltyActive
+                    ? '⚠️ '
+                    : hasText(dailyQuestCardCfg?.icon)
                     ? `${dailyQuestCardCfg!.icon} `
                     : '🎯 '}
-                  {(hasText(dailyQuestCardCfg?.status)
-                    ? dailyQuestCardCfg!.status
-                    : dailyQuest?.status || 'ACTIVE'
-                  )
+                  {currentStatus
                     ?.toString()
                     .replace(/_/g, ' ')
                     .toUpperCase()}
                 </Text>
               </View>
-              {questData?.date && (
+              {isSSEConnected ? (
+                <View
+                  style={[
+                    styles.questXpBadge,
+                    {
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      borderColor: 'rgba(16, 185, 129, 0.35)',
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.questXpText,
+                      { color: '#10B981', fontWeight: '700' },
+                    ]}
+                  >
+                    🟢 LIVE STREAM
+                  </Text>
+                </View>
+              ) : questData?.date ? (
                 <View style={styles.questXpBadge}>
                   <Text style={styles.questXpText}>
                     📅 {formatDateShort(questData.date)}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             <Text style={styles.questTitle}>
@@ -436,27 +493,99 @@ export const MyQuestsScreen: React.FC = () => {
             </Text>
 
             <Text style={styles.questDesc}>
-              {hasText(dailyQuestCardCfg?.description)
-                ? dailyQuestCardCfg!.description!.trim()
-                : dailyQuest?.MIDDAY_QUEST_ALERT || 'Daily quest evaluation active.'}
+              {sseData?.QUEST_MESSAGE ||
+                (hasText(dailyQuestCardCfg?.description)
+                  ? dailyQuestCardCfg!.description!.trim()
+                  : dailyQuest?.MIDDAY_QUEST_ALERT ||
+                    'Daily sitting-streak evaluation active.')}
             </Text>
 
-            {dailyQuest?.CONTINUOUS_SITTING_MAX_MINS !== undefined && (
+            {/* Target 1: Continuous Sitting Duration */}
+            {(sseData?.CONTINUOUS_SITTING_MINS !== undefined ||
+              dailyQuest?.CONTINUOUS_SITTING_MAX_MINS !== undefined) && (
               <View style={styles.questTargetRow}>
                 <Text style={styles.questTargetLabel}>
-                  🪑 Continuous Sitting Max Threshold
+                  🪑 Continuous Sitting Duration
                 </Text>
-                <Text style={styles.questTargetValue}>
-                  {dailyQuest.CONTINUOUS_SITTING_MAX_MINS} Mins
+                <Text
+                  style={[
+                    styles.questTargetValue,
+                    isPenaltyActive && { color: '#F87171', fontWeight: '800' },
+                  ]}
+                >
+                  {sseData?.CONTINUOUS_SITTING_MINS ??
+                    dailyQuest?.CONTINUOUS_SITTING_MAX_MINS ??
+                    0}{' '}
+                  Mins
+                  {sseData?.PENALTY_LIMIT_MINS
+                    ? ` / ${sseData.PENALTY_LIMIT_MINS}m limit`
+                    : ''}
                 </Text>
               </View>
             )}
 
-            {dailyQuest?.LAST_EVALUATION_TIMESTAMP && (
+            {/* Target 2: Current Streak Penalty */}
+            {sseData?.ARENA_LEAK_DETECTOR?.CURRENT_STREAK_PENALTY_PTS !==
+              undefined && (
               <View style={styles.questTargetRow}>
-                <Text style={styles.questTargetLabel}>🕒 Last Evaluation</Text>
+                <Text style={styles.questTargetLabel}>
+                  ⚠️ Current Streak Penalty
+                </Text>
+                <Text
+                  style={[
+                    styles.questTargetValue,
+                    { color: '#F87171', fontWeight: '800' },
+                  ]}
+                >
+                  {sseData.ARENA_LEAK_DETECTOR.CURRENT_STREAK_DISPLAY ||
+                    `${sseData.ARENA_LEAK_DETECTOR.CURRENT_STREAK_PENALTY_PTS} pts`}
+                  {sseData.ARENA_LEAK_DETECTOR.CURRENT_STREAK_ACTIVE_BLOCK
+                    ? ' (Active Block)'
+                    : ''}
+                </Text>
+              </View>
+            )}
+
+            {/* Target 3: Cumulative Daily Penalty */}
+            {sseData?.ARENA_LEAK_DETECTOR?.CUMULATIVE_DAILY_PENALTY_PTS !==
+              undefined && (
+              <View style={styles.questTargetRow}>
+                <Text style={styles.questTargetLabel}>
+                  🛡️ Cumulative Daily Penalty
+                </Text>
+                <Text
+                  style={[
+                    styles.questTargetValue,
+                    { color: '#F87171', fontWeight: '800' },
+                  ]}
+                >
+                  {sseData.ARENA_LEAK_DETECTOR.CUMULATIVE_DAILY_DISPLAY ||
+                    `${sseData.ARENA_LEAK_DETECTOR.CUMULATIVE_DAILY_PENALTY_PTS} pts`}
+                </Text>
+              </View>
+            )}
+
+            {/* Target 4: Total Breach Blocks Today */}
+            {sseData?.ARENA_LEAK_DETECTOR?.TOTAL_BREACH_BLOCKS_TODAY !==
+              undefined && (
+              <View style={styles.questTargetRow}>
+                <Text style={styles.questTargetLabel}>
+                  ⚡ Total Breach Blocks Today
+                </Text>
                 <Text style={styles.questTargetValue}>
-                  {formatTimestamp(dailyQuest.LAST_EVALUATION_TIMESTAMP)}
+                  {sseData.ARENA_LEAK_DETECTOR.TOTAL_BREACH_BLOCKS_TODAY} Blocks
+                </Text>
+              </View>
+            )}
+
+            {/* Target 5: Last Evaluation Time */}
+            {evalTimestamp && (
+              <View style={styles.questTargetRow}>
+                <Text style={styles.questTargetLabel}>
+                  🕒 Evaluated At (IST)
+                </Text>
+                <Text style={styles.questTargetValue}>
+                  {formatTimestamp(evalTimestamp)}
                 </Text>
               </View>
             )}
@@ -464,7 +593,10 @@ export const MyQuestsScreen: React.FC = () => {
             <TouchableOpacity
               activeOpacity={0.8}
               style={styles.questActionBtn}
-              onPress={() => fetchQuests(true)}
+              onPress={() => {
+                reconnectSSE();
+                fetchQuests(true);
+              }}
             >
               <Text style={styles.questActionBtnText}>
                 {checkBtnIcon} {checkBtnLabel}
@@ -1029,6 +1161,18 @@ export const MyQuestsScreen: React.FC = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Desk Stagnation Warning Modal (Triggered on screen view) */}
+      <DeskStagnationWarningModal
+        visible={stagnationModalVisible}
+        onClose={() => setStagnationModalVisible(false)}
+        currentMinutes={sseData?.CONTINUOUS_SITTING_MINS}
+        limitMinutes={sseData?.PENALTY_LIMIT_MINS}
+        questMessage={sseData?.QUEST_MESSAGE}
+        minsUntilNextPenalty={sseData?.ARENA_LEAK_DETECTOR?.MINS_UNTIL_NEXT_PENALTY}
+        penaltyPoints={sseData?.ARENA_LEAK_DETECTOR?.CURRENT_STREAK_PENALTY_PTS}
+        meetingMuteActive={sseData?.DAILY_PUSH_CAP?.MEETING_MUTE_ACTIVE}
+      />
     </SafeAreaView>
   );
 };

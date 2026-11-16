@@ -199,7 +199,7 @@ export const OccupationalSafetyScreen: React.FC = () => {
   const t = osiTranslations[selectedLanguage] || osiTranslations['en'];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <CustomHeader
         title="Occupational Safety"
         showDrawerButton={true}
@@ -1181,7 +1181,7 @@ export const PreventiveCareScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <CustomHeader
         title="Preventive Care"
         showDrawerButton={true}

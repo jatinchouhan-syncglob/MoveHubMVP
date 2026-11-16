@@ -60,7 +60,7 @@ export const AssessmentScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <CustomHeader
         title="Assessment"
         showDrawerButton

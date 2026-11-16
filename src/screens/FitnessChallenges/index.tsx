@@ -432,13 +432,12 @@ export const FitnessChallengesScreen: React.FC = () => {
                   Your step telemetry is streaming directly to the tournament engine. Keep your device in your pocket during daily movement.
                 </Text>
 
-                {/* Button showing Challenge Already Joined & allows going to Step Tracking */}
+                {/* Button showing Challenge Already Joined & allows going to Google Sync */}
                 <TouchableOpacity
                   style={[styles.joinPrimaryBtn, { opacity: 0.95 }]}
                   activeOpacity={0.85}
                   onPress={() => {
-                    setGlobalDashboardTab('steps');
-                    setActiveScreen('Dashboard');
+                    setActiveScreen('GoogleSync');
                   }}
                 >
                   <LinearGradient
@@ -845,8 +844,7 @@ export const FitnessChallengesScreen: React.FC = () => {
         visible={successModalVisible}
         onRequestClose={() => {
           setSuccessModalVisible(false);
-          setGlobalDashboardTab('steps');
-          setActiveScreen('Dashboard');
+          setActiveScreen('GoogleSync');
         }}
       >
         <View style={styles.modalOverlay}>
@@ -855,8 +853,7 @@ export const FitnessChallengesScreen: React.FC = () => {
             activeOpacity={1}
             onPress={() => {
               setSuccessModalVisible(false);
-              setGlobalDashboardTab('steps');
-              setActiveScreen('Dashboard');
+              setActiveScreen('GoogleSync');
             }}
           />
           <View style={styles.successModalCard}>
@@ -888,8 +885,7 @@ export const FitnessChallengesScreen: React.FC = () => {
               activeOpacity={0.85}
               onPress={() => {
                 setSuccessModalVisible(false);
-                setGlobalDashboardTab('steps');
-                setActiveScreen('Dashboard');
+                setActiveScreen('GoogleSync');
               }}
             >
               <LinearGradient

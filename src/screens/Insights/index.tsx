@@ -1256,15 +1256,6 @@ export const InsightsScreen: React.FC = () => {
           </TouchableOpacity>
         </ScrollView>
       </View>
-      
-      {(activeScreenTab === 'fitness' || activeScreenTab === 'bio-sync' || activeScreenTab === 'bari') && (
-        <View style={styles.topInfoBar}>
-          <View style={styles.infoBarChip}>
-            <Text style={styles.infoBarLabel}>UHID: </Text>
-            <Text style={styles.infoBarValue}>{targetUhid}</Text>
-          </View>
-        </View>
-      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -1545,12 +1536,6 @@ export const InsightsScreen: React.FC = () => {
                 {/* Meta summary chip row if metadata exists */}
                 {weeklyReportData.report_metadata && (
                   <View style={styles.weeklyMetaHeader}>
-                    {weeklyReportData.user_id ? (
-                      <View style={styles.weeklyMetaBadge}>
-                        <Text style={styles.weeklyMetaLabel}>UHID: </Text>
-                        <Text style={styles.weeklyMetaValue}>{weeklyReportData.user_id}</Text>
-                      </View>
-                    ) : null}
                     {weeklyReportData.report_metadata.week_code ? (
                       <View style={styles.weeklyMetaBadge}>
                         <Text style={styles.weeklyMetaLabel}>Week: </Text>

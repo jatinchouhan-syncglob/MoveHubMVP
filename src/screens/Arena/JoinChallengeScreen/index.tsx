@@ -224,7 +224,7 @@ export const JoinChallengeScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Top Header with Back Button */}
       <CustomHeader
         title="Join Challenge"

@@ -1116,11 +1116,9 @@ export const StepsLogsTab: React.FC = () => {
 
   return (
     <View style={styles.mainWrapper}>
-      {/* Static Info Bar (UHID & Date) */}
+      {/* Static Info Bar (Date) */}
       <View style={styles.topHeader}>
-        <View style={styles.leftSection}>
-          <Text style={styles.userId}>UHID: {activeUhid}</Text>
-        </View>
+        <View style={styles.leftSection} />
         <View style={styles.rightSection}>
           <Text style={styles.dateText}>
             {(() => {

@@ -17,6 +17,7 @@ import Svg, { Path, Polyline, Line } from 'react-native-svg';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme } from '../theme';
 import { useDrawer, DrawerProvider, DrawerScreenType } from './DrawerContext';
+import { QuestArenaProvider } from '../context/QuestArenaContext';
 import { apiService } from '../services/api';
 import { UserProfile } from '../types';
 import { ROUTES } from '../constants/routes';
@@ -29,6 +30,7 @@ import AssessmentScreen from '../screens/Assessment';
 import AwardsScreen from '../screens/Awards';
 import FitnessChallengesScreen from '../screens/FitnessChallenges';
 import TelemetryLogScreen from '../screens/TelemetryLog';
+import GoogleSyncScreen from '../screens/GoogleSync';
 import ActivityTrackingScreen from '../screens/ActivityTracking';
 import MentalHealthScreen from '../screens/MentalHealth';
 import QualityOfLifeScreen from '../screens/QualityOfLife';
@@ -230,6 +232,7 @@ const DrawerNavigatorContent: React.FC = () => {
       'QualityOfLife',
     ];
     const moveHubScreens = [
+      'GoogleSync',
       'Assessment',
       'Arena',
       'Prescription',
@@ -507,6 +510,8 @@ const DrawerNavigatorContent: React.FC = () => {
         return <WeeklyComplianceScreen />;
       case 'FitnessChallenges':
         return <FitnessChallengesScreen />;
+      case 'GoogleSync':
+        return <GoogleSyncScreen />;
       case 'TelemetryLog':
         return <TelemetryLogScreen />;
       case 'ActivityTracking':
@@ -582,13 +587,16 @@ const DrawerNavigatorContent: React.FC = () => {
 
   const menuItems: { screen: DrawerScreenType; label: string; icon: string }[] =
     [
-      /*
+      {
+        screen: 'GoogleSync',
+        label: 'Google Sync',
+        icon: '🔄',
+      },
       {
         screen: 'Assessment',
         label: 'Assessment',
         icon: '📝',
       },
-      */
       /*
       {
         screen: 'Arena',
@@ -747,6 +755,7 @@ const DrawerNavigatorContent: React.FC = () => {
                 const isMoveHubActive =
                   pendingScreen !== null
                     ? [
+                        'GoogleSync',
                         'Assessment',
                         'Arena',
                         'Prescription',
@@ -763,6 +772,7 @@ const DrawerNavigatorContent: React.FC = () => {
                         'Awards',
                       ].includes(pendingScreen as any)
                     : [
+                        'GoogleSync',
                         'Assessment',
                         'Arena',
                         'Prescription',
@@ -850,7 +860,7 @@ const DrawerNavigatorContent: React.FC = () => {
               )}
 
               {/* Nourish Hub (Temporarily commented out per user request) */}
-              {false && (
+              {true && (
               <>
               {/* Nourish Hub Accordion Trigger */}
               {(() => {
@@ -918,8 +928,8 @@ const DrawerNavigatorContent: React.FC = () => {
                   {[
                     {
                       screen: 'MentalHealth' as const,
-                      label: 'The Lifestyle Sustainability Audit',
-                      icon: '🧠',
+                      label: 'Mindfulness Sync Profile',
+                      icon: '🧘',
                     },
                     {
                       screen: 'QualityOfLife' as const,
@@ -1601,7 +1611,9 @@ const DrawerNavigatorContent: React.FC = () => {
 export const DrawerNavigator: React.FC = () => {
   return (
     <DrawerProvider>
-      <DrawerNavigatorContent />
+      <QuestArenaProvider>
+        <DrawerNavigatorContent />
+      </QuestArenaProvider>
     </DrawerProvider>
   );
 };

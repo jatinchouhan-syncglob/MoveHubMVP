@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, useColorScheme, AppState, Alert, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './src/query/queryClient';
@@ -19,6 +19,7 @@ import { STORAGE_KEYS } from './src/storage/storageKeys';
 import { AppLockOverlay } from './src/components/common/AppLockOverlay';
 import {
   navigationRef,
+  navigateToGoogleSync,
   navigateToDashboardSteps,
   getCurrentRouteName,
   getGlobalDashboardTab,
@@ -246,24 +247,32 @@ function App(): React.JSX.Element {
         <SafeAreaProvider>
           <NavigationContainer ref={navigationRef}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-            <RootNavigator />
-            {isAppLocked && (
-              <AppLockOverlay
-                key={lockKey}
-                onUnlock={() => setIsAppLocked(false)}
-                biometricsTypeLabel={biometricsTypeLabel}
+            <SafeAreaView
+              edges={['bottom']}
+              style={{
+                flex: 1,
+                backgroundColor: isDarkMode ? '#050C1B' : '#f8fafc',
+              }}
+            >
+              <RootNavigator />
+              {isAppLocked && (
+                <AppLockOverlay
+                  key={lockKey}
+                  onUnlock={() => setIsAppLocked(false)}
+                  biometricsTypeLabel={biometricsTypeLabel}
+                />
+              )}
+              <HealthConnectPermissionModal
+                visible={isHealthConnectModalVisible}
+                onNavigateToHealthConnect={() => {
+                  setIsHealthConnectModalVisible(false);
+                  navigateToGoogleSync();
+                }}
+                onDismiss={() => {
+                  setIsHealthConnectModalVisible(false);
+                }}
               />
-            )}
-            <HealthConnectPermissionModal
-              visible={isHealthConnectModalVisible}
-              onNavigateToHealthConnect={() => {
-                setIsHealthConnectModalVisible(false);
-                navigateToDashboardSteps();
-              }}
-              onDismiss={() => {
-                setIsHealthConnectModalVisible(false);
-              }}
-            />
+            </SafeAreaView>
           </NavigationContainer>
         </SafeAreaProvider>
       </GestureHandlerRootView>

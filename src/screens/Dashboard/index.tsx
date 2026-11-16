@@ -18,16 +18,10 @@ import { Loader } from '../../components/common/Loader';
 import { CustomButton } from '../../components/common/CustomButton';
 import { apiService, prefetchStepsLogsData } from '../../services/api';
 import { UserProfile, Activity } from '../../types';
-import StepsTrackingTab from '../GoogleFit';
 import {
   sumCaloriesBurned,
   sumActiveMinutes,
 } from '../../utils/calculations';
-import {
-  subscribeDashboardTab,
-  setGlobalDashboardTab,
-  getGlobalDashboardTab,
-} from '../../navigation/navigationRef';
 
 export const DashboardScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
@@ -35,20 +29,6 @@ export const DashboardScreen: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [celebrationVisible, setCelebrationVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<'activities' | 'steps'>(getGlobalDashboardTab());
-
-  useEffect(() => {
-    setActiveTab(getGlobalDashboardTab());
-    const unsubscribe = subscribeDashboardTab(tab => {
-      setActiveTab(tab);
-    });
-    return unsubscribe;
-  }, []);
-
-  const handleSelectTab = (tab: 'activities' | 'steps') => {
-    setActiveTab(tab);
-    setGlobalDashboardTab(tab);
-  };
 
   const getActivityCategory = (type: string): 'distance' | 'strength' | 'duration' => {
     const distanceTypes = ['Walking', 'Running', 'Cycling', 'Hiking', 'Jogging', 'Swimming'];
@@ -292,7 +272,6 @@ export const DashboardScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
-      setActiveTab(getGlobalDashboardTab());
     }, []),
   );
 
@@ -359,72 +338,17 @@ export const DashboardScreen: React.FC = () => {
       <View style={styles.glowSpot1} />
       <View style={styles.glowSpot2} />
 
-      {/* Dashboard Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'steps' && styles.tabButtonActive]}
-          activeOpacity={0.8}
-          onPress={() => handleSelectTab('steps')}
-        >
-          <Text style={[styles.tabText, activeTab === 'steps' && styles.tabTextActive]}>
-            Steps Tracking
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'activities' && styles.tabButtonActive]}
-          activeOpacity={0.8}
-          onPress={() => handleSelectTab('activities')}
-        >
-          <Text style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}>
-            All Activities
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'steps' ? (
-        <StepsTrackingTab />
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.comingSoonScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.comingSoonCard}>
-            <View style={styles.comingSoonIconCircle}>
-              <Text style={styles.comingSoonIcon}>🚀</Text>
-            </View>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
-            </View>
-            <Text style={styles.comingSoonTitle}>All Activities Coming Soon</Text>
-            <Text style={styles.comingSoonDesc}>
-              Comprehensive workout summaries, daily fitness targets, and concentric quadrant balance insights will be available here soon.
-            </Text>
-            <TouchableOpacity
-              style={styles.comingSoonActionBtn}
-              activeOpacity={0.8}
-              onPress={() => handleSelectTab('steps')}
-            >
-              <Text style={styles.comingSoonActionBtnText}>
-                👣 Go to Steps Tracking
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      )}
-
-      {/* Legacy All Activities View (Temporarily hidden per user instruction) */}
-      {false && activeTab === 'activities' && (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={[theme.colors.primary]}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {/* ==========================================
             SECTION 1: TODAY'S LOGGED EXERCISES
             ========================================== */}
@@ -586,7 +510,6 @@ export const DashboardScreen: React.FC = () => {
           );
         })()}
       </ScrollView>
-      )}
 
       {/* Celebration Modal */}
       <Modal

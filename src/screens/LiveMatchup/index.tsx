@@ -679,7 +679,7 @@ export const LiveMatchupScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#050C1B" />
       <LinearGradient
         colors={['#040A17', '#08152B', '#050D1E']}

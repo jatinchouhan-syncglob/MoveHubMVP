@@ -9,6 +9,7 @@ export const ROUTES = {
   DRAWER: 'DrawerNavigator',
   ASSESSMENT: 'Assessment',
   DASHBOARD: 'Dashboard',
+  GOOGLE_SYNC: 'GoogleSync',
   TELEMETRY_LOG: 'TelemetryLog',
   ACTIVITY_TRACKING: 'ActivityTracking',
   NUTRITIONAL_PROFILER: 'NutritionalProfiler',

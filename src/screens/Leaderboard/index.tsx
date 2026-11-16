@@ -29,7 +29,10 @@ import {
   Phase1LeaderboardItem,
   Phase2LeaderboardResponse,
   Phase2LeaderboardItem,
+  Phase1ChallengeEntry,
+  LeaderboardSSEData,
 } from '../../types';
+import { createLeaderboardSSE } from '../../services/leaderboardSSE';
 import Svg, { Path } from 'react-native-svg';
 
 // Enable LayoutAnimation for Android
@@ -100,6 +103,8 @@ export interface PhasePlayer {
   status: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER';
   statusLabel?: string;
   isDanger?: boolean;
+  belowAxeLine?: boolean;
+  dailyCmas?: string;
   breakdown?: {
     cmas?: number;
     bse?: number;
@@ -206,7 +211,7 @@ export const mapApiLeaderboardToPlayers = (
     const rawCmas = (item.CUMULATIVE_CMAS_100 && typeof item.CUMULATIVE_CMAS_100 === 'string') ? item.CUMULATIVE_CMAS_100.trim() : '';
     const cmasScore = rawCmas && !isNaN(parseFloat(rawCmas)) ? parseFloat(rawCmas) : 0;
     const rawStatus = (item.STATUS || '').trim().toUpperCase();
-    const isDanger = rawStatus.includes('ELIMINATED') || rawStatus.includes('DANGER');
+    const isDanger = rawStatus.includes('ELIMINATED') || rawStatus.includes('DANGER') || Boolean((item as any).BELOW_AXE_LINE);
 
     let status: 'ACTIVE' | 'CHAMPION' | 'PODIUM' | 'IN DANGER' = 'ACTIVE';
     if (isDanger) {
@@ -217,17 +222,17 @@ export const mapApiLeaderboardToPlayers = (
       status = 'PODIUM';
     }
 
-    const stepVolume = (item.STEP_VOLUME_COMPLIANCE && item.STEP_VOLUME_COMPLIANCE.trim()) ? item.STEP_VOLUME_COMPLIANCE.trim() : 'N/A';
-    const cardioIntensity = (item.CARDIO_INTENSITY_COMPLIANCE && item.CARDIO_INTENSITY_COMPLIANCE.trim()) ? item.CARDIO_INTENSITY_COMPLIANCE.trim() : 'N/A';
-    const sDexSeverity = (item.SEDENTARY_SDEX_SEVERITY && item.SEDENTARY_SDEX_SEVERITY.trim()) ? item.SEDENTARY_SDEX_SEVERITY.trim() : 'N/A';
+    const stepVolume = (item.STEP_VOLUME_COMPLIANCE && typeof item.STEP_VOLUME_COMPLIANCE === 'string' && item.STEP_VOLUME_COMPLIANCE.trim()) ? item.STEP_VOLUME_COMPLIANCE.trim() : 'N/A';
+    const cardioIntensity = (item.CARDIO_INTENSITY_COMPLIANCE && typeof item.CARDIO_INTENSITY_COMPLIANCE === 'string' && item.CARDIO_INTENSITY_COMPLIANCE.trim()) ? item.CARDIO_INTENSITY_COMPLIANCE.trim() : 'N/A';
+    const sDexSeverity = (item.SEDENTARY_SDEX_SEVERITY && typeof item.SEDENTARY_SDEX_SEVERITY === 'string' && item.SEDENTARY_SDEX_SEVERITY.trim()) ? item.SEDENTARY_SDEX_SEVERITY.trim() : 'N/A';
     const cumCmasDisplay = rawCmas || 'N/A';
-    const healthInference = (item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE && item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE.trim())
+    const healthInference = (item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE && typeof item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE === 'string' && item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE.trim())
       ? item.THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE.trim()
       : 'N/A';
-    const middayAlert = (item.MIDDAY_QUEST_ALERT && item.MIDDAY_QUEST_ALERT.trim()) ? item.MIDDAY_QUEST_ALERT.trim() : 'N/A';
-    const timestamp = (item['6AM_CALCULATION_TIMESTAMP'] && item['6AM_CALCULATION_TIMESTAMP'].trim()) ? item['6AM_CALCULATION_TIMESTAMP'].trim() : 'N/A';
-    const playerStatusLabel = (item.STATUS && item.STATUS.trim()) ? item.STATUS.trim() : 'N/A';
-    const behCumCmas = (item.BEHAVIORAL_TRACK_CUM_CMAS && item.BEHAVIORAL_TRACK_CUM_CMAS.trim()) ? item.BEHAVIORAL_TRACK_CUM_CMAS.trim() : (cumCmasDisplay !== 'N/A' ? `${cumCmasDisplay} / 100` : 'N/A');
+    const middayAlert = (item.MIDDAY_QUEST_ALERT && typeof item.MIDDAY_QUEST_ALERT === 'string' && item.MIDDAY_QUEST_ALERT.trim()) ? item.MIDDAY_QUEST_ALERT.trim() : 'N/A';
+    const timestamp = (item['6AM_CALCULATION_TIMESTAMP'] && typeof item['6AM_CALCULATION_TIMESTAMP'] === 'string' && item['6AM_CALCULATION_TIMESTAMP'].trim()) ? item['6AM_CALCULATION_TIMESTAMP'].trim() : 'N/A';
+    const playerStatusLabel = (item.STATUS && typeof item.STATUS === 'string' && item.STATUS.trim()) ? item.STATUS.trim() : 'N/A';
+    const behCumCmas = (item.BEHAVIORAL_TRACK_CUM_CMAS && typeof item.BEHAVIORAL_TRACK_CUM_CMAS === 'string' && item.BEHAVIORAL_TRACK_CUM_CMAS.trim()) ? item.BEHAVIORAL_TRACK_CUM_CMAS.trim() : (cumCmasDisplay !== 'N/A' ? `${cumCmasDisplay} / 100` : 'N/A');
 
     const behavioralTrack: PhaseTrack = {
       id: `t-beh-${userId}-${idx}`,
@@ -246,6 +251,17 @@ export const mapApiLeaderboardToPlayers = (
           statusTag: behCumCmas !== 'N/A' && cmasScore < 50 ? '🚨 IN DANGER' : 'ACTIVE',
           isDanger: behCumCmas !== 'N/A' && cmasScore < 50,
         },
+        ...(item.DAILY_CMAS && typeof item.DAILY_CMAS === 'string' && item.DAILY_CMAS.trim()
+          ? [
+              {
+                title: 'Daily CMAS Score',
+                weight: 'Today',
+                value: `${item.DAILY_CMAS.trim()} / 100`,
+                statusTag: parseFloat(item.DAILY_CMAS) < 50 ? '🚨 IN DANGER' : 'ACTIVE',
+                isDanger: parseFloat(item.DAILY_CMAS) < 50,
+              },
+            ]
+          : []),
         {
           title: 'Step Volume Compliance',
           weight: '40% Weight',
@@ -286,6 +302,8 @@ export const mapApiLeaderboardToPlayers = (
       status,
       statusLabel: playerStatusLabel,
       isDanger,
+      belowAxeLine: Boolean(item.BELOW_AXE_LINE),
+      dailyCmas: (item.DAILY_CMAS && typeof item.DAILY_CMAS === 'string') ? item.DAILY_CMAS.trim() : undefined,
       matrixTitle: 'BEHAVIORAL FOUNDATION MATRIX',
       tracks: [behavioralTrack],
       middayQuestAlert: middayAlert,
@@ -486,8 +504,187 @@ export const LeaderboardScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [leaderboardData, setLeaderboardData] = useState<Phase1LeaderboardResponse | null>(null);
   const [phase2LeaderboardData, setPhase2LeaderboardData] = useState<Phase2LeaderboardResponse | null>(null);
-  const [selectedChallengeId, setSelectedChallengeId] = useState<string>('');
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string>('ecfl_longevity_challenge_01');
   const [apiError, setApiError] = useState<string | null>(null);
+  const [currentUhid, setCurrentUhid] = useState<string>('');
+  const [sseConnectionKey, setSseConnectionKey] = useState<number>(0);
+
+  // Pre-load logged-in user UHID from storage immediately on mount
+  useEffect(() => {
+    storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE).then(cached => {
+      const id = cached?.uhid?.trim();
+      if (id) {
+        setCurrentUhid(id);
+      }
+    });
+  }, []);
+
+  // SSE Real-time Stream State (Phase 1)
+  const [sseStatus, setSseStatus] = useState<{
+    connected: boolean;
+    source?: string;
+    status?: string;
+    warning?: string;
+    lastUpdated?: string;
+    eventType?: 'snapshot' | 'update' | 'partial';
+  }>({
+    connected: false,
+  });
+
+  const handleSSELeaderboard = useCallback(
+    (data: LeaderboardSSEData, eventType: 'snapshot' | 'update' | 'partial') => {
+      console.log(
+        `[LeaderboardScreen] Received ${eventType} from SSE for challenge:`,
+        data?.challenge_id,
+        `Items count:`,
+        data?.board?.length,
+      );
+      if (!data) return;
+      let boardItems: Phase1LeaderboardItem[] =
+        data.board || (data as any).leaderboard || [];
+
+      // Merge my_drilldown data for the logged-in user if returned by backend
+      if (data.my_drilldown && data.my_drilldown.USER_ID) {
+        const drillUserId = data.my_drilldown.USER_ID.trim().toUpperCase();
+        let matched = false;
+        boardItems = boardItems.map(item => {
+          if (item.USER_ID && item.USER_ID.trim().toUpperCase() === drillUserId) {
+            matched = true;
+            return {
+              ...item,
+              ...data.my_drilldown,
+              RANK: item.RANK || data.my_drilldown?.RANK || '1',
+            };
+          }
+          return item;
+        });
+        if (!matched) {
+          boardItems.push(data.my_drilldown);
+        }
+      }
+
+      const source = data.meta?.score_source || data.meta?.source || (eventType === 'partial' ? 'postgres' : 'redis');
+      const status = data.meta?.status || (eventType === 'partial' ? 'partial' : 'complete');
+      const lastUpdated = data.meta?.calculated_at || data.meta?.last_record_update || new Date().toISOString();
+      const resolvedActiveDay = data.meta?.active_day ?? data.meta?.challenge_day ?? data.meta?.scored_challenge_day ?? 7;
+      const totalParticipants = data.meta?.total_participants ?? data.meta?.available_records ?? boardItems.length;
+      const rankedParticipants = data.meta?.ranked_participants ?? data.meta?.available_records ?? boardItems.length;
+
+      setSseStatus({
+        connected: true,
+        source,
+        status,
+        warning: data.meta?.warning,
+        lastUpdated,
+        eventType,
+      });
+
+      if (Array.isArray(boardItems) && boardItems.length > 0) {
+        setLeaderboardData(prev => {
+          const challengeId =
+            data.challenge_id || prev?.challenge_id || 'ecfl_longevity_challenge_01';
+          const activeDay =
+            data.meta?.active_day ?? data.meta?.challenge_day ?? data.meta?.scored_challenge_day ?? prev?.active_challenge_day ?? 7;
+
+          const updatedChallengeEntry: Phase1ChallengeEntry = {
+            challenge_id: challengeId,
+            data: {
+              challenge_id: challengeId,
+              active_challenge_day: activeDay,
+              participants: totalParticipants,
+              active_crew_participants: rankedParticipants,
+              leaderboard: boardItems,
+            },
+          };
+
+          const otherChallenges =
+            prev?.challenges?.filter(c => c.challenge_id !== challengeId) || [];
+
+          return {
+            ...prev,
+            challenge_id: challengeId,
+            active_challenge_day: activeDay,
+            participants: totalParticipants,
+            active_crew_participants: rankedParticipants,
+            source,
+            leaderboard: boardItems,
+            challenges: [updatedChallengeEntry, ...otherChallenges],
+          };
+        });
+
+        if (resolvedActiveDay && activePhase === 1) {
+          setSelectedDay(resolvedActiveDay);
+        }
+      }
+
+      setLoading(false);
+      setRefreshing(false);
+    },
+    [activePhase],
+  );
+
+  // Connect to SSE stream when in Phase 1
+  useEffect(() => {
+    if (activePhase !== 1) {
+      setSseStatus(prev => ({ ...prev, connected: false }));
+      return;
+    }
+
+    // Only show full loading spinner if we don't have any leaderboard data yet
+    if (!leaderboardData) {
+      setLoading(true);
+    }
+    const targetChallenge = selectedChallengeId || 'ecfl_longevity_challenge_01';
+    const activeUhid = (currentUhid || userProfile?.uhid || '').trim();
+    console.log(`[LeaderboardScreen] Connecting to SSE Stream: ${targetChallenge} with UHID: "${activeUhid}" (cycle: ${sseConnectionKey})`);
+
+    // Safety timeout in case network blocks or stream is slow
+    const timeoutTimer = setTimeout(() => {
+      setLoading(false);
+      setRefreshing(false);
+    }, 4000);
+
+    const sse = createLeaderboardSSE(
+      targetChallenge,
+      {
+        onSnapshot: data => {
+          clearTimeout(timeoutTimer);
+          handleSSELeaderboard(data, 'snapshot');
+        },
+        onUpdate: data => {
+          clearTimeout(timeoutTimer);
+          handleSSELeaderboard(data, 'update');
+        },
+        onPartial: data => {
+          clearTimeout(timeoutTimer);
+          handleSSELeaderboard(data, 'partial');
+        },
+        onConnected: () => {
+          setSseStatus(prev => ({ ...prev, connected: true }));
+        },
+        onOpen: () => {
+          setSseStatus(prev => ({ ...prev, connected: true }));
+        },
+        onError: err => {
+          console.warn('[LeaderboardScreen] SSE error, continuing with fallback:', err);
+          setSseStatus(prev => ({ ...prev, connected: false }));
+          clearTimeout(timeoutTimer);
+          setLoading(false);
+          setRefreshing(false);
+        },
+        onClose: () => {
+          setSseStatus(prev => ({ ...prev, connected: false }));
+        },
+      },
+      activeUhid,
+    );
+
+    return () => {
+      clearTimeout(timeoutTimer);
+      console.log(`[LeaderboardScreen] Disconnecting SSE Stream: ${targetChallenge}`);
+      sse.close();
+    };
+  }, [activePhase, selectedChallengeId, handleSSELeaderboard, sseConnectionKey, currentUhid, userProfile?.uhid]);
 
   // Close dropdown when drawer opens to prevent overlapping
   useEffect(() => {
@@ -499,7 +696,9 @@ export const LeaderboardScreen: React.FC = () => {
   // Load user data & API leaderboards (Phase 1 & Phase 2)
   const loadData = async () => {
     try {
-      setLoading(true);
+      if (!leaderboardData) {
+        setLoading(true);
+      }
       setApiError(null);
 
       let profileData: UserProfile | null = null;
@@ -511,51 +710,19 @@ export const LeaderboardScreen: React.FC = () => {
       }
 
       const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
-      const targetUhid = profileData?.uhid || cachedProfile?.uhid;
+      const targetUhid = (profileData?.uhid || cachedProfile?.uhid || '').trim();
+      if (targetUhid) {
+        setCurrentUhid(targetUhid);
+      }
 
       if (!targetUhid) {
         console.warn('[Leaderboard] No UHID found for logged in user');
         setLoading(false);
+        setRefreshing(false);
         return;
       }
 
-      console.log(`[Leaderboard] Fetching Leaderboards for UHID: ${targetUhid}`);
-      const [p1Result, p2Result] = await Promise.allSettled([
-        apiService.getPhase1Leaderboard(targetUhid),
-        apiService.getPhase2Leaderboard(targetUhid),
-      ]);
-
-      if (p1Result.status === 'fulfilled') {
-        const val = p1Result.value;
-        setLeaderboardData(val);
-        if (val?.challenges && val.challenges.length > 0) {
-          setSelectedChallengeId(prev => {
-            const exists = val.challenges?.some(c => c.challenge_id === prev);
-            return exists ? prev : val.challenges![0].challenge_id;
-          });
-          const day = val.challenges[0]?.data?.active_challenge_day;
-          if (day && activePhase === 1) {
-            setSelectedDay(day);
-          }
-        } else if (val?.active_challenge_day && activePhase === 1) {
-          setSelectedDay(val.active_challenge_day);
-        }
-      } else {
-        console.warn('[Leaderboard] Phase 1 fetch failed:', p1Result.reason);
-      }
-
-      if (p2Result.status === 'fulfilled') {
-        setPhase2LeaderboardData(p2Result.value);
-        if (p2Result.value?.active_challenge_day && activePhase === 2) {
-          setSelectedDay(p2Result.value.active_challenge_day);
-        }
-      } else {
-        console.warn('[Leaderboard] Phase 2 fetch failed:', p2Result.reason);
-      }
-
-      if (p1Result.status === 'rejected' && p2Result.status === 'rejected') {
-        setApiError('Failed to fetch leaderboard data.');
-      }
+      // Phase 1 is handled in real-time via SSE streaming.
     } catch (error: any) {
       console.error('Failed to load leaderboard data:', error);
       setApiError(error?.message || 'Failed to fetch leaderboard data.');
@@ -573,7 +740,29 @@ export const LeaderboardScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    // Refresh user profile in background
+    try {
+      const profileData = await apiService.getProfile();
+      if (profileData) setUserProfile(profileData);
+      const cachedProfile = await storageHelper.getItem<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      const targetUhid = (profileData?.uhid || cachedProfile?.uhid || '').trim();
+      if (targetUhid) {
+        setCurrentUhid(targetUhid);
+      }
+    } catch (err) {
+      console.warn('[Leaderboard] Refresh error:', err);
+    }
+
+    // In Phase 1, trigger fresh SSE connection cycle so latest data is fetched immediately
+    if (activePhase === 1) {
+      setSseConnectionKey(prev => prev + 1);
+    }
+
+    // Dismiss refreshing indicator after 1.2s to ensure UI never freezes (old data remains visible)
+    setTimeout(() => {
+      setRefreshing(false);
+      setLoading(false);
+    }, 1200);
   };
 
   // Get active Phase 1 challenge entry
@@ -589,7 +778,9 @@ export const LeaderboardScreen: React.FC = () => {
 
   // Get players list for current active phase
   const getPhasePlayers = (): PhasePlayer[] => {
-    // Phase 1: Dynamic Data mapped from Backend POST API
+    const effectiveUhid = currentUhid || userProfile?.uhid;
+
+    // Phase 1: Dynamic Data mapped from Backend SSE Stream
     if (activePhase === 1) {
       if (!leaderboardData) {
         return [];
@@ -607,7 +798,7 @@ export const LeaderboardScreen: React.FC = () => {
 
       return mapApiLeaderboardToPlayers(
         items,
-        userProfile?.uhid,
+        effectiveUhid,
         userProfile?.name,
       );
     }
@@ -1122,17 +1313,17 @@ export const LeaderboardScreen: React.FC = () => {
         </View>
 
         {/* Leaderboard Rows with Dynamic Data & Progressive Disclosure */}
-        {activePhase === 3 ? (
+        {activePhase >= 2 ? (
           <View style={styles.unavailableCard}>
             <Text style={styles.unavailableIcon}>🔒</Text>
             <Text style={styles.unavailableTitle}>
-              Phase 3 API Not Available (N/A)
+              Phase {activePhase} API Not Available (N/A)
             </Text>
             <Text style={styles.unavailableSub}>
-              Currently Phase 1 (Days 1–7) and Phase 2 (Days 8–14) are supported by the leaderboard backend. Phase 3 will unlock once stage 3 finale backend data is published.
+              Currently Phase 1 (Days 1–7) is supported with real-time SSE streaming. Phase {activePhase} will unlock once the backend deploys its live stream endpoint.
             </Text>
           </View>
-        ) : loading ? (
+        ) : (loading && !leaderboardData) ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Fetching live Phase {activePhase} Leaderboard...</Text>
@@ -1158,26 +1349,54 @@ export const LeaderboardScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          filteredPlayers.map((player, index) => {
-            const rankNumber = player.rank ?? (index + 1);
-            const isUser = !!player.isCurrentUser;
-            const isDanger = !!player.isDanger || player.status === 'IN DANGER';
-
-            // Check if we need to render the Axe Line after this row
-            const isAxeLineAfterThisRow = rankNumber === activePhaseConfig.axeLineCutRank;
+          (() => {
+            const firstDangerIndex = filteredPlayers.findIndex(
+              p => p.belowAxeLine || p.isDanger || p.status === 'IN DANGER' || (p.masterScore < 50)
+            );
 
             return (
-              <React.Fragment key={player.id}>
-                {/* Layer 1: Viewport Grid Row */}
-                <TouchableOpacity
-                  style={[
-                    styles.playerRowCard,
-                    isUser && styles.userRowHighlight,
-                    isDanger && styles.dangerRowHighlight,
-                  ]}
-                  onPress={() => handleOpenPlayerDetails(player)}
-                  activeOpacity={0.75}
-                >
+              <>
+                {/* If all participants are in danger, show the Axe Line once at the top */}
+                {firstDangerIndex === 0 && (
+                  <View style={[styles.axeLineContainer, { marginTop: 4, marginBottom: 12 }]}>
+                    <View style={styles.axeLineBar} />
+                    <View style={styles.axeLineBadge}>
+                      <Text style={styles.axeLineText}>
+                        {activePhaseConfig.axeLineLabel}
+                      </Text>
+                    </View>
+                    <View style={styles.axeLineBar} />
+                  </View>
+                )}
+
+                {filteredPlayers.map((player, index) => {
+                  const rankNumber = player.rank ?? (index + 1);
+                  const effectiveUhid = (currentUhid || userProfile?.uhid || '').trim().toUpperCase();
+                  const playerUserId = (player.userId || '').trim().toUpperCase();
+                  const isUser = Boolean(
+                    player.isCurrentUser ||
+                    (effectiveUhid && playerUserId && playerUserId === effectiveUhid)
+                  );
+                  const isDanger = !!player.isDanger || player.status === 'IN DANGER';
+
+                  // Only render the Axe Line once between safe and danger zone
+                  const isAxeLineAfterThisRow = firstDangerIndex > 0
+                    ? index === firstDangerIndex - 1
+                    : (firstDangerIndex === -1 && index === activePhaseConfig.axeLineCutRank - 1);
+
+                  return (
+                    <React.Fragment key={player.id}>
+                      {/* Layer 1: Viewport Grid Row */}
+                      <TouchableOpacity
+                        style={[
+                          styles.playerRowCard,
+                          isUser && styles.userRowHighlight,
+                          isDanger && styles.dangerRowHighlight,
+                        ]}
+                        onPress={isUser ? () => handleOpenPlayerDetails(player) : undefined}
+                        activeOpacity={isUser ? 0.75 : 1}
+                        disabled={!isUser}
+                      >
                   <View style={styles.rowMain}>
                     {/* Rank Badge */}
                     <View
@@ -1196,7 +1415,7 @@ export const LeaderboardScreen: React.FC = () => {
                           isDanger && styles.rankTextDanger,
                         ]}
                       >
-                        {rankNumber === 1 ? '🥇' : rankNumber === 2 ? '🥈' : rankNumber === 3 ? '🥉' : `#${rankNumber}`}
+                        {rankNumber}
                       </Text>
                     </View>
 
@@ -1228,16 +1447,28 @@ export const LeaderboardScreen: React.FC = () => {
                           <Text style={styles.dangerScoreText}>
                             {player.scoreDisplay || `[ ${player.masterScore.toFixed(1)} ]`}
                           </Text>
+                          {player.dailyCmas ? (
+                            <Text style={styles.dailyScoreSubText}>
+                              D: {player.dailyCmas}
+                            </Text>
+                          ) : null}
                         </View>
                       ) : (
-                        <Text
-                          style={[
-                            styles.masterScoreText,
-                            rankNumber === 1 && styles.masterScoreFirst,
-                          ]}
-                        >
-                          {player.masterScore.toFixed(1)}
-                        </Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text
+                            style={[
+                              styles.masterScoreText,
+                              rankNumber === 1 && styles.masterScoreFirst,
+                            ]}
+                          >
+                            {player.masterScore.toFixed(1)}
+                          </Text>
+                          {player.dailyCmas ? (
+                            <Text style={styles.dailyScoreSubText}>
+                              D: {player.dailyCmas}
+                            </Text>
+                          ) : null}
+                        </View>
                       )}
                     </View>
 
@@ -1267,14 +1498,16 @@ export const LeaderboardScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* Direct Action Indicator */}
-                  <View style={styles.expandChevronRow}>
-                    <View style={styles.userExpandPrompt}>
-                      <Text style={styles.userExpandChevronText}>
-                        📊 Tap to view personalized biometric details ➔
-                      </Text>
+                  {/* Direct Action Indicator - Only for logged-in user with matching UHID */}
+                  {isUser && (
+                    <View style={styles.expandChevronRow}>
+                      <View style={styles.userExpandPrompt}>
+                        <Text style={styles.userExpandChevronText}>
+                          📊 Tap to view personalized biometric details ➔
+                        </Text>
+                      </View>
                     </View>
-                  </View>
+                  )}
                 </TouchableOpacity>
 
                 {/* High-Stakes Neon Axe Line */}
@@ -1291,7 +1524,10 @@ export const LeaderboardScreen: React.FC = () => {
                 )}
               </React.Fragment>
             );
-          })
+          })}
+        </>
+      );
+    })()
         )}
       </ScrollView>
     </SafeAreaView>
@@ -1302,6 +1538,75 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B0F19',
+  },
+  sseStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sseStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  sseLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  sseLiveDotFallback: {
+    backgroundColor: '#F59E0B',
+  },
+  sseStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    letterSpacing: 0.3,
+  },
+  sseMetaBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  sseMetaBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#38BDF8',
+    textTransform: 'uppercase',
+  },
+  sseWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    gap: 6,
+  },
+  sseWarningText: {
+    fontSize: 10.5,
+    color: '#FBBF24',
+    flex: 1,
+    lineHeight: 14,
   },
   dropdownWrapper: {
     marginHorizontal: 12,
@@ -1674,8 +1979,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
   },
   rankBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '800' as any,
     color: '#FFFFFF',
   },
   rankTextFirst: {
@@ -1744,6 +2049,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#EF4444',
+  },
+  dailyScoreSubText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginTop: 2,
   },
   statusCol: {
     width: 85,

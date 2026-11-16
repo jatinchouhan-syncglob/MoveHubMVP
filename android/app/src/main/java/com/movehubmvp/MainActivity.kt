@@ -6,6 +6,9 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnable
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 import android.os.Bundle
+import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import dev.matinzd.healthconnect.permissions.HealthConnectPermissionDelegate
 
 class MainActivity : ReactActivity() {
@@ -13,6 +16,14 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     HealthConnectPermissionDelegate.setPermissionDelegate(this)
+
+    // Ensure the Android system navigation bar (3-button or gesture bar) never overlaps the app content
+    val contentView = findViewById<View>(android.R.id.content)
+    ViewCompat.setOnApplyWindowInsetsListener(contentView) { v, insets ->
+      val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+      v.setPadding(0, 0, 0, navBarInsets.bottom)
+      insets
+    }
   }
 
   /**

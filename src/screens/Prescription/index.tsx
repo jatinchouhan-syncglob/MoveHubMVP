@@ -401,7 +401,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
         {loading && !refreshing && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#38BDF8" />
-            <Text style={styles.loadingText}>Loading prescription telemetry...</Text>
+            <Text style={styles.loadingText}>Loading exercise strategies...</Text>
           </View>
         )}
 
@@ -409,7 +409,7 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
         {!loading && error && !prescriptionData && (
           <View style={styles.errorCard}>
             <Text style={styles.errorIcon}>⚠️</Text>
-            <Text style={styles.errorTitle}>Prescription Offline</Text>
+            <Text style={styles.errorTitle}>Exercise Strategies Offline</Text>
             <Text style={styles.errorDesc}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -440,47 +440,6 @@ export const PrescriptionScreen: React.FC<PrescriptionScreenProps> = ({
                   <Text style={styles.bioCardMainTitle}>
                     Biometric Exercise Strategies
                   </Text>
-                </View>
-
-                {/* Patient Meta Strip */}
-                <View style={styles.bioPatientMetaBox}>
-                  <View style={styles.bioMetaChipsRow}>
-                    <View style={styles.bioMetaChip}>
-                      <Text style={styles.bioMetaChipLabel}>
-                        UHID: <Text style={styles.bioMetaChipValue}>{renderValueOrNA(displayUhid)}</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.bioMetaChip}>
-                      <Text style={styles.bioMetaChipLabel}>
-                        Age: <Text style={styles.bioMetaChipValue}>
-                          {patientMeta?.age !== undefined && patientMeta?.age !== null
-                            ? `${patientMeta.age} yrs`
-                            : 'N/A'}
-                        </Text>
-                      </Text>
-                    </View>
-                    <View style={styles.bioMetaChip}>
-                      <Text style={styles.bioMetaChipLabel}>
-                        Sex: <Text style={styles.bioMetaChipValue}>{renderValueOrNA(patientMeta?.sex)}</Text>
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.bioProfileModeRow}>
-                    <View
-                      style={[
-                        styles.bioProfileDot,
-                        {
-                          backgroundColor:
-                            patientMeta?.profileMode && patientMeta.profileMode !== 'ASSESSMENT REQUIRED'
-                              ? '#10B981'
-                              : '#F59E0B',
-                        },
-                      ]}
-                    />
-                    <Text style={styles.bioProfileModeText}>
-                      Profile: {renderValueOrNA(patientMeta?.profileMode, 'Data not available')}
-                    </Text>
-                  </View>
                 </View>
 
                 {/* Weekly Tracking Window */}

@@ -69,11 +69,6 @@ export const JoinSuccessModal: React.FC<JoinSuccessModalProps> = ({
               </View>
             ) : null}
 
-            <View style={styles.modalSummaryRow}>
-              <Text style={styles.modalSummaryLabel}>YOUR UHID:</Text>
-              <Text style={styles.modalSummaryValue}>{uhid}</Text>
-            </View>
-
             {data.location || data.city ? (
               <View style={styles.modalSummaryRow}>
                 <Text style={styles.modalSummaryLabel}>LOCATION:</Text>

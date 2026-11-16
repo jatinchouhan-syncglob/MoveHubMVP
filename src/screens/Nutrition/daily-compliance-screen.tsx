@@ -58,7 +58,7 @@ export const DailyComplianceScreen: React.FC = () => {
       : 'Below Target ⚠️';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <CustomHeader
         title="Daily Compliance"
         showDrawerButton

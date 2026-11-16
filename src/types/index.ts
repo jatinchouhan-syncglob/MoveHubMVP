@@ -50,15 +50,93 @@ export interface LeaderboardEntry {
 export interface Phase1LeaderboardItem {
   RANK: string;
   USER_ID: string;
+  DAILY_CMAS?: string;
   CUMULATIVE_CMAS_100: string;
   STATUS: string;
-  BEHAVIORAL_TRACK_CUM_CMAS: string;
-  STEP_VOLUME_COMPLIANCE: string;
-  CARDIO_INTENSITY_COMPLIANCE: string;
-  SEDENTARY_SDEX_SEVERITY: string;
-  THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE: string;
-  MIDDAY_QUEST_ALERT: string;
-  '6AM_CALCULATION_TIMESTAMP': string;
+  BELOW_AXE_LINE?: boolean;
+  BEHAVIORAL_TRACK_CUM_CMAS?: string;
+  STEP_VOLUME_COMPLIANCE?: string;
+  CARDIO_INTENSITY_COMPLIANCE?: string;
+  SEDENTARY_SDEX_SEVERITY?: string;
+  THREE_DAY_CUMULATIVE_BEHAVIORAL_HEALTH_INFERENCE?: string;
+  MIDDAY_QUEST_ALERT?: string;
+  '6AM_CALCULATION_TIMESTAMP'?: string;
+}
+
+export interface LeaderboardSSEMeta {
+  source?: 'postgres' | 'redis' | string;
+  score_source?: string;
+  status?: 'partial' | 'complete' | string;
+  complete?: boolean;
+  challenge_day?: number;
+  active_day?: number;
+  scored_challenge_day?: number;
+  is_current_day?: boolean;
+  phase_total_days?: number;
+  tournament_total_days?: number;
+  available_records?: number;
+  ranked_participants?: number;
+  total_participants?: number;
+  cutoff_at?: string;
+  calculated_at?: string;
+  last_record_update?: string;
+  warning?: string;
+  rank_scope?: string;
+  missing_participants?: string[];
+  reason?: string;
+  axe_line_threshold?: number;
+}
+
+export interface LeaderboardSSEData {
+  challenge_id: string;
+  board: Phase1LeaderboardItem[];
+  meta?: LeaderboardSSEMeta;
+  my_drilldown?: Phase1LeaderboardItem | null;
+}
+
+export interface QuestArenaLeakDetector {
+  CURRENT_STREAK_PENALTY_PTS?: number;
+  CURRENT_STREAK_DISPLAY?: string;
+  CURRENT_STREAK_ACTIVE_BLOCK?: boolean;
+  CUMULATIVE_DAILY_PENALTY_PTS?: number;
+  CUMULATIVE_DAILY_DISPLAY?: string;
+  TOTAL_BREACH_BLOCKS_TODAY?: number;
+  PERSONAL_WAKING_HOURS?: number;
+  INACTIVE_WAKING_HOURS?: number;
+  BASE_SEDENTARY_RATIO_PCT?: number;
+  LIVE_RAW_SDEX_SCORE?: number;
+  NEXT_PENALTY_AT_MINS?: number;
+  MINS_UNTIL_NEXT_PENALTY?: number;
+  WAKING_WINDOW_START_DISPLAY?: string;
+  WAKING_WINDOW_BEDTIME_DISPLAY?: string;
+}
+
+export interface QuestArenaDailyPushCap {
+  USED?: number;
+  MAX?: number;
+  MEETING_MUTE_ACTIVE?: boolean;
+  BEDTIME_DISPLAY?: string;
+}
+
+export interface QuestArenaPushNotification {
+  SHOULD_NOTIFY?: boolean;
+  TITLE?: string;
+  BODY?: string;
+}
+
+export interface QuestArenaSSEData {
+  UHID?: string;
+  STATUS?: string;
+  CONTINUOUS_SITTING_MINS?: number;
+  ALERT_THRESHOLD_MINS?: number;
+  PENALTY_LIMIT_MINS?: number;
+  QUEST_MESSAGE?: string;
+  DAILY_PUSH_CAP?: QuestArenaDailyPushCap;
+  ARENA_LEAK_DETECTOR?: QuestArenaLeakDetector;
+  PUSH_NOTIFICATION?: QuestArenaPushNotification;
+  EVALUATED_AT_IST?: string;
+  WAKE_ANCHOR_SOURCE?: string;
+  WAKE_ANCHOR_AT_IST?: string;
 }
 
 export interface Phase1ChallengeData {

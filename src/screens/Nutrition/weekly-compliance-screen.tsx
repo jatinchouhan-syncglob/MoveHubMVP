@@ -47,7 +47,7 @@ export const WeeklyComplianceScreen: React.FC = () => {
       : 'Needs Improvement ⚠️';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <CustomHeader
         title="Weekly Compliance"
         showDrawerButton

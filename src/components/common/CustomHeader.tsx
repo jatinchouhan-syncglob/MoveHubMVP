@@ -1,9 +1,11 @@
-import React, { useContext } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useRef, useState } from 'react';
+import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { theme } from '../../theme';
 import DrawerContext from '../../navigation/DrawerContext';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { ProfileTooltip } from './ProfileTooltip';
+import { ROUTES } from '../../constants/routes';
 
 interface CustomHeaderProps {
   title: string;
@@ -15,6 +17,7 @@ interface CustomHeaderProps {
   buttonStyle?: any;
   iconStyle?: any;
   onBackPress?: () => void;
+  onProfilePress?: () => void;
 }
 
 export const CustomHeader: React.FC<CustomHeaderProps> = ({
@@ -27,9 +30,16 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   buttonStyle,
   iconStyle,
   onBackPress,
+  onProfilePress,
 }) => {
   const navigation = useNavigation<any>();
   const drawer = useContext(DrawerContext);
+  const profileBtnRef = useRef<View>(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [anchorPos, setAnchorPos] = useState<{ top: number; right: number }>({
+    top: Platform.OS === 'ios' ? 62 : 56,
+    right: 14,
+  });
 
   const handleBack = () => {
     if (onBackPress) {
@@ -42,8 +52,36 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   };
 
   const handleProfilePress = () => {
+    if (onProfilePress) {
+      onProfilePress();
+      return;
+    }
+
+    if (profileBtnRef.current?.measureInWindow) {
+      profileBtnRef.current.measureInWindow((x, y, width, height) => {
+        if (typeof y === 'number' && !isNaN(y) && y >= 0) {
+          const screenWidth = Dimensions.get('window').width;
+          const right = Math.max(10, screenWidth - (x + width));
+          const top = y + height + 6;
+          setAnchorPos({ top, right });
+        }
+        setTooltipVisible(true);
+      });
+    } else {
+      setTooltipVisible(true);
+    }
+  };
+
+  const handleSeeMore = () => {
+    setTooltipVisible(false);
     if (drawer) {
       drawer.setActiveScreen('ServiceProviders');
+    } else {
+      try {
+        navigation.navigate(ROUTES.SERVICE_PROVIDERS);
+      } catch (e) {
+        navigation.navigate(ROUTES.PROFILE);
+      }
     }
   };
 
@@ -96,30 +134,39 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
         {rightComponent ? (
           rightComponent
         ) : showDrawerButton ? (
-          <TouchableOpacity onPress={handleProfilePress} style={styles.profileHeaderBtn} activeOpacity={0.7}>
-            <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
-                stroke="#FFFFFF"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <Circle
-                cx="12"
-                cy="7"
-                r="4"
-                stroke="#FFFFFF"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </TouchableOpacity>
+          <View ref={profileBtnRef} collapsable={false}>
+            <TouchableOpacity onPress={handleProfilePress} style={styles.profileHeaderBtn} activeOpacity={0.7}>
+              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+                  stroke="#FFFFFF"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Circle
+                  cx="12"
+                  cy="7"
+                  r="4"
+                  stroke="#FFFFFF"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={styles.buttonPlaceholder} />
         )}
       </View>
+
+      <ProfileTooltip
+        visible={tooltipVisible}
+        onClose={() => setTooltipVisible(false)}
+        onSeeMore={handleSeeMore}
+        anchorPosition={anchorPos}
+      />
     </View>
   );
 };

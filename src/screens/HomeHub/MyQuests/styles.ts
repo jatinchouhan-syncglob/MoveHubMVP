@@ -237,16 +237,20 @@ export const styles = ScaledSheet.create({
     paddingHorizontal: '12@ms',
     paddingVertical: '8@ms',
     marginBottom: '12@ms',
+    gap: 8,
   },
   questTargetLabel: {
+    flex: 1,
     fontSize: '11@ms',
     fontWeight: '600',
     color: '#94A3B8',
+    marginRight: 6,
   },
   questTargetValue: {
     fontSize: '12@ms',
     fontWeight: '800',
     color: '#F8FAFC',
+    textAlign: 'right',
   },
   questActionBtn: {
     flexDirection: 'row',

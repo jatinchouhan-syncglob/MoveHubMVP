@@ -202,7 +202,7 @@ export const ArenaScreen: React.FC = () => {
 
   if (loading && arenas.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <CustomHeader
           title="Arena"
           showDrawerButton
@@ -220,7 +220,7 @@ export const ArenaScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Top Header with Drawer Toggle */}
       <CustomHeader
         title="Arena"

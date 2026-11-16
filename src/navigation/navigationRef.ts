@@ -42,6 +42,12 @@ export function subscribeDashboardTab(listener: (tab: DashboardTab) => void) {
   };
 }
 
+export function navigateToGoogleSync() {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('DrawerNavigator', { screen: 'GoogleSync' });
+  }
+}
+
 export function navigateToDashboardSteps() {
   setGlobalDashboardTab('steps');
   if (navigationRef.isReady()) {

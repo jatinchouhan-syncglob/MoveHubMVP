@@ -100,9 +100,6 @@ const getActivityEmoji = (
 };
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const ITEM_HEIGHT = 60;
-const MINUTES_LIST = Array.from({ length: 90 }, (_, i) => i + 1);
-const PICKER_DATA = ['', ...MINUTES_LIST, ''];
 
 export const ActivityTrackingScreen: React.FC = () => {
   const { setActiveScreen } = useDrawer();
@@ -214,8 +211,62 @@ export const ActivityTrackingScreen: React.FC = () => {
   const trackRef = useRef<any>(null);
   const trackLeftOffset = useRef(0);
   const trackWidth = useRef(0);
-  const flatListRef = useRef<any>(null);
   const animValue = useRef(new Animated.Value(0)).current;
+
+  // Duration Slider PanResponder
+  const durationTrackRef = useRef<any>(null);
+  const durationTrackLeftOffset = useRef(0);
+  const durationTrackWidth = useRef(0);
+
+  const durationPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: (evt, gestureState) => {
+        setParentScrollEnabled(false);
+        durationTrackRef.current?.measure(
+          (
+            x: number,
+            y: number,
+            width: number,
+            height: number,
+            pageXOffset: number,
+          ) => {
+            if (width > 0) {
+              durationTrackLeftOffset.current = pageXOffset;
+              durationTrackWidth.current = width;
+              const relativeX = evt.nativeEvent.pageX - pageXOffset;
+              const pct = Math.max(0, Math.min(1, relativeX / width));
+              const mins = Math.max(1, Math.min(120, Math.round(1 + pct * 119)));
+              setDuration(mins.toString());
+            }
+          },
+        );
+        if (durationTrackWidth.current > 0 && durationTrackLeftOffset.current > 0) {
+          const relativeX = evt.nativeEvent.pageX - durationTrackLeftOffset.current;
+          const pct = Math.max(0, Math.min(1, relativeX / durationTrackWidth.current));
+          const mins = Math.max(1, Math.min(120, Math.round(1 + pct * 119)));
+          setDuration(mins.toString());
+        }
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (durationTrackWidth.current > 0) {
+          const relativeX = gestureState.moveX - durationTrackLeftOffset.current;
+          const pct = Math.max(0, Math.min(1, relativeX / durationTrackWidth.current));
+          const mins = Math.max(1, Math.min(120, Math.round(1 + pct * 119)));
+          setDuration(mins.toString());
+        }
+      },
+      onPanResponderRelease: () => {
+        setParentScrollEnabled(true);
+      },
+      onPanResponderTerminate: () => {
+        setParentScrollEnabled(true);
+      },
+    }),
+  ).current;
 
   // Custom PanResponder for RPE Slider
   const panResponder = useRef(
@@ -225,6 +276,7 @@ export const ActivityTrackingScreen: React.FC = () => {
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: (evt, gestureState) => {
+        setParentScrollEnabled(false);
         trackRef.current?.measure(
           (
             x: number,
@@ -253,6 +305,12 @@ export const ActivityTrackingScreen: React.FC = () => {
           const newRpe = Math.min(10, Math.max(1, Math.round(pct * 9 + 1)));
           setSliderVal(newRpe);
         }
+      },
+      onPanResponderRelease: () => {
+        setParentScrollEnabled(true);
+      },
+      onPanResponderTerminate: () => {
+        setParentScrollEnabled(true);
       },
     }),
   ).current;
@@ -863,10 +921,22 @@ export const ActivityTrackingScreen: React.FC = () => {
         ''
       ).toLowerCase();
 
+      const mTypeUpper = String(catalogItem.metricType || '').toUpperCase();
+      const isExplicitDuration =
+        mTypeUpper.includes('DURATION') || mTypeUpper.includes('TIME');
+      const isExplicitDistance =
+        mTypeUpper === 'DISTANCE_BASED' || mTypeUpper.includes('DISTANCE');
+      const isExplicitRepetition =
+        mTypeUpper === 'REPETITION_BASED' || mTypeUpper.includes('REPETITION');
+
       let category: 'distance' | 'strength' | 'duration' = 'duration';
       let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
 
-      if (
+      if (isExplicitDuration) {
+        category = 'duration';
+        metric = 'mins';
+      } else if (
+        isExplicitDistance ||
         nameLower.includes('walk') ||
         nameLower.includes('run') ||
         nameLower.includes('cycle') ||
@@ -874,8 +944,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         nameLower.includes('hike') ||
         nameLower.includes('jog') ||
         catLower.includes('bicycling') ||
-        catLower.includes('running') ||
-        catalogItem.metricType === 'DISTANCE_BASED'
+        catLower.includes('running')
       ) {
         category = 'distance';
         if (nameLower.includes('walk')) {
@@ -886,6 +955,7 @@ export const ActivityTrackingScreen: React.FC = () => {
           metric = 'km';
         }
       } else if (
+        isExplicitRepetition ||
         catLower.includes('strength') ||
         catLower.includes('weight') ||
         catLower.includes('resistance') ||
@@ -915,6 +985,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         baseMET: catalogItem.baseMet || 4.0,
         metric,
         category,
+        metricType: catalogItem.metricType,
         color: catalogItem.categoryName?.toLowerCase().includes('conditioning')
           ? '#DB2777'
           : '#0EA5E9',
@@ -950,6 +1021,14 @@ export const ActivityTrackingScreen: React.FC = () => {
       const name = selectedDynamicActivity.activityName;
       const baseMET = selectedDynamicActivity.baseMet || 4.0;
 
+      const mTypeUpper = String(selectedDynamicActivity.metricType || '').toUpperCase();
+      const isExplicitDuration =
+        mTypeUpper.includes('DURATION') || mTypeUpper.includes('TIME');
+      const isExplicitDistance =
+        mTypeUpper === 'DISTANCE_BASED' || mTypeUpper.includes('DISTANCE');
+      const isExplicitRepetition =
+        mTypeUpper === 'REPETITION_BASED' || mTypeUpper.includes('REPETITION');
+
       let category: 'distance' | 'strength' | 'duration' = 'duration';
       let metric: 'km' | 'steps' | 'm' | 'mins' | 'reps' | 'sets' = 'mins';
 
@@ -958,7 +1037,11 @@ export const ActivityTrackingScreen: React.FC = () => {
       ).toLowerCase();
       const nameLower = name.toLowerCase();
 
-      if (
+      if (isExplicitDuration) {
+        category = 'duration';
+        metric = 'mins';
+      } else if (
+        isExplicitDistance ||
         nameLower.includes('walk') ||
         nameLower.includes('run') ||
         nameLower.includes('cycle') ||
@@ -977,6 +1060,7 @@ export const ActivityTrackingScreen: React.FC = () => {
           metric = 'km';
         }
       } else if (
+        isExplicitRepetition ||
         catLower.includes('strength') ||
         catLower.includes('weight') ||
         catLower.includes('resistance') ||
@@ -1002,6 +1086,7 @@ export const ActivityTrackingScreen: React.FC = () => {
         baseMET,
         metric,
         category,
+        metricType: selectedDynamicActivity.metricType,
         color: theme.colors.primary,
       };
     }
@@ -1015,32 +1100,43 @@ export const ActivityTrackingScreen: React.FC = () => {
       color: theme.colors.primary,
     };
   })();
-  const isDistanceBased = activeRegistryItem?.category === 'distance';
-  const isRepetitionBased =
-    activeRegistryItem?.category === 'strength' ||
-    activeRegistryItem?.metric === 'sets' ||
-    activeRegistryItem?.metric === 'reps' ||
-    selectedDynamicActivity?.metricType === 'REPETITION_BASED' ||
-    (selectedDynamicActivity?.displayName || '').includes(
-      'Resistance (weight lifting',
-    ) ||
-    activityType.includes('Resistance (weight lifting');
+
+  const rawMetricType = String(
+    selectedDynamicActivity?.metricType ||
+    (activeRegistryItem as any)?.metricType ||
+    ''
+  ).toUpperCase();
+
+  const isDurationBased = Boolean(
+    rawMetricType.includes('DURATION') ||
+    rawMetricType.includes('TIME') ||
+    activeRegistryItem?.category === 'duration' ||
+    activeRegistryItem?.metric === 'mins'
+  );
+
+  const isDistanceBased = Boolean(
+    !isDurationBased &&
+    (rawMetricType.includes('DISTANCE') ||
+      activeRegistryItem?.category === 'distance')
+  );
+
+  const isRepetitionBased = Boolean(
+    !isDurationBased &&
+    !isDistanceBased &&
+    (rawMetricType.includes('REPETITION') ||
+      activeRegistryItem?.category === 'strength' ||
+      activeRegistryItem?.metric === 'sets' ||
+      activeRegistryItem?.metric === 'reps')
+  );
 
   const parsedDuration = parseFloat(duration) || 0;
   const parsedDistance = parseFloat(distance) || 0;
+  const parsedDurationVal = Math.round(parsedDuration) || 30;
+  const durationPct = Math.max(0, Math.min(1, (parsedDurationVal - 1) / 119));
   const liveVelocity =
     parsedDuration > 0 && parsedDistance > 0
       ? parsedDistance / (parsedDuration / 60)
       : 0;
-
-  const handleScroll = (event: any) => {
-    const yOffset = event.nativeEvent.contentOffset.y;
-    const index = Math.round(yOffset / ITEM_HEIGHT);
-    const value = MINUTES_LIST[index];
-    if (value !== undefined) {
-      setDuration(value.toString());
-    }
-  };
 
   const getInterpolatedOffset = (percentage: number) => {
     const radius = 42;
@@ -2475,9 +2571,9 @@ export const ActivityTrackingScreen: React.FC = () => {
                       {activityType}
                     </Text>
                     <Text style={styles.selectedExerciseSummaryCategory}>
-                      {activeRegistryItem?.category === 'strength'
+                      {isRepetitionBased
                         ? 'Strength Workout'
-                        : activeRegistryItem?.category === 'distance'
+                        : isDistanceBased
                         ? 'Distance Workout'
                         : 'Duration Workout'}
                     </Text>
@@ -2619,74 +2715,121 @@ export const ActivityTrackingScreen: React.FC = () => {
 
                     {!syncWearable && (
                       <>
-                        {/* Duration Input - Scroll Wheel */}
-                        <Text
-                          style={[
-                            styles.label,
-                            { textAlign: 'center', marginBottom: 8 },
-                          ]}
-                        >
-                          Duration (minutes)
-                        </Text>
-                        <View style={styles.pickerContainer}>
-                          <View style={styles.activeSelectionBox} />
+                        {/* Duration Input - Smooth Slider */}
+                        <View style={styles.durationSection}>
+                          <View style={styles.durationHeaderRow}>
+                            <View>
+                              <Text style={styles.durationTitle}>Duration</Text>
+                              <Text style={styles.durationSubtitle}>
+                                Target activity time
+                              </Text>
+                            </View>
+                            <View style={styles.durationValueBadge}>
+                              <Text style={styles.durationValueNum}>{duration}</Text>
+                              <Text style={styles.durationValueUnit}>MINS</Text>
+                            </View>
+                          </View>
 
-                          <FlatList
-                            ref={flatListRef}
-                            data={PICKER_DATA}
-                            keyExtractor={(_, index) => `min-${index}`}
-                            nestedScrollEnabled={true}
-                            onTouchStart={() => setParentScrollEnabled(false)}
-                            onTouchEnd={() => setParentScrollEnabled(true)}
-                            onMomentumScrollEnd={() =>
-                              setParentScrollEnabled(true)
-                            }
-                            renderItem={({ item, index }) => {
-                              const isSelected = item === parseInt(duration);
-                              if (item === '') {
-                                return <View style={{ height: ITEM_HEIGHT }} />;
-                              }
+                          {/* Interactive Slider Bar with -5 / +5 Step Buttons */}
+                          <View style={styles.durationSliderRow}>
+                            <TouchableOpacity
+                              style={styles.durationStepBtn}
+                              onPress={() => {
+                                const cur = parseInt(duration, 10) || 30;
+                                const next = Math.max(1, cur - 5);
+                                setDuration(next.toString());
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.durationStepBtnText}>-5</Text>
+                            </TouchableOpacity>
+
+                            <View
+                              ref={durationTrackRef}
+                              onLayout={e => {
+                                const w = e.nativeEvent.layout.width;
+                                if (w > 0) {
+                                  durationTrackWidth.current = w;
+                                  durationTrackRef.current?.measure(
+                                    (
+                                      x: number,
+                                      y: number,
+                                      width: number,
+                                      height: number,
+                                      pageXOffset: number,
+                                    ) => {
+                                      if (width > 0) {
+                                        durationTrackLeftOffset.current = pageXOffset;
+                                        durationTrackWidth.current = width;
+                                      }
+                                    },
+                                  );
+                                }
+                              }}
+                              style={styles.durationTrackTouchArea}
+                              {...durationPanResponder.panHandlers}
+                            >
+                              <View style={styles.durationTrackBg}>
+                                {/* Active filled track */}
+                                <View
+                                  style={[
+                                    styles.durationFill,
+                                    { width: `${durationPct * 100}%` },
+                                  ]}
+                                />
+                                {/* Thumb */}
+                                <View
+                                  style={[
+                                    styles.durationThumb,
+                                    { left: `${durationPct * 100}%` },
+                                  ]}
+                                >
+                                  <View style={styles.durationThumbDot} />
+                                </View>
+                              </View>
+                            </View>
+
+                            <TouchableOpacity
+                              style={styles.durationStepBtn}
+                              onPress={() => {
+                                const cur = parseInt(duration, 10) || 30;
+                                const next = Math.min(120, cur + 5);
+                                setDuration(next.toString());
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.durationStepBtnText}>+5</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* Quick Preset Duration Pills */}
+                          <View style={styles.durationPillsRow}>
+                            {[15, 30, 45, 60, 90, 120].map(mins => {
+                              const isSelected = parseInt(duration, 10) === mins;
                               return (
                                 <TouchableOpacity
+                                  key={mins}
+                                  style={[
+                                    styles.durationPill,
+                                    isSelected && styles.durationPillActive,
+                                  ]}
+                                  onPress={() => setDuration(mins.toString())}
                                   activeOpacity={0.7}
-                                  onPress={() => {
-                                    setDuration(item.toString());
-                                    flatListRef.current?.scrollToIndex({
-                                      index: index - 1,
-                                      animated: true,
-                                    });
-                                  }}
-                                  style={styles.pickerItem}
                                 >
                                   <Text
                                     style={[
-                                      styles.pickerItemText,
-                                      isSelected && styles.pickerItemTextActive,
+                                      styles.durationPillText,
+                                      isSelected && styles.durationPillTextActive,
                                     ]}
                                   >
-                                    {item}
+                                    {mins >= 60 && mins % 60 === 0
+                                      ? `${mins / 60}h`
+                                      : `${mins}m`}
                                   </Text>
-                                  {isSelected && (
-                                    <Text style={styles.minutesLabel}>
-                                      MINUTES
-                                    </Text>
-                                  )}
                                 </TouchableOpacity>
                               );
-                            }}
-                            showsVerticalScrollIndicator={false}
-                            snapToInterval={ITEM_HEIGHT}
-                            decelerationRate="fast"
-                            onScroll={handleScroll}
-                            scrollEventThrottle={16}
-                            getItemLayout={(_, index) => ({
-                              length: ITEM_HEIGHT,
-                              offset: ITEM_HEIGHT * index,
-                              index,
                             })}
-                            initialScrollIndex={29} // Index 29 maps to value 30
-                            contentContainerStyle={styles.pickerContent}
-                          />
+                          </View>
                         </View>
 
                         {/* RPE Scale Section */}
@@ -3815,48 +3958,141 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     letterSpacing: 0.5,
   },
-  pickerContainer: {
-    height: 180,
+  durationSection: {
     width: '100%',
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  durationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  durationTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  durationSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  durationValueBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  durationValueNum: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#60A5FA',
+  },
+  durationValueUnit: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#93C5FD',
+    marginLeft: 4,
+    letterSpacing: 0.5,
+  },
+  durationSliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: 10,
+    marginBottom: 14,
+  },
+  durationStepBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  durationStepBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  durationTrackTouchArea: {
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
+  },
+  durationTrackBg: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#1E293B',
     position: 'relative',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: '#0F172A',
   },
-  activeSelectionBox: {
+  durationFill: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+  },
+  durationThumb: {
     position: 'absolute',
-    height: ITEM_HEIGHT,
-    width: '100%',
-    backgroundColor: '#1E293B',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
     borderColor: '#3B82F6',
-    borderWidth: 1.5,
-    borderRadius: 16,
-  },
-  pickerContent: {
-    paddingVertical: 0,
-  },
-  pickerItem: {
-    height: ITEM_HEIGHT,
+    marginLeft: -14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 6,
   },
-  pickerItemText: {
-    fontSize: 26,
+  durationThumbDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3B82F6',
+  },
+  durationPillsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    gap: 6,
+  },
+  durationPill: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationPillActive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.22)',
+    borderColor: '#3B82F6',
+  },
+  durationPillText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#94A3B8',
   },
-  pickerItemTextActive: {
-    fontSize: 32,
+  durationPillTextActive: {
+    color: '#60A5FA',
     fontWeight: '800',
-    color: '#3B82F6',
-  },
-  minutesLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    letterSpacing: 1,
-    marginTop: 2,
   },
   rpeSection: {
     width: '100%',

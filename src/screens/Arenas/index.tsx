@@ -22,6 +22,7 @@ import { MetricSandboxModal } from './components/MetricSandboxModal';
 import { ThreeWayReferralModal } from './components/ThreeWayReferralModal';
 import { BiophysicalCalibrationModal } from './components/BiophysicalCalibrationModal';
 import { MedicalDisclaimerModal } from './components/MedicalDisclaimerModal';
+import { ArenaLeakDetectorModal } from '../../components/modals';
 import { ArenasBottomDock, ArenasDockTab } from './components/ArenasBottomDock';
 import { ArenasWarRoomView } from './components/ArenasWarRoomView';
 import { ArenasBracketsView } from './components/ArenasBracketsView';
@@ -41,6 +42,7 @@ export const ArenasScreen: React.FC = () => {
   const [referralInitialNode, setReferralInitialNode] = useState<'A' | 'B' | 'C' | 'D'>('A');
   const [isCalibrationVisible, setIsCalibrationVisible] = useState<boolean>(false);
   const [isDisclaimerVisible, setIsDisclaimerVisible] = useState<boolean>(false);
+  const [isLeakDetectorVisible, setIsLeakDetectorVisible] = useState<boolean>(true);
 
   // Scroll ref
   const scrollViewRef = useRef<ScrollView>(null);
@@ -82,7 +84,7 @@ export const ArenasScreen: React.FC = () => {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: activeTheme.canvasBase }]}
-      edges={['top']}
+      edges={['top', 'bottom']}
     >
       <StatusBar barStyle="light-content" backgroundColor={activeTheme.canvasBase} />
 
@@ -233,6 +235,12 @@ export const ArenasScreen: React.FC = () => {
       <MedicalDisclaimerModal
         visible={isDisclaimerVisible}
         onClose={() => setIsDisclaimerVisible(false)}
+      />
+
+      {/* Arena Leak Detector (Live S-DEX Penalties) Modal (Triggered on screen view) */}
+      <ArenaLeakDetectorModal
+        visible={isLeakDetectorVisible}
+        onClose={() => setIsLeakDetectorVisible(false)}
       />
     </SafeAreaView>
   );
